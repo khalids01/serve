@@ -19,7 +19,10 @@ export function SignInForm() {
 
     setIsLoading(true)
     try {
-      await signIn.magicLink({ email })
+      await signIn.magicLink({ 
+        email,
+        callbackURL: "/dashboard"
+      })
       setIsEmailSent(true)
     } catch (error) {
       console.error("Failed to send magic link:", error)
