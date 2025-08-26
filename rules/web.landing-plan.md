@@ -3,13 +3,12 @@
 ## Objectives
 - Build a clean, maintainable, reusable, and responsive landing page for an open source file storage server using shadcn/ui + Tailwind.
 - Showcase the file storage capabilities, features, and encourage adoption/contribution.
-- Prefer Server Components; use Client components for animations, interactivity, and 3D only.
+- Prefer Server Components; use Client components for animations and interactivity only.
 - Scope: Header and Hero sections only.
 
 ## Tech & Libraries
 - UI: shadcn/ui components
 - Animations: motion (framer-motion v12)
-- 3D: react-three-fiber + drei (OrbitControls) for file visualization
 - Icons: lucide-react (file, folder, cloud, server icons)
 - Data: Server stats and configuration via server function
 
@@ -18,10 +17,8 @@
 - Composition:
   - Header (Server): `src/components/core/site-header.tsx`
     - ProjectLogo (Client): `src/components/core/project-logo.tsx`
-  - Hero (Server wrapper): `src/features/landing/hero.tsx`
-    - Left (Server): project name, tagline, key features, GitHub stats (fetched via server function)
-    - Right (Client): FileVisualization 3D with OrbitControls `src/components/core/file-visualization.tsx`
-  - FloatingFiles (Client, page-level overlay): `src/components/core/floating-files.tsx`
+  - Hero (Server): `src/features/landing/hero.tsx`
+    - Centered single-column layout with project info, stats, and CTAs
 
 ## Data Model & Fetching
 - Server function: `src/features/landing/data.ts` → `getLandingData()`
@@ -38,58 +35,46 @@
 
 ## Components
 - site-header (Server)
-  - Layout: sticky top, container, left: ProjectLogo, right: GitHub link + Documentation nav
+  - Layout: sticky top, container mx-auto, left: ProjectLogo, right: GitHub link + Documentation nav
   - Uses shadcn/ui primitives for structure and theme consistency
   - Right side: GitHub stars badge, "Get Started" and "Documentation" buttons
 - project-logo (Client)
   - Motion-based entrance animation with server/cloud icon
   - Accessible: respects `prefers-reduced-motion`
 - hero (Server)
-  - Layout: responsive 2-column grid
-    - Left column: project name, tagline, feature highlights, GitHub stats, CTA buttons
-    - Right column: FileVisualization
-- file-visualization (Client)
-  - R3F Canvas with floating file/folder icons in 3D space
-  - File icons orbit around a central server icon
-  - Rotation animation + drei's OrbitControls (enabled)
-  - Lazy loaded via `next/dynamic` with `ssr: false`
-  - Responsive sizing; contains within parent, maintains performance
-- floating-files (Client)
-  - Lightweight canvas-based floating file icons across page background
-  - Subtle file/document icons drifting upward
-  - Runs behind content with pointer-events none
-  - Respects `prefers-reduced-motion`
+  - Layout: centered single-column design with max-width container
+  - Content: project name, tagline, feature badges, stats grid, CTA buttons, GitHub stats
+  - All elements centered with proper spacing and responsive design
 
 ## Styling & Layout
-- Use Tailwind + shadcn/ui; simple container and spacing
+- Use Tailwind + shadcn/ui with mx-auto for proper centering
 - Responsive breakpoints: sm, md, lg
+- Centered layout with max-width constraints
 - Avoid unnecessary wrapper tags; only semantic sections: `header`, `main`, `section`
 
 ## Accessibility
-- Reduced motion support for ProjectLogo, FileVisualization rotation, and FloatingFiles
-- Sufficient contrast, semantic HTML, aria labels on interactive 3D region
+- Reduced motion support for ProjectLogo animations
+- Sufficient contrast, semantic HTML, proper heading hierarchy
 - Screen reader friendly descriptions for file storage features
 
 ## Performance
-- Dynamic import for heavy client components: FileVisualization and FloatingFiles
-- Keep 3D draw calls minimal (central server icon + orbiting file sprites)
-- Memoize file icon textures and optimize rendering
+- Minimal client components, primarily server-side rendered
+- Optimized animations with framer-motion
+- Fast loading with proper image optimization
 
 ## Files to Create
 - `src/app/page.tsx` (Server)
 - `src/components/core/site-header.tsx` (Server)
 - `src/components/core/project-logo.tsx` (Client)
-- `src/components/core/floating-files.tsx` (Client)
-- `src/components/core/file-visualization.tsx` (Client)
 - `src/features/landing/hero.tsx` (Server)
 - `src/features/landing/data.ts` (Server function)
 
 ## Acceptance Criteria
 - Header at top with animated project logo and GitHub/documentation links
-- Hero shows project name, tagline, key features, and GitHub stats using server-fetched data
-- Right shows 3D file visualization with orbiting file icons around server icon
-- Floating file icons background effect visible behind content
+- Hero shows centered project name, tagline, key features, and GitHub stats using server-fetched data
+- Clean, centered single-column layout without distracting effects
+- Stats displayed in responsive grid with proper centering
 - Clear call-to-action buttons for "Get Started" and "View on GitHub"
-- Page is responsive (mobile/tablet/desktop)
+- Page is responsive (mobile/tablet/desktop) with proper container centering
 - Codebase respects Server/Client separation per rules
 - Emphasizes open source nature and encourages community contribution

@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role          @default(USER)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  applications  Application[] @relation("UserApplications")
+  apiKeys       ApiKey[]
+  auditLogs     AuditLog[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Application {
+  id         String     @id @default(cuid())
+  name       String
+  slug       String     @unique
+  ownerId    String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  storageDir String // e.g., "uploads/<appId>"
+  images     Image[]
+  apiKeys    ApiKey[]
+  members    User[]     @relation("UserApplications")
+  auditLogs  AuditLog[]
+}
+
+model Image {
+  id            String         @id @default(cuid())
+  applicationId String
+  filename      String
+  originalName  String
+  contentType   String
+  sizeBytes     Int
+  width         Int?
+  height        Int?
+  hash          String? // perceptual hash (optional)
+  tags          Json? // simple tags as JSON array
+  variants      ImageVariant[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id])
+}
+
+model ImageVariant {
+  id        String   @id @default(cuid())
+  imageId   String
+  label     String // e.g., "thumb", "1024w", "webp"
+  filename  String
+  width     Int?
+  height    Int?
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  image Image @relation(fields: [imageId], references: [id])
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  applicationId String
+  userId        String
+  name          String
+  // Store only a hash of the key, never the raw value
+  hash          String    @unique
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  revoked       Boolean   @default(false)
+
+  application Application @relation(fields: [applicationId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  auditLogs   AuditLog[]
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  applicationId String?
+  apiKeyId      String?
+  action        String // e.g., "UPLOAD", "DELETE", "LOGIN", "GENERATE_KEY"
+  targetId      String? // imageId or resourceId
+  ip            String?
+  userAgent     String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
+  apiKey      ApiKey?      @relation(fields: [apiKeyId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  USER
+}
