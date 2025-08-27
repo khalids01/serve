@@ -6,18 +6,21 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const applicationId = formData.get('applicationId') as string
     const tags = formData.get('tags') as string
+
+    // Get application ID from middleware (API key validation)
+    const applicationId = request.headers.get('x-application-id')
+    const userId = request.headers.get('x-user-id')
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (!applicationId) {
-      return NextResponse.json({ error: 'Application ID required' }, { status: 400 })
+    if (!applicationId || !userId) {
+      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
     }
 
-    // Verify application exists
+    // Verify application exists (should always exist due to middleware validation)
     const application = await prisma.application.findUnique({
       where: { id: applicationId }
     })
