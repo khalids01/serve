@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiKeyService } from './lib/api-keys'
+import { requireSessionAuth } from './lib/auth-middleware'
 
 export async function middleware(request: NextRequest) {
-  // Only apply middleware to API routes that need API key authentication
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/api/auth/')
-  const isUploadRoute = request.nextUrl.pathname.startsWith('/api/upload')
-  const isImagesRoute = request.nextUrl.pathname.startsWith('/api/images')
+  const { pathname } = request.nextUrl
   
-  // Skip auth routes and non-API routes
-  if (!isApiRoute || isAuthRoute) {
+  // Handle dashboard routes - require session authentication
+  if (pathname.startsWith('/dashboard')) {
+    const authResult = await requireSessionAuth(request)
+    if (authResult) return authResult
+  }
+
+  // Handle API routes
+  const isApiRoute = pathname.startsWith('/api/')
+  const isAuthRoute = pathname.startsWith('/api/auth/')
+  const isUploadRoute = pathname.startsWith('/api/upload')
+  const isImagesRoute = pathname.startsWith('/api/images')
+  const isApplicationsRoute = pathname.startsWith('/api/applications')
+  
+  // Skip auth routes
+  if (isAuthRoute) {
     return NextResponse.next()
   }
 
@@ -50,12 +60,25 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // For applications API routes, require session authentication
+  if (isApplicationsRoute) {
+    const authResult = await requireSessionAuth(request)
+    if (authResult) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
+    '/dashboard/:path*',
     '/api/upload/:path*',
     '/api/images/:path*',
+    '/api/applications/:path*',
   ]
 }
