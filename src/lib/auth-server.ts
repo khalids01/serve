@@ -1,7 +1,8 @@
 import { headers } from 'next/headers'
 import { auth } from './auth'
+import type { User } from './auth'
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<User | null> {
   const session = await auth.api.getSession({
     headers: await headers()
   })
@@ -9,7 +10,7 @@ export async function getCurrentUser() {
   return session?.user || null
 }
 
-export async function requireAuth() {
+export async function requireAuth(): Promise<User> {
   const user = await getCurrentUser()
   
   if (!user) {

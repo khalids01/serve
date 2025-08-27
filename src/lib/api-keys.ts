@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from 'crypto'
 import { prisma } from './prisma'
+import type { ApiKey, Application, User } from '@/lib/prisma-types'
 
 export interface ApiKeyResult {
   id: string
@@ -59,9 +60,9 @@ export class ApiKeyService {
    * Validate an API key and return the associated data
    */
   static async validateKey(key: string): Promise<{
-    apiKey: any
-    application: any
-    user: any
+    apiKey: ApiKey
+    application: Application
+    user: User
   } | null> {
     const hash = this.hashKey(key)
 
@@ -93,7 +94,13 @@ export class ApiKeyService {
   /**
    * List API keys for an application (without raw keys)
    */
-  static async listKeys(applicationId: string, userId: string) {
+  static async listKeys(applicationId: string, userId: string): Promise<Array<{
+    id: string
+    name: string
+    lastUsedAt: Date | null
+    createdAt: Date
+    revoked: boolean
+  }>> {
     return prisma.apiKey.findMany({
       where: {
         applicationId,

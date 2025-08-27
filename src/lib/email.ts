@@ -1,7 +1,27 @@
 import nodemailer from 'nodemailer'
+import type { Transporter } from 'nodemailer'
+
+// Types for better error handling
+interface EmailError extends Error {
+  code?: string // SMTP error codes like 'EAUTH', 'ECONNECTION', 'ETIMEDOUT'
+  response?: string // SMTP server response
+}
+
+function isEmailError(e: unknown): e is EmailError {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'message' in e
+  )
+}
+
+interface EmailResult {
+  success: boolean
+  messageId?: string // Nodemailer message ID for tracking
+}
 
 // Email configuration validation
-function validateEmailConfig() {
+function validateEmailConfig(): void {
   const required = ['SMTP_HOST', 'EMAIL', 'EMAIL_PASSWORD']
   const missing = required.filter(key => !process.env[key])
   
@@ -11,7 +31,7 @@ function validateEmailConfig() {
 }
 
 // Create transporter with fallback configuration
-function createEmailTransporter() {
+function createEmailTransporter(): Transporter | null {
   try {
     validateEmailConfig()
     
@@ -31,15 +51,16 @@ function createEmailTransporter() {
       greetingTimeout: 5000, // 5 seconds
       socketTimeout: 10000, // 10 seconds
     })
-  } catch (error) {
-    console.warn('Email configuration not available:', error.message)
+  } catch (error: unknown) {
+    const msg = isEmailError(error) ? error.message : 'Unknown error'
+    console.warn('Email configuration not available:', msg)
     return null
   }
 }
 
 const transporter = createEmailTransporter()
 
-export async function sendMagicLinkEmail(email: string, magicLinkUrl: string) {
+export async function sendMagicLinkEmail(email: string, magicLinkUrl: string): Promise<EmailResult> {
   // Check if email is configured
   if (!transporter) {
     console.warn('Email not configured - magic link cannot be sent')
@@ -107,18 +128,19 @@ export async function sendMagicLinkEmail(email: string, magicLinkUrl: string) {
     console.log('Magic link email sent successfully to:', email)
     console.log('Message ID:', info.messageId)
     return { success: true, messageId: info.messageId }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to send magic link email:', error)
     
-    // Provide more specific error messages
-    if (error.code === 'EAUTH') {
+    // Provide more specific error messages based on SMTP error codes
+    const emailError = isEmailError(error) ? error : undefined
+    if (emailError?.code === 'EAUTH') {
       throw new Error('Email authentication failed. Please check your email credentials.')
-    } else if (error.code === 'ECONNECTION') {
+    } else if (emailError?.code === 'ECONNECTION') {
       throw new Error('Cannot connect to email server. Please check your SMTP settings.')
-    } else if (error.code === 'ETIMEDOUT') {
+    } else if (emailError?.code === 'ETIMEDOUT') {
       throw new Error('Email sending timed out. Please try again.')
     } else {
-      throw new Error(`Failed to send email: ${error.message}`)
+      throw new Error(`Failed to send email: ${emailError?.message || 'Unknown error'}`)
     }
   }
 }
@@ -132,8 +154,9 @@ export async function testEmailConfiguration(): Promise<{ success: boolean; erro
   try {
     await transporter.verify()
     return { success: true }
-  } catch (error) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    const msg = isEmailError(error) ? error.message : 'Unknown verification error'
+    return { success: false, error: msg }
   }
 }
 
@@ -168,7 +191,8 @@ export async function sendTestEmail(email: string): Promise<{ success: boolean; 
   try {
     const info = await transporter.sendMail(mailOptions)
     return { success: true }
-  } catch (error) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    const msg = isEmailError(error) ? error.message : 'Unknown email sending error'
+    return { success: false, error: msg }
   }
 }

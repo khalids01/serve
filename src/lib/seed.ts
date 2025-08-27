@@ -4,11 +4,11 @@ export async function seedDatabase() {
   try {
     // Create a test user
     const user = await prisma.user.upsert({
-      where: { email: 'admin@serve.dev' },
+      where: { email: 'khalid.code03@gmail.com' },
       update: {},
       create: {
-        email: 'admin@serve.dev',
-        role: 'ADMIN'
+        email: 'khalid.code03@gmail.com',
+        role: 'admin'
       }
     })
 

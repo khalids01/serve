@@ -1,26 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ApiKeyService } from '@/lib/api-keys'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/lib/prisma-types'
 
 export async function GET(request: NextRequest) {
   try {
+    // Validate API key
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header. Use: Bearer sk_live_...' },
+        { status: 401 }
+      )
+    }
+
+    const apiKey = authHeader.substring(7) // Remove 'Bearer '
+    const validation = await ApiKeyService.validateKey(apiKey)
+    
+    if (!validation) {
+      return NextResponse.json(
+        { error: 'Invalid API key' },
+        { status: 401 }
+      )
+    }
+
+    const { application } = validation
+
+    // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const applicationId = searchParams.get('applicationId')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const search = searchParams.get('search')
     const tags = searchParams.get('tags')
     const contentType = searchParams.get('contentType')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    if (!applicationId) {
-      return NextResponse.json({ error: 'Application ID required' }, { status: 400 })
-    }
-
     const skip = (page - 1) * limit
 
-    // Build advanced search conditions
+    // Build search conditions
     const searchConditions: Prisma.ImageWhereInput[] = []
 
     // Text search across multiple fields
@@ -34,10 +52,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Tag filtering - TODO: Implement proper JSON array search
-    // For now, tag filtering is disabled due to SQLite JSON limitations
-    // This will be enhanced in a future update with raw SQL queries
-
     // Content type filtering
     if (contentType) {
       searchConditions.push({
@@ -46,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     const where: Prisma.ImageWhereInput = {
-      applicationId,
+      applicationId: application.id,
       ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
     }
 
@@ -86,7 +100,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('List images error:', error)
+    console.error('V1 List images error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch images' },
       { status: 500 }

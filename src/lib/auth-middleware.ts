@@ -31,7 +31,7 @@ export async function requireAdminAuth(request: NextRequest): Promise<NextRespon
       return NextResponse.redirect(signInUrl)
     }
 
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

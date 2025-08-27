@@ -80,5 +80,6 @@ export const config = {
     '/api/upload/:path*',
     '/api/images/:path*',
     '/api/applications/:path*',
-  ]
+  ],
+  runtime: 'nodejs'
 }

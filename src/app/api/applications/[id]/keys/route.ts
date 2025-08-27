@@ -3,14 +3,12 @@ import { ApiKeyService } from '@/lib/api-keys'
 import { requireAuth } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
 
-interface RouteParams {
-  params: { id: string }
-}
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const user = await requireAuth()
-    const applicationId = params.id
+    const { id: applicationId } = await context.params
 
     // Verify user owns the application
     const application = await prisma.application.findFirst({
@@ -47,10 +45,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const user = await requireAuth()
-    const applicationId = params.id
+    const { id: applicationId } = await context.params
     const { name } = await request.json()
 
     if (!name) {

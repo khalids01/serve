@@ -1,15 +1,17 @@
 "use client"
 
-import { admin } from "better-auth/plugins"
 import { createAuthClient } from "better-auth/react"
-import { magicLinkClient } from "better-auth/client/plugins"
+import { adminClient, magicLinkClient } from "better-auth/client/plugins"
 
 export const authClient = createAuthClient({
   plugins: [
-    admin(),
+    adminClient(),
     magicLinkClient()
   ],
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003"
 })
+
+// Infer strictly-typed Session from the client (includes user with plugin-added fields like `role`)
+export type Session = typeof authClient.$Infer.Session
 
 export const { signIn, signOut, useSession } = authClient

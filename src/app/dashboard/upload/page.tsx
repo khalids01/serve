@@ -11,12 +11,18 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Upload, X, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
+import type { Image, ImageVariant } from "@/lib/prisma-types"
+
+type UploadSuccess = {
+  success: true
+  image: (Image & { url: string; variants: Array<ImageVariant & { url: string }> })
+}
 
 interface UploadedFile {
   file: File
   progress: number
   status: 'pending' | 'uploading' | 'success' | 'error'
-  result?: any
+  result?: UploadSuccess
   error?: string
 }
 
@@ -79,7 +85,7 @@ export default function UploadPage() {
         throw new Error('Upload failed')
       }
 
-      const result = await response.json()
+      const result: UploadSuccess = await response.json()
       
       setFiles(prev => prev.map((f, i) => 
         i === index ? { 

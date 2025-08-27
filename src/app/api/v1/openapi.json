@@ -1,0 +1,523 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Serve API",
+    "description": "A fast, secure, and scalable file storage API built for developers who need reliable file storage without vendor lock-in.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Serve API Support",
+      "url": "https://github.com/serve-api/serve"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Production API"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "API key authentication. Use format: Bearer sk_live_..."
+      }
+    },
+    "schemas": {
+      "Image": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique image identifier"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Generated filename"
+          },
+          "originalName": {
+            "type": "string",
+            "description": "Original uploaded filename"
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME type of the image"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "File size in bytes"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Image width in pixels"
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Image height in pixels"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "Image tags for categorization"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageVariant"
+            },
+            "description": "Generated image variants (thumbnails, different sizes)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Upload timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last modification timestamp"
+          }
+        },
+        "required": ["id", "filename", "originalName", "contentType", "sizeBytes", "createdAt", "updatedAt"]
+      },
+      "ImageVariant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Variant identifier"
+          },
+          "label": {
+            "type": "string",
+            "description": "Variant label (e.g., 'thumb', '1024w', 'webp')"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Variant filename"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Variant width in pixels"
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Variant height in pixels"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "Variant file size in bytes"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          }
+        },
+        "required": ["id", "label", "filename", "sizeBytes", "createdAt"]
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Items per page"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of items"
+          },
+          "pages": {
+            "type": "integer",
+            "description": "Total number of pages"
+          }
+        },
+        "required": ["page", "limit", "total", "pages"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code"
+          }
+        },
+        "required": ["error"]
+      },
+      "UploadResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Upload success status"
+          },
+          "image": {
+            "$ref": "#/components/schemas/Image"
+          }
+        },
+        "required": ["success", "image"]
+      },
+      "ImageListResponse": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": ["images", "pagination"]
+      }
+    }
+  },
+  "paths": {
+    "/upload": {
+      "post": {
+        "summary": "Upload an image",
+        "description": "Upload a new image file to your application storage",
+        "tags": ["Images"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file to upload"
+                  },
+                  "tags": {
+                    "type": "string",
+                    "description": "Comma-separated list of tags"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or missing parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/images": {
+      "get": {
+        "summary": "List images",
+        "description": "Retrieve a paginated list of images with optional filtering and sorting",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page (default: 20, max: 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search term for filename, original name, or content type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "Comma-separated list of tags to filter by",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contentType",
+            "in": "query",
+            "description": "Filter by content type (e.g., 'image/jpeg')",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Sort field",
+            "schema": {
+              "type": "string",
+              "enum": ["createdAt", "name", "size", "type"],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Images retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/images/{id}": {
+      "get": {
+        "summary": "Get image details",
+        "description": "Retrieve detailed information about a specific image",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Image ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Image"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Image not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an image",
+        "description": "Permanently delete an image and all its variants",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Image ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Image not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Images",
+      "description": "Image upload, retrieval, and management operations"
+    }
+  ]
+}

@@ -4,11 +4,12 @@ import { FileStorageService } from '@/lib/file-storage'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const image = await prisma.image.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         variants: true,
         application: true
@@ -41,11 +42,12 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const image = await prisma.image.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { variants: true }
     })
 
@@ -65,7 +67,7 @@ export async function DELETE(
 
     // Delete from database
     await prisma.image.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ success: true })

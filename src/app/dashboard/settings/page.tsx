@@ -15,7 +15,7 @@ import { useSession } from '@/lib/auth-client'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
-  const [emailConfig, setEmailConfig] = useState({ configured: false, error: null })
+  const [emailConfig, setEmailConfig] = useState<{ configured: boolean; error: string | null }>({ configured: false, error: null })
   const [testingEmail, setTestingEmail] = useState(false)
   const [testEmail, setTestEmail] = useState('')
 
@@ -27,7 +27,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/admin/email/test')
       if (response.ok) {
-        const data = await response.json()
+        const data: { configured: boolean; error: string | null } = await response.json()
         setEmailConfig({ configured: data.configured, error: data.error })
       }
     } catch (error) {
@@ -55,8 +55,8 @@ export default function SettingsPage() {
         toast.success('Test email sent successfully')
         setTestEmail('')
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to send test email')
+        const errorData: { error?: string } = await response.json()
+        toast.error(errorData.error || 'Failed to send test email')
       }
     } catch (error) {
       toast.error('Error sending test email')
@@ -81,7 +81,7 @@ export default function SettingsPage() {
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="system">System</TabsTrigger>
-            {session?.user?.role === 'ADMIN' && (
+            {session?.user?.role === 'admin' && (
               <TabsTrigger value="admin">Admin</TabsTrigger>
             )}
           </TabsList>
@@ -125,8 +125,8 @@ export default function SettingsPage() {
                 <div>
                   <Label>Account Role</Label>
                   <div className="mt-1">
-                    <Badge variant={session?.user?.role === 'ADMIN' ? 'default' : 'secondary'}>
-                      {session?.user?.role || 'USER'}
+                    <Badge variant={session?.user?.role === 'admin' ? 'default' : 'secondary'}>
+                      {session?.user?.role || 'user'}
                     </Badge>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {session?.user?.role === 'ADMIN' && (
+          {session?.user?.role === 'admin' && (
             <TabsContent value="admin" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -326,3 +326,4 @@ export default function SettingsPage() {
     </div>
   )
 }
+

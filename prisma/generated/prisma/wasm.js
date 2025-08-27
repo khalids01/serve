@@ -124,6 +124,9 @@ exports.Prisma.UserScalarFieldEnum = {
   emailVerified: 'emailVerified',
   image: 'image',
   role: 'role',
+  banned: 'banned',
+  banReason: 'banReason',
+  banExpires: 'banExpires',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -150,6 +153,7 @@ exports.Prisma.SessionScalarFieldEnum = {
   sessionToken: 'sessionToken',
   userId: 'userId',
   expires: 'expires',
+  impersonatedBy: 'impersonatedBy',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -158,6 +162,15 @@ exports.Prisma.VerificationTokenScalarFieldEnum = {
   identifier: 'identifier',
   token: 'token',
   expires: 'expires'
+};
+
+exports.Prisma.VerificationScalarFieldEnum = {
+  id: 'id',
+  identifier: 'identifier',
+  value: 'value',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.ApplicationScalarFieldEnum = {
@@ -245,16 +258,14 @@ exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 };
-exports.Role = exports.$Enums.Role = {
-  ADMIN: 'ADMIN',
-  USER: 'USER'
-};
+
 
 exports.Prisma.ModelName = {
   User: 'User',
   Account: 'Account',
   Session: 'Session',
   VerificationToken: 'VerificationToken',
+  verification: 'verification',
   Application: 'Application',
   Image: 'Image',
   ImageVariant: 'ImageVariant',

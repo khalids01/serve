@@ -7,7 +7,7 @@ export async function GET() {
     const user = await requireAuth()
     
     // Only allow admin users to test email configuration
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth()
     
     // Only allow admin users to send test emails
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
