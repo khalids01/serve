@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser, requireAuth } from '@/lib/auth-server'
 
 export async function GET() {
   try {
+    const user = await getCurrentUser()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const applications = await prisma.application.findMany({
+      where: {
+        ownerId: user.id
+      },
       include: {
         _count: {
           select: {
@@ -30,6 +43,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { name, slug } = await request.json()
 
     if (!name || !slug) {
@@ -55,7 +69,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         slug,
-        ownerId: 'temp-user-id', // TODO: Replace with actual user ID from auth
+        ownerId: user.id,
         storageDir: `uploads/${slug}`
       }
     })
@@ -64,6 +78,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Create application error:', error)
+    
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create application' },
       { status: 500 }
