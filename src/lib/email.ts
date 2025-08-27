@@ -1,18 +1,53 @@
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-})
+// Email configuration validation
+function validateEmailConfig() {
+  const required = ['SMTP_HOST', 'EMAIL', 'EMAIL_PASSWORD']
+  const missing = required.filter(key => !process.env[key])
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing email configuration: ${missing.join(', ')}`)
+  }
+}
+
+// Create transporter with fallback configuration
+function createEmailTransporter() {
+  try {
+    validateEmailConfig()
+    
+    const port = parseInt(process.env.SMTP_PORT || '465')
+    const secure = port === 465 // true for 465, false for other ports
+    
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure,
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+      // Add connection timeout and retry options
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000, // 5 seconds
+      socketTimeout: 10000, // 10 seconds
+    })
+  } catch (error) {
+    console.warn('Email configuration not available:', error.message)
+    return null
+  }
+}
+
+const transporter = createEmailTransporter()
 
 export async function sendMagicLinkEmail(email: string, magicLinkUrl: string) {
+  // Check if email is configured
+  if (!transporter) {
+    console.warn('Email not configured - magic link cannot be sent')
+    throw new Error('Email service not configured. Please set up SMTP settings.')
+  }
+
   const mailOptions = {
-    from: `"${process.env.EMAIL_FROM}" <${process.env.EMAIL}>`,
+    from: `"${process.env.EMAIL_FROM || 'Serve'}" <${process.env.EMAIL}>`,
     to: email,
     subject: 'Sign in to Serve - File Storage Server',
     html: `
@@ -68,10 +103,72 @@ export async function sendMagicLinkEmail(email: string, magicLinkUrl: string) {
   }
 
   try {
-    await transporter.sendMail(mailOptions)
+    const info = await transporter.sendMail(mailOptions)
     console.log('Magic link email sent successfully to:', email)
+    console.log('Message ID:', info.messageId)
+    return { success: true, messageId: info.messageId }
   } catch (error) {
     console.error('Failed to send magic link email:', error)
-    throw new Error('Failed to send magic link email')
+    
+    // Provide more specific error messages
+    if (error.code === 'EAUTH') {
+      throw new Error('Email authentication failed. Please check your email credentials.')
+    } else if (error.code === 'ECONNECTION') {
+      throw new Error('Cannot connect to email server. Please check your SMTP settings.')
+    } else if (error.code === 'ETIMEDOUT') {
+      throw new Error('Email sending timed out. Please try again.')
+    } else {
+      throw new Error(`Failed to send email: ${error.message}`)
+    }
+  }
+}
+
+// Test email configuration
+export async function testEmailConfiguration(): Promise<{ success: boolean; error?: string }> {
+  if (!transporter) {
+    return { success: false, error: 'Email not configured' }
+  }
+
+  try {
+    await transporter.verify()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Send test email
+export async function sendTestEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  if (!transporter) {
+    return { success: false, error: 'Email not configured' }
+  }
+
+  const mailOptions = {
+    from: `"${process.env.EMAIL_FROM || 'Serve'}" <${process.env.EMAIL}>`,
+    to: email,
+    subject: 'Serve Email Configuration Test',
+    html: `
+      <h2>Email Configuration Test</h2>
+      <p>If you received this email, your Serve email configuration is working correctly!</p>
+      <p><strong>Server:</strong> ${process.env.SMTP_HOST}</p>
+      <p><strong>Port:</strong> ${process.env.SMTP_PORT || '465'}</p>
+      <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+    `,
+    text: `
+      Email Configuration Test
+      
+      If you received this email, your Serve email configuration is working correctly!
+      
+      Server: ${process.env.SMTP_HOST}
+      Port: ${process.env.SMTP_PORT || '465'}
+      Time: ${new Date().toISOString()}
+    `
+  }
+
+  try {
+    const info = await transporter.sendMail(mailOptions)
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
   }
 }
