@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { SiteHeader } from '@/components/core/site-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -108,7 +107,6 @@ export default function ApplicationDetailsPage() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <SiteHeader />
         <main className="container mx-auto py-8">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -122,7 +120,6 @@ export default function ApplicationDetailsPage() {
   if (!application) {
     return (
       <div className="min-h-screen">
-        <SiteHeader />
         <main className="container mx-auto py-8">
           <Card className="text-center py-12">
             <CardContent>
@@ -142,7 +139,6 @@ export default function ApplicationDetailsPage() {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
       
       <main className="container mx-auto py-8">
         <div className="mb-8">

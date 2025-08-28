@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Code, Book, Zap } from "lucide-react";
-import { SiteHeader } from "@/components/core/site-header";
+import { PublicHeader } from "@/components/core/public-header";
 import { GettingStartedSection } from "@/features/docs/sections/getting-started";
 import { AuthenticationSection } from "@/features/docs/sections/authentication";
 import { UploadImageSection } from "@/features/docs/sections/upload-image";
@@ -24,7 +24,7 @@ export default function ApiDocsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SiteHeader />
+      <PublicHeader />
 
       {/* Docs Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

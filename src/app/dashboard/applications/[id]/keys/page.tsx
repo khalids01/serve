@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { SiteHeader } from '@/components/core/site-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -150,7 +149,6 @@ export default function ApiKeysPage() {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
       
       <main className="container mx-auto py-8">
         <div className="mb-8">

@@ -1,13 +1,13 @@
-import { SiteHeader } from "@/components/core/site-header"
 import { Hero } from "@/features/landing/hero"
 import { FeaturesGrid } from "@/features/landing/features-grid"
 import { HowItWorks } from "@/features/landing/how-it-works"
 import { CtaBanner } from "@/features/landing/cta-banner"
+import { PublicHeader } from "@/components/core/public-header"
 
 export default function Home() {
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <PublicHeader />
       <main>
         <Hero />
         <FeaturesGrid />

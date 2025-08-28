@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { SiteHeader } from "@/components/core/site-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -126,7 +125,6 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
       
       <main className="container mx-auto py-8">
         <div className="mb-8">

@@ -1,10 +1,10 @@
 import { SignInForm } from "@/features/auth/sign-in-form"
-import { SiteHeader } from "@/components/core/site-header"
+import { PublicHeader } from "@/components/core/public-header"
 
 export default function SignInPage() {
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <PublicHeader />
       
       <main className="container mx-auto py-24">
         <div className="flex flex-col items-center justify-center space-y-8">

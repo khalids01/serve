@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { SiteHeader } from "@/components/core/site-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -76,7 +75,6 @@ export default function DashboardPage() {
   }
   return (
     <div className="min-h-screen">
-      <SiteHeader />
       
       <main className="container mx-auto py-8">
         <div className="mb-8">
