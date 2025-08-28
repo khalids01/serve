@@ -1,0 +1,78 @@
+
+model Application {
+    id         String     @id @default(cuid())
+    name       String
+    slug       String     @unique
+    ownerId    String
+    createdAt  DateTime   @default(now())
+    updatedAt  DateTime   @updatedAt
+    storageDir String // e.g., "uploads/<appId>"
+    images     Image[]
+    apiKeys    ApiKey[]
+    members    User[]     @relation("UserApplications")
+    auditLogs  AuditLog[]
+}
+
+model Image {
+    id            String         @id @default(cuid())
+    applicationId String
+    filename      String
+    originalName  String
+    contentType   String
+    sizeBytes     Int
+    width         Int?
+    height        Int?
+    hash          String? // perceptual hash (optional)
+    tags          Json? // simple tags as JSON array
+    variants      ImageVariant[]
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+
+    application Application @relation(fields: [applicationId], references: [id])
+}
+
+model ImageVariant {
+    id        String   @id @default(cuid())
+    imageId   String
+    label     String // e.g., "thumb", "1024w", "webp"
+    filename  String
+    width     Int?
+    height    Int?
+    sizeBytes Int
+    createdAt DateTime @default(now())
+
+    image Image @relation(fields: [imageId], references: [id])
+}
+
+model ApiKey {
+    id            String    @id @default(cuid())
+    applicationId String
+    userId        String
+    name          String
+    // Store only a hash of the key, never the raw value
+    hash          String    @unique
+    lastUsedAt    DateTime?
+    createdAt     DateTime  @default(now())
+    revoked       Boolean   @default(false)
+
+    application Application @relation(fields: [applicationId], references: [id])
+    user        User        @relation(fields: [userId], references: [id])
+    auditLogs   AuditLog[]
+}
+
+model AuditLog {
+    id            String   @id @default(cuid())
+    userId        String?
+    applicationId String?
+    apiKeyId      String?
+    action        String // e.g., "UPLOAD", "DELETE", "LOGIN", "GENERATE_KEY"
+    targetId      String? // imageId or resourceId
+    ip            String?
+    userAgent     String?
+    metadata      Json?
+    createdAt     DateTime @default(now())
+
+    user        User?        @relation(fields: [userId], references: [id])
+    application Application? @relation(fields: [applicationId], references: [id])
+    apiKey      ApiKey?      @relation(fields: [apiKeyId], references: [id])
+}

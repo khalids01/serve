@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiKeyService } from './lib/api-keys'
-import { requireSessionAuth } from './lib/auth-middleware'
+import { getCurrentUser } from './lib/auth-server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
   // Handle dashboard routes - require session authentication
   if (pathname.startsWith('/dashboard')) {
-    const authResult = await requireSessionAuth(request)
-    if (authResult) return authResult
+    const user = await getCurrentUser(request.headers)
+    if (!user) {
+      const signInUrl = new URL('/auth/sign-in', request.url)
+      signInUrl.searchParams.set('callbackUrl', request.url)
+      return NextResponse.redirect(signInUrl)
+    }
   }
 
   // Handle API routes
@@ -62,8 +66,8 @@ export async function middleware(request: NextRequest) {
 
   // For applications API routes, require session authentication
   if (isApplicationsRoute) {
-    const authResult = await requireSessionAuth(request)
-    if (authResult) {
+    const user = await getCurrentUser(request.headers)
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }

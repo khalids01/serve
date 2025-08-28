@@ -20,7 +20,7 @@ export function SiteHeader() {
           </Button>
           
           <Button variant="ghost" size="sm" asChild>
-            <Link href="https://github.com/your-username/serve" target="_blank" rel="noopener noreferrer">
+            <Link href="https://github.com/khalids01/serve" target="_blank" rel="noopener noreferrer">
               <Github className="h-4 w-4 mr-2" />
               GitHub
             </Link>

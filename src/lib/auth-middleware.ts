@@ -3,7 +3,7 @@ import { getCurrentUser } from './auth-server'
 
 export async function requireSessionAuth(request: NextRequest): Promise<NextResponse | null> {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(request.headers)
     
     if (!user) {
       // Redirect to sign-in page for dashboard routes
@@ -23,7 +23,7 @@ export async function requireSessionAuth(request: NextRequest): Promise<NextResp
 
 export async function requireAdminAuth(request: NextRequest): Promise<NextResponse | null> {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(request.headers)
     
     if (!user) {
       const signInUrl = new URL('/auth/sign-in', request.url)
