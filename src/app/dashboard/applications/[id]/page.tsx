@@ -6,9 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FolderOpen, Key, Upload, Settings, BarChart3, Image, Trash2 } from 'lucide-react'
+import { FolderOpen, Key, Upload, Image, Trash2, Eye, List, Grid2X2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 interface Application {
   id: string
@@ -41,6 +54,18 @@ interface ImageFile {
   }>
 }
 
+interface AuditLogItem {
+  id: string
+  userId?: string | null
+  applicationId?: string | null
+  action: string
+  targetId?: string | null
+  ip?: string | null
+  userAgent?: string | null
+  metadata?: any
+  createdAt: string
+}
+
 export default function ApplicationDetailsPage() {
   const params = useParams()
   const applicationId = params.id as string
@@ -49,10 +74,17 @@ export default function ApplicationDetailsPage() {
   const [images, setImages] = useState<ImageFile[]>([])
   const [loading, setLoading] = useState(true)
   const [imagesLoading, setImagesLoading] = useState(false)
+  const [activity, setActivity] = useState<AuditLogItem[]>([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [previewImage, setPreviewImage] = useState<ImageFile | null>(null)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [targetDelete, setTargetDelete] = useState<ImageFile | null>(null)
 
   useEffect(() => {
     fetchApplication()
     fetchImages()
+    fetchActivity()
   }, [applicationId])
 
   const fetchApplication = async () => {
@@ -73,16 +105,49 @@ export default function ApplicationDetailsPage() {
   const fetchImages = async () => {
     setImagesLoading(true)
     try {
-      const response = await fetch('/api/images')
+      const response = await fetch(`/api/images?applicationId=${applicationId}&limit=100`)
       if (response.ok) {
         const data = await response.json()
-        // Filter images by application (this would need to be implemented in the API)
         setImages(data.images || [])
       }
     } catch (error) {
       toast.error('Error fetching images')
     } finally {
       setImagesLoading(false)
+    }
+  }
+
+  const fetchActivity = async () => {
+    setActivityLoading(true)
+    try {
+      const response = await fetch(`/api/audit-logs?applicationId=${applicationId}&limit=10`)
+      if (response.ok) {
+        const data = await response.json()
+        setActivity(data.logs || [])
+      }
+    } catch (error) {
+      // silent toast; optional UX
+    } finally {
+      setActivityLoading(false)
+    }
+  }
+
+  const onDeleteRequest = (img: ImageFile) => {
+    setTargetDelete(img)
+    setConfirmDeleteOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!targetDelete) return
+    try {
+      const res = await fetch(`/api/images/${targetDelete.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
+      toast.success('File deleted')
+      setConfirmDeleteOpen(false)
+      setTargetDelete(null)
+      await Promise.all([fetchImages(), fetchActivity(), fetchApplication()])
+    } catch (e) {
+      toast.error('Failed to delete file')
     }
   }
 
@@ -217,12 +282,37 @@ export default function ApplicationDetailsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest file uploads and API usage</CardDescription>
+                <CardDescription>Latest file uploads and deletions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  Activity tracking coming soon
-                </div>
+                {activityLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading activity…</div>
+                ) : activity.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No activity yet</div>
+                ) : (
+                  <div className="space-y-3">
+                    {activity.map((log) => (
+                      <div key={log.id} className="flex items-center justify-between border rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          <Badge variant={log.action === 'DELETE' ? 'destructive' : 'secondary'}>
+                            {log.action}
+                          </Badge>
+                          <div className="text-sm">
+                            <div className="font-medium">
+                              {log.metadata?.originalName || log.metadata?.filename || log.targetId}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {formatDate(log.createdAt)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground hidden md:block">
+                          {log.ip || ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -230,10 +320,22 @@ export default function ApplicationDetailsPage() {
           <TabsContent value="files" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Files</CardTitle>
-                <CardDescription>
-                  All files uploaded to this application
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Files</CardTitle>
+                    <CardDescription>
+                      All files uploaded to this application
+                    </CardDescription>
+                  </div>
+                  <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
+                    <ToggleGroupItem value="list" aria-label="List view">
+                      <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="grid" aria-label="Grid view">
+                      <Grid2X2 className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
               </CardHeader>
               <CardContent>
                 {imagesLoading ? (
@@ -249,47 +351,111 @@ export default function ApplicationDetailsPage() {
                       Upload your first file to get started.
                     </p>
                     <Button asChild>
-                      <Link href={`/dashboard/upload?app=${application.id}`}>
+                      <Link href={`/dashboard/upload?app=${application?.id || applicationId}`}>
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Files
                       </Link>
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {images.map((image) => (
-                      <div
-                        key={image.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                            <Image className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+                    {images.map((img) => {
+                      const url = `/api/images/${img.id}/content`
+                      if (viewMode === 'grid') {
+                        return (
+                          <div key={img.id} className="border rounded-lg overflow-hidden">
+                            <div className="aspect-video bg-muted">
+                              {/* Thumbnail via on-demand resize */}
+                              <img src={`${url}?w=640`} alt={img.originalName} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="p-3 flex items-center justify-between">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">{img.originalName}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {formatFileSize(img.sizeBytes)} • {img.contentType}
+                                  {img.width && img.height && (
+                                    <> • {img.width}×{img.height}</>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => setPreviewImage(img)}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => onDeleteRequest(img)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-medium">{image.originalName}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {formatFileSize(image.sizeBytes)} • {image.contentType}
-                              {image.width && image.height && (
-                                <> • {image.width}×{image.height}</>
-                              )}
-                            </p>
+                        )
+                      }
+                      return (
+                        <div key={img.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg overflow-hidden flex items-center justify-center">
+                              <img src={`${url}?w=80`} alt={img.originalName} className="w-10 h-10 object-cover" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium">{img.originalName}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {formatFileSize(img.sizeBytes)} • {img.contentType}
+                                {img.width && img.height && (
+                                  <> • {img.width}×{img.height}</>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{img.variants.length} variants</Badge>
+                            <Button variant="outline" size="sm" onClick={() => setPreviewImage(img)}>
+                              <Eye className="h-4 w-4 mr-1" /> View
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => onDeleteRequest(img)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">
-                            {image.variants.length} variants
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Preview dialog */}
+            <Dialog open={!!previewImage} onOpenChange={(o) => !o && setPreviewImage(null)}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>{previewImage?.originalName}</DialogTitle>
+                </DialogHeader>
+                {previewImage && (
+                  <img
+                    src={`/api/images/${previewImage.id}/content?w=1280`}
+                    alt={previewImage.originalName}
+                    className="w-full h-auto rounded-md"
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete confirmation */}
+            <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this file?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the file and its variants from storage and the database.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

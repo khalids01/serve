@@ -92,6 +92,31 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Create audit log
+    try {
+      const userAgent = request.headers.get('user-agent') || undefined
+      const ip =
+        (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() ||
+        (request.headers.get('x-real-ip') || undefined)
+      await prisma.auditLog.create({
+        data: {
+          userId: userId || null,
+          applicationId,
+          action: 'UPLOAD',
+          targetId: image.id,
+          ip: ip || undefined,
+          userAgent: userAgent || undefined,
+          metadata: {
+            originalName: file.name,
+            size: file.size,
+            contentType: file.type
+          } as any
+        }
+      })
+    } catch (e) {
+      console.error('Audit log (UPLOAD) error:', e)
+    }
+
     return NextResponse.json({
       success: true,
       image: {

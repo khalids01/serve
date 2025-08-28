@@ -23,6 +23,8 @@
 - **🎯 API-First Design** - RESTful APIs for easy integration
 - **🔧 Self-Hosted** - Complete control over your data
 - **🌐 Modern UI** - Beautiful, responsive interface built with Tailwind CSS
+- **📜 Recent Activity** - Audit logs for uploads and deletions per application
+- **🗂️ Files Management UI** - List/grid views, preview, and safe delete with confirmation
 
 ## 🏗️ Tech Stack
 
@@ -102,6 +104,42 @@ const response = await fetch('/api/upload', {
 
 const result = await response.json();
 console.log('File uploaded:', result.url);
+```
+
+### Recent Activity (Audit Logs)
+
+Fetch audit logs for an application:
+
+```ts
+// GET recent activity
+const logsRes = await fetch(`/api/audit-logs?applicationId=<APP_ID>&limit=10`)
+const { logs, pagination } = await logsRes.json()
+
+// Log shape example
+// {
+//   id, action: 'UPLOAD' | 'DELETE', targetId, metadata: { filename, originalName }, createdAt, ip, userAgent
+// }
+```
+
+Events are recorded for file uploads and deletions.
+
+### Files Management
+
+List images by application and delete with confirmation:
+
+```ts
+// List files for an application
+const imagesRes = await fetch(`/api/images?applicationId=<APP_ID>&limit=50`)
+const { images } = await imagesRes.json()
+
+// Preview/serve content with optional resize
+// Original
+const url = `/api/images/${images[0].id}/content`
+// Resized thumbnail (fit inside width)
+const thumb = `/api/images/${images[0].id}/content?w=320`
+
+// Delete a file (removes from storage + DB)
+await fetch(`/api/images/${images[0].id}`, { method: 'DELETE' })
 ```
 
 ### Authentication
@@ -254,6 +292,9 @@ Be respectful, inclusive, and helpful. We follow the [Contributor Covenant](http
 | `NEXT_PUBLIC_APP_URL` | Application URL | `http://localhost:3003` |
 | `DATABASE_URL` | Database connection string | `file:./dev.db` |
 | `BETTER_AUTH_SECRET` | Authentication secret key | Required |
+| `UPLOAD_DIR` | Root directory for uploaded files | `uploads` |
+| `ORIGINAL_MAX_DIM` | Max dimension for optimized originals (px) | `2560` |
+| `MAX_FILE_SIZE` | Max upload size in bytes | `10_000_000` |
 | `SMTP_HOST` | Email server host | Optional |
 | `SMTP_PORT` | Email server port | Optional |
 

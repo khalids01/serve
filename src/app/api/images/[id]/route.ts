@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
+import { getCurrentUser } from '@/lib/auth-server'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -98,6 +99,37 @@ export async function DELETE(
     await prisma.image.delete({
       where: { id }
     })
+
+    // Create audit log (best-effort)
+    try {
+      // Try API-key-provided headers first, fallback to session
+      let userId = request.headers.get('x-user-id') || undefined
+      if (!userId) {
+        const user = await getCurrentUser(request.headers)
+        if (user) userId = user.id
+      }
+      const userAgent = request.headers.get('user-agent') || undefined
+      const ip =
+        (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() ||
+        (request.headers.get('x-real-ip') || undefined)
+      await prisma.auditLog.create({
+        data: {
+          userId: userId || null,
+          applicationId: image.applicationId,
+          action: 'DELETE',
+          targetId: image.id,
+          ip: ip || undefined,
+          userAgent: userAgent || undefined,
+          metadata: {
+            filename: image.filename,
+            originalName: image.originalName,
+            variants: image.variants?.length || 0
+          } as any
+        }
+      })
+    } catch (e) {
+      console.error('Audit log (DELETE) error:', e)
+    }
 
     return NextResponse.json({ success: true })
 

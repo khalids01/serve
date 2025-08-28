@@ -86,7 +86,8 @@ export async function GET(
           // Fallback to legacy applicationId-based directory
           buf = await fs.readFile(originalPathLegacy)
         }
-        return new NextResponse(buf, {
+        const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+        return new NextResponse(body as ArrayBuffer, {
           status: 200,
           headers: {
             'Content-Type': image.contentType || 'application/octet-stream',
@@ -110,7 +111,8 @@ export async function GET(
     // Serve from cache when available
     try {
       const cached = await fs.readFile(cachePath)
-      return new NextResponse(cached, {
+      const body = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength)
+      return new NextResponse(body as ArrayBuffer, {
         status: 200,
         headers: {
           'Content-Type': getContentTypeByExt(targetExt),
@@ -144,7 +146,8 @@ export async function GET(
     const out = await pipeline.toBuffer()
     await fs.writeFile(cachePath, out)
 
-    return new NextResponse(out, {
+    const body = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength)
+    return new NextResponse(body as ArrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': getContentTypeByExt(targetExt),
