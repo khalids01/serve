@@ -1,6 +1,6 @@
 import { ProjectLogo } from "./project-logo"
 import { ThemeToggle } from "./theme-toggle"
-import { UserNav } from "@/components/auth/user-nav"
+import { UserNav } from "@/components/core/user-nav"
 import { Button } from "@/components/ui/button"
 import { Github, BookOpen } from "lucide-react"
 import Link from "next/link"

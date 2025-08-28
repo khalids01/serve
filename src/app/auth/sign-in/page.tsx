@@ -1,4 +1,4 @@
-import { SignInForm } from "@/components/auth/sign-in-form"
+import { SignInForm } from "@/features/auth/sign-in-form"
 import { SiteHeader } from "@/components/core/site-header"
 
 export default function SignInPage() {
