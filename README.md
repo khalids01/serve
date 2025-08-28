@@ -142,6 +142,53 @@ const thumb = `/api/images/${images[0].id}/content?w=320`
 await fetch(`/api/images/${images[0].id}`, { method: 'DELETE' })
 ```
 
+### API Authentication (Server-to-Server)
+
+Upload and image routes support API key authentication. Provide your key via header:
+
+- `x-api-key: <YOUR_API_KEY>`
+- or `Authorization: Bearer <YOUR_API_KEY>`
+
+Example (cURL):
+
+```bash
+curl -X POST \
+  -H "x-api-key: sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  -F "file=@/path/to/file.jpg" \
+  -F "applicationId=<APP_ID>" \
+  http://localhost:3003/api/upload
+```
+
+### Usage & Stats
+
+The dashboard "Storage Used" metric is computed from your database, summing:
+
+- Total of `Image.sizeBytes`
+- Plus total of `ImageVariant.sizeBytes`
+
+across all applications you own. You can also fetch this via API:
+
+```http
+GET /api/stats
+```
+
+Response:
+
+```json
+{
+  "storageBytes": 123456789,
+  "totals": { "files": 42, "applications": 2, "apiKeys": 3 }
+}
+```
+
+### API Keys (No Expiration)
+
+API keys do not expire automatically. They remain valid until you revoke or delete them.
+
+- Create/list/revoke/delete from: `Dashboard → Applications → <App> → API Keys`
+- Programmatic validation rejects only invalid or revoked keys
+- `lastUsedAt` is updated on successful use
+
 ### Authentication
 
 ```typescript

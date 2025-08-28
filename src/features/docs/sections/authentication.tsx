@@ -12,11 +12,20 @@ export function AuthenticationSection() {
       </div>
 
       <div className="rounded-lg border bg-card p-6">
-        <h3 className="font-semibold mb-4">API Key Format</h3>
+        <h3 className="font-semibold mb-4">API Key Headers</h3>
         <p className="text-muted-foreground mb-4">
-          API keys follow the format <code className="bg-muted px-1 py-0.5 rounded text-sm">sk_live_...</code> and must be included in the Authorization header.
+          API keys follow the format <code className="bg-muted px-1 py-0.5 rounded text-sm">sk_live_...</code> and must be sent in one of the following headers:
         </p>
-        <CodeBlock code="Authorization: Bearer sk_live_your_api_key_here" language="text" id="auth-header" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Option 1: x-api-key</p>
+            <CodeBlock code="x-api-key: sk_live_your_api_key_here" language="text" id="auth-header-x-api-key" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Option 2: Authorization</p>
+            <CodeBlock code="Authorization: Bearer sk_live_your_api_key_here" language="text" id="auth-header-authorization" />
+          </div>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-amber-50 border-amber-200 p-6">
@@ -31,6 +40,13 @@ export function AuthenticationSection() {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-6">
+        <h3 className="font-semibold mb-2">Key Lifetime</h3>
+        <p className="text-muted-foreground text-sm">
+          API keys do not expire automatically. Revoke or delete them to invalidate.
+        </p>
       </div>
     </div>
   );
