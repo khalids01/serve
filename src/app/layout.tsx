@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Serve - Open Source File Storage Server",
   description: "Fast, secure, and scalable file storage server built with Next.js",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({

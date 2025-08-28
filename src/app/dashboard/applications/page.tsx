@@ -136,7 +136,7 @@ export default function ApplicationsPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="appName">Application Name</Label>
+                  <Label htmlFor="appName" className='mb-2'>Application Name</Label>
                   <Input
                     id="appName"
                     value={newAppName}
@@ -145,7 +145,7 @@ export default function ApplicationsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="appSlug">Slug (URL identifier)</Label>
+                  <Label htmlFor="appSlug" className='mb-2'>Slug (URL identifier)</Label>
                   <Input
                     id="appSlug"
                     value={newAppSlug}

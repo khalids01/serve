@@ -1,61 +1,71 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Copy, Check, ChevronRight, Code, Book, Zap } from 'lucide-react'
-import { SiteHeader } from "@/components/core/site-header"
+import { useState } from "react";
+import { Copy, Check, ChevronRight, Code, Book, Zap } from "lucide-react";
+import { SiteHeader } from "@/components/core/site-header";
 
 export default function ApiDocsPage() {
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState('getting-started')
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState("getting-started");
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      setCopiedCode(id)
-      setTimeout(() => setCopiedCode(null), 2000)
+      await navigator.clipboard.writeText(text);
+      setCopiedCode(id);
+      setTimeout(() => setCopiedCode(null), 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err)
+      console.error("Failed to copy text: ", err);
     }
-  }
+  };
 
-  const CodeBlock = ({ code, language = 'bash', id }: { code: string; language?: string; id: string }) => (
+  const CodeBlock = ({
+    code,
+    language = "bash",
+    id,
+  }: {
+    code: string;
+    language?: string;
+    id: string;
+  }) => (
     <div className="relative group">
-      <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto text-sm border">
+      <pre className="bg-card text-foreground p-4 rounded-lg overflow-x-auto text-sm border">
         <code className={`language-${language}`}>{code}</code>
       </pre>
       <button
         onClick={() => copyToClipboard(code, id)}
-        className="absolute top-2 right-2 p-2 rounded-md bg-slate-800 hover:bg-slate-700 transition-colors opacity-0 group-hover:opacity-100"
+        className="absolute top-2 right-2 p-2 rounded-md bg-muted hover:bg-muted/80 transition-colors opacity-0 group-hover:opacity-100"
       >
         {copiedCode === id ? (
           <Check className="h-4 w-4 text-green-400" />
         ) : (
-          <Copy className="h-4 w-4 text-slate-400" />
+          <Copy className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
     </div>
-  )
+  );
 
   const sections = [
-    { id: 'getting-started', title: 'Getting Started', icon: Book },
-    { id: 'authentication', title: 'Authentication', icon: Zap },
-    { id: 'upload', title: 'Upload Image', icon: Code },
-    { id: 'list', title: 'List Images', icon: Code },
-    { id: 'get', title: 'Get Image', icon: Code },
-    { id: 'delete', title: 'Delete Image', icon: Code },
-  ]
+    { id: "getting-started", title: "Getting Started", icon: Book },
+    { id: "authentication", title: "Authentication", icon: Zap },
+    { id: "upload", title: "Upload Image", icon: Code },
+    { id: "list", title: "List Images", icon: Code },
+    { id: "get", title: "Get Image", icon: Code },
+    { id: "delete", title: "Delete Image", icon: Code },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-background">
       <SiteHeader />
-      
+
       {/* Docs Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Serve API</h1>
-              <p className="text-muted-foreground">Fast, secure file storage API</p>
+              <p className="text-muted-foreground">
+                Fast, secure file storage API
+              </p>
             </div>
             <div className="flex items-center space-x-2">
               <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
@@ -73,21 +83,21 @@ export default function ApiDocsPage() {
             <div className="sticky top-8">
               <nav className="space-y-1">
                 {sections.map((section) => {
-                  const Icon = section.icon
+                  const Icon = section.icon;
                   return (
                     <button
                       key={section.id}
                       onClick={() => setActiveSection(section.id)}
                       className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                         activeSection === section.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
                       <Icon className="mr-3 h-4 w-4" />
                       {section.title}
                     </button>
-                  )
+                  );
                 })}
               </nav>
             </div>
@@ -96,34 +106,43 @@ export default function ApiDocsPage() {
           {/* Main Content */}
           <div className="flex-1 max-w-4xl">
             {/* Getting Started */}
-            {activeSection === 'getting-started' && (
+            {activeSection === "getting-started" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">Getting Started</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    Getting Started
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
-                    Welcome to the Serve API! This guide will help you get started with uploading and managing files.
+                    Welcome to the Serve API! This guide will help you get
+                    started with uploading and managing files.
                   </p>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="rounded-lg border bg-card p-6">
                     <div className="flex items-center mb-4">
-                      <div className="rounded-full bg-blue-100 p-2 mr-3">
-                        <Book className="h-5 w-5 text-blue-600" />
+                      <div className="rounded-full bg-primary/10 p-2 mr-3">
+                        <Book className="h-5 w-5 text-primary" />
                       </div>
                       <h3 className="font-semibold">Quick Setup</h3>
                     </div>
                     <ol className="space-y-2 text-sm text-muted-foreground">
                       <li className="flex items-start">
-                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">1</span>
+                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">
+                          1
+                        </span>
                         Generate an API key from your dashboard
                       </li>
                       <li className="flex items-start">
-                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">2</span>
+                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">
+                          2
+                        </span>
                         Include it in your requests
                       </li>
                       <li className="flex items-start">
-                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">3</span>
+                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 mt-0.5">
+                          3
+                        </span>
                         Start uploading files
                       </li>
                     </ol>
@@ -136,18 +155,20 @@ export default function ApiDocsPage() {
                       </div>
                       <h3 className="font-semibold">Base URL</h3>
                     </div>
-                    <CodeBlock 
-                      code="https://your-domain.com/api/v1" 
-                      language="text" 
-                      id="base-url" 
+                    <CodeBlock
+                      code="https://your-domain.com/api/v1"
+                      language="text"
+                      id="base-url"
                     />
                   </div>
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
                   <h3 className="font-semibold mb-4">First Request</h3>
-                  <p className="text-muted-foreground mb-4">Here's how to make your first API call:</p>
-                  <CodeBlock 
+                  <p className="text-muted-foreground mb-4">
+                    Here's how to make your first API call:
+                  </p>
+                  <CodeBlock
                     code={`curl -X POST https://your-domain.com/api/v1/upload \\
   -H "Authorization: Bearer sk_live_your_api_key" \\
   -F "file=@image.jpg" \\
@@ -160,10 +181,12 @@ export default function ApiDocsPage() {
             )}
 
             {/* Authentication */}
-            {activeSection === 'authentication' && (
+            {activeSection === "authentication" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">Authentication</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    Authentication
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
                     All API requests require authentication using API keys.
                   </p>
@@ -172,9 +195,13 @@ export default function ApiDocsPage() {
                 <div className="rounded-lg border bg-card p-6">
                   <h3 className="font-semibold mb-4">API Key Format</h3>
                   <p className="text-muted-foreground mb-4">
-                    API keys follow the format <code className="bg-muted px-1 py-0.5 rounded text-sm">sk_live_...</code> and must be included in the Authorization header.
+                    API keys follow the format{" "}
+                    <code className="bg-muted px-1 py-0.5 rounded text-sm">
+                      sk_live_...
+                    </code>{" "}
+                    and must be included in the Authorization header.
                   </p>
-                  <CodeBlock 
+                  <CodeBlock
                     code="Authorization: Bearer sk_live_your_api_key_here"
                     language="text"
                     id="auth-header"
@@ -187,9 +214,12 @@ export default function ApiDocsPage() {
                       <Zap className="h-4 w-4 text-amber-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-amber-800 mb-2">Keep your API keys secure</h4>
+                      <h4 className="font-semibold text-amber-800 mb-2">
+                        Keep your API keys secure
+                      </h4>
                       <p className="text-amber-700 text-sm">
-                        Never expose your API keys in client-side code. Always make requests from your server.
+                        Never expose your API keys in client-side code. Always
+                        make requests from your server.
                       </p>
                     </div>
                   </div>
@@ -198,27 +228,32 @@ export default function ApiDocsPage() {
             )}
 
             {/* Upload Image */}
-            {activeSection === 'upload' && (
+            {activeSection === "upload" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">Upload Image</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    Upload Image
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
-                    Upload image files to your application storage with automatic processing and variant generation.
+                    Upload image files to your application storage with
+                    automatic processing and variant generation.
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">POST</span>
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">
+                        POST
+                      </span>
                       <code className="text-lg font-mono">/api/v1/upload</code>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-6">
                     <div>
                       <h4 className="font-semibold mb-3">Request</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`curl -X POST https://your-domain.com/api/v1/upload \\
   -H "Authorization: Bearer sk_live_your_api_key" \\
   -F "file=@image.jpg" \\
@@ -230,7 +265,7 @@ export default function ApiDocsPage() {
 
                     <div>
                       <h4 className="font-semibold mb-3">JavaScript Example</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`const formData = new FormData();
 formData.append('file', fileInput.files[0]);
 formData.append('tags', 'profile,avatar');
@@ -251,7 +286,7 @@ const result = await response.json();`}
 
                     <div>
                       <h4 className="font-semibold mb-3">Response</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`{
   "success": true,
   "image": {
@@ -285,27 +320,32 @@ const result = await response.json();`}
             )}
 
             {/* List Images */}
-            {activeSection === 'list' && (
+            {activeSection === "list" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">List Images</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    List Images
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
-                    Retrieve a paginated list of images with powerful filtering and sorting options.
+                    Retrieve a paginated list of images with powerful filtering
+                    and sorting options.
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">GET</span>
+                      <span className="bg-muted text-foreground text-xs font-medium px-2.5 py-0.5 rounded mr-3">
+                        GET
+                      </span>
                       <code className="text-lg font-mono">/api/v1/images</code>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-6">
                     <div>
                       <h4 className="font-semibold mb-3">Request</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`curl -X GET "https://your-domain.com/api/v1/images?page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc" \\
   -H "Authorization: Bearer sk_live_your_api_key"`}
                         language="bash"
@@ -319,39 +359,65 @@ const result = await response.json();`}
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b">
-                              <th className="text-left py-2 font-medium">Parameter</th>
-                              <th className="text-left py-2 font-medium">Type</th>
-                              <th className="text-left py-2 font-medium">Description</th>
+                              <th className="text-left py-2 font-medium">
+                                Parameter
+                              </th>
+                              <th className="text-left py-2 font-medium">
+                                Type
+                              </th>
+                              <th className="text-left py-2 font-medium">
+                                Description
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="text-muted-foreground">
                             <tr className="border-b">
-                              <td className="py-2"><code>page</code></td>
+                              <td className="py-2">
+                                <code>page</code>
+                              </td>
                               <td className="py-2">integer</td>
                               <td className="py-2">Page number (default: 1)</td>
                             </tr>
                             <tr className="border-b">
-                              <td className="py-2"><code>limit</code></td>
+                              <td className="py-2">
+                                <code>limit</code>
+                              </td>
                               <td className="py-2">integer</td>
-                              <td className="py-2">Items per page (default: 20, max: 100)</td>
+                              <td className="py-2">
+                                Items per page (default: 20, max: 100)
+                              </td>
                             </tr>
                             <tr className="border-b">
-                              <td className="py-2"><code>search</code></td>
+                              <td className="py-2">
+                                <code>search</code>
+                              </td>
                               <td className="py-2">string</td>
-                              <td className="py-2">Search in filename, original name, content type</td>
+                              <td className="py-2">
+                                Search in filename, original name, content type
+                              </td>
                             </tr>
                             <tr className="border-b">
-                              <td className="py-2"><code>contentType</code></td>
+                              <td className="py-2">
+                                <code>contentType</code>
+                              </td>
                               <td className="py-2">string</td>
-                              <td className="py-2">Filter by MIME type (e.g., "image/jpeg")</td>
+                              <td className="py-2">
+                                Filter by MIME type (e.g., "image/jpeg")
+                              </td>
                             </tr>
                             <tr className="border-b">
-                              <td className="py-2"><code>sortBy</code></td>
+                              <td className="py-2">
+                                <code>sortBy</code>
+                              </td>
                               <td className="py-2">string</td>
-                              <td className="py-2">Sort field: createdAt, name, size, type</td>
+                              <td className="py-2">
+                                Sort field: createdAt, name, size, type
+                              </td>
                             </tr>
                             <tr>
-                              <td className="py-2"><code>sortOrder</code></td>
+                              <td className="py-2">
+                                <code>sortOrder</code>
+                              </td>
                               <td className="py-2">string</td>
                               <td className="py-2">Sort order: asc, desc</td>
                             </tr>
@@ -362,7 +428,7 @@ const result = await response.json();`}
 
                     <div>
                       <h4 className="font-semibold mb-3">Response</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`{
   "images": [
     {
@@ -394,38 +460,28 @@ const result = await response.json();`}
             )}
 
             {/* Get Image */}
-            {activeSection === 'get' && (
+            {activeSection === "get" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">Get Image</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    Get Image
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
-                    Retrieve detailed information about a specific image including all variants.
+                    Retrieve detailed information about a specific image
+                    including all variants.
                   </p>
+                  <CodeBlock
+                    code={`curl -X GET "https://your-domain.com/api/v1/images/img_123456789" \\
+  -H "Authorization: Bearer sk_live_your_api_key"`}
+                    language="bash"
+                    id="get-curl"
+                  />
                 </div>
 
-                <div className="rounded-lg border bg-card p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">GET</span>
-                      <code className="text-lg font-mono">/api/v1/images/{'{id}'}</code>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="font-semibold mb-3">Request</h4>
-                      <CodeBlock 
-                        code={`curl -X GET "https://your-domain.com/api/v1/images/img_123456789" \\
-  -H "Authorization: Bearer sk_live_your_api_key"`}
-                        language="bash"
-                        id="get-curl"
-                      />
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3">Response</h4>
-                      <CodeBlock 
-                        code={`{
+                <div>
+                  <h4 className="font-semibold mb-3">Response</h4>
+                  <CodeBlock
+                    code={`{
   "id": "img_123456789",
   "filename": "image_processed.jpg",
   "originalName": "avatar.jpg",
@@ -447,33 +503,38 @@ const result = await response.json();`}
   "createdAt": "2024-01-01T00:00:00.000Z",
   "updatedAt": "2024-01-01T00:00:00.000Z"
 }`}
-                        language="json"
-                        id="get-response"
-                      />
-                    </div>
-                  </div>
+                    language="json"
+                    id="get-response"
+                  />
                 </div>
               </div>
             )}
 
             {/* Delete Image */}
-            {activeSection === 'delete' && (
+            {activeSection === "delete" && (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-4">Delete Image</h2>
+                  <h2 className="text-2xl font-bold tracking-tight mb-4">
+                    Delete Image
+                  </h2>
                   <p className="text-lg text-muted-foreground mb-6">
-                    Permanently delete an image and all its variants from storage.
+                    Permanently delete an image and all its variants from
+                    storage.
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">DELETE</span>
-                      <code className="text-lg font-mono">/api/v1/images/{'{id}'}</code>
+                      <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">
+                        DELETE
+                      </span>
+                      <code className="text-lg font-mono">
+                        /api/v1/images/{"{id}"}
+                      </code>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-6">
                     <div className="rounded-lg border border-red-200 bg-red-50 p-4">
                       <div className="flex items-start">
@@ -481,9 +542,12 @@ const result = await response.json();`}
                           <Zap className="h-4 w-4 text-red-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-red-800 mb-1">Warning</h4>
+                          <h4 className="font-semibold text-red-800 mb-1">
+                            Warning
+                          </h4>
                           <p className="text-red-700 text-sm">
-                            This action cannot be undone. The image and all its variants will be permanently deleted.
+                            This action cannot be undone. The image and all its
+                            variants will be permanently deleted.
                           </p>
                         </div>
                       </div>
@@ -491,7 +555,7 @@ const result = await response.json();`}
 
                     <div>
                       <h4 className="font-semibold mb-3">Request</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`curl -X DELETE "https://your-domain.com/api/v1/images/img_123456789" \\
   -H "Authorization: Bearer sk_live_your_api_key"`}
                         language="bash"
@@ -501,7 +565,7 @@ const result = await response.json();`}
 
                     <div>
                       <h4 className="font-semibold mb-3">Response</h4>
-                      <CodeBlock 
+                      <CodeBlock
                         code={`{
   "success": true,
   "message": "Image deleted successfully"
@@ -518,5 +582,5 @@ const result = await response.json();`}
         </div>
       </div>
     </div>
-  )
+  );
 }
