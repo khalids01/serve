@@ -35,7 +35,7 @@ export function QuickActions() {
         </CardHeader>
         <CardContent>
           <Button variant="outline" className="w-full" asChild>
-            <Link href="/dashboard/files">Browse Files</Link>
+            <Link href="/dashboard/applications">Browse Files</Link>
           </Button>
         </CardContent>
       </Card>
@@ -50,10 +50,11 @@ export function QuickActions() {
         </CardHeader>
         <CardContent>
           <Button variant="outline" className="w-full" asChild>
-            <Link href="/dashboard/api-keys">Manage Keys</Link>
+            <Link href="/dashboard/applications">Manage Keys</Link>
           </Button>
         </CardContent>
       </Card>
     </div>
   )
 }
+

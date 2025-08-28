@@ -1,155 +1,184 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { Copy, Key, Plus, Trash2, Shield, Eye, EyeOff } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Copy, Key, Plus, Trash2, Shield, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 interface ApiKey {
-  id: string
-  name: string
-  lastUsedAt: string | null
-  createdAt: string
-  revoked: boolean
+  id: string;
+  name: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  revoked: boolean;
 }
 
 interface NewApiKey {
-  id: string
-  name: string
-  key: string
-  createdAt: string
+  id: string;
+  name: string;
+  key: string;
+  createdAt: string;
 }
 
 export default function ApiKeysPage() {
-  const params = useParams()
-  const applicationId = params.id as string
-  
-  const [keys, setKeys] = useState<ApiKey[]>([])
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [newKeyName, setNewKeyName] = useState('')
-  const [newKey, setNewKey] = useState<NewApiKey | null>(null)
-  const [showNewKey, setShowNewKey] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const params = useParams();
+  const applicationId = params.id as string;
+
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKey, setNewKey] = useState<NewApiKey | null>(null);
+  const [showNewKey, setShowNewKey] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchKeys()
-  }, [applicationId])
+    fetchKeys();
+  }, [applicationId]);
 
   const fetchKeys = async () => {
     try {
-      const response = await fetch(`/api/applications/${applicationId}/keys`)
+      const response = await fetch(`/api/applications/${applicationId}/keys`);
       if (response.ok) {
-        const data = await response.json()
-        setKeys(data.keys)
+        const data = await response.json();
+        setKeys(data.keys);
       } else {
-        toast.error('Failed to fetch API keys')
+        toast.error("Failed to fetch API keys");
       }
     } catch (error) {
-      toast.error('Error fetching API keys')
+      toast.error("Error fetching API keys");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const createKey = async () => {
     if (!newKeyName.trim()) {
-      toast.error('Please enter a key name')
-      return
+      toast.error("Please enter a key name");
+      return;
     }
 
-    setCreating(true)
+    setCreating(true);
     try {
       const response = await fetch(`/api/applications/${applicationId}/keys`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: newKeyName }),
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setNewKey(data.apiKey)
-        setShowNewKey(true)
-        setNewKeyName('')
-        setIsDialogOpen(false)
-        await fetchKeys()
-        toast.success('API key created successfully')
+        const data = await response.json();
+        setNewKey(data.apiKey);
+        setShowNewKey(true);
+        setNewKeyName("");
+        setIsDialogOpen(false);
+        await fetchKeys();
+        toast.success("API key created successfully");
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to create API key')
+        const error = await response.json();
+        toast.error(error.error || "Failed to create API key");
       }
     } catch (error) {
-      toast.error('Error creating API key')
+      toast.error("Error creating API key");
     } finally {
-      setCreating(false)
+      setCreating(false);
     }
-  }
+  };
 
   const revokeKey = async (keyId: string) => {
     try {
-      const response = await fetch(`/api/applications/${applicationId}/keys/${keyId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'revoke' }),
-      })
+      const response = await fetch(
+        `/api/applications/${applicationId}/keys/${keyId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "revoke" }),
+        }
+      );
 
       if (response.ok) {
-        await fetchKeys()
-        toast.success('API key revoked')
+        await fetchKeys();
+        toast.success("API key revoked");
       } else {
-        toast.error('Failed to revoke API key')
+        toast.error("Failed to revoke API key");
       }
     } catch (error) {
-      toast.error('Error revoking API key')
+      toast.error("Error revoking API key");
     }
-  }
+  };
 
   const deleteKey = async (keyId: string) => {
     try {
-      const response = await fetch(`/api/applications/${applicationId}/keys/${keyId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `/api/applications/${applicationId}/keys/${keyId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
-        await fetchKeys()
-        toast.success('API key deleted')
+        await fetchKeys();
+        toast.success("API key deleted");
       } else {
-        toast.error('Failed to delete API key')
+        toast.error("Failed to delete API key");
       }
     } catch (error) {
-      toast.error('Error deleting API key')
+      toast.error("Error deleting API key");
     }
-  }
+  };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard')
-  }
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div className="min-h-screen">
-      
       <main className="container mx-auto py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">API Keys</h1>
@@ -173,14 +202,18 @@ export default function ApiKeysPage() {
             <CardContent>
               <div className="flex items-center gap-2 p-3 bg-white dark:bg-green-900 rounded border">
                 <code className="flex-1 font-mono text-sm">
-                  {showNewKey ? newKey.key : '•'.repeat(newKey.key.length)}
+                  {showNewKey ? newKey.key : "•".repeat(newKey.key.length)}
                 </code>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowNewKey(!showNewKey)}
                 >
-                  {showNewKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showNewKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
@@ -191,10 +224,7 @@ export default function ApiKeysPage() {
                 </Button>
               </div>
               <div className="mt-4 flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setNewKey(null)}
-                >
+                <Button variant="outline" onClick={() => setNewKey(null)}>
                   Done
                 </Button>
               </div>
@@ -215,12 +245,15 @@ export default function ApiKeysPage() {
               <DialogHeader>
                 <DialogTitle>Create New API Key</DialogTitle>
                 <DialogDescription>
-                  Give your API key a descriptive name to help you identify it later.
+                  Give your API key a descriptive name to help you identify it
+                  later.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="keyName">Key Name</Label>
+                  <Label htmlFor="keyName" className="mb-2">
+                    Key Name
+                  </Label>
                   <Input
                     id="keyName"
                     value={newKeyName}
@@ -236,11 +269,8 @@ export default function ApiKeysPage() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={createKey}
-                  disabled={creating}
-                >
-                  {creating ? 'Creating...' : 'Create Key'}
+                <Button onClick={createKey} disabled={creating}>
+                  {creating ? "Creating..." : "Create Key"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -252,7 +282,8 @@ export default function ApiKeysPage() {
           <CardHeader>
             <CardTitle>Your API Keys</CardTitle>
             <CardDescription>
-              These keys allow programmatic access to your application's file storage
+              These keys allow programmatic access to your application's file
+              storage
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -289,7 +320,7 @@ export default function ApiKeysPage() {
                       ) : (
                         <Badge variant="secondary">Active</Badge>
                       )}
-                      
+
                       {!key.revoked && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -299,9 +330,13 @@ export default function ApiKeysPage() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Revoke API Key
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will immediately disable the API key. Applications using this key will no longer be able to access your files.
+                                This will immediately disable the API key.
+                                Applications using this key will no longer be
+                                able to access your files.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -327,7 +362,8 @@ export default function ApiKeysPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete API Key</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete the API key. This action cannot be undone.
+                              This will permanently delete the API key. This
+                              action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -350,5 +386,5 @@ export default function ApiKeysPage() {
         </Card>
       </main>
     </div>
-  )
+  );
 }
