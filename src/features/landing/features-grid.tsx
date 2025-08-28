@@ -11,6 +11,18 @@ import {
 
 const items = [
   {
+    title: "Automatic image optimization",
+    desc: "Optimized originals plus WebP copies generated on upload.",
+    Icon: ServerCog,
+    accent: "text-emerald-600",
+  },
+  {
+    title: "On‑demand resizing & caching",
+    desc: "Resize via URL params with disk cache and no upscaling.",
+    Icon: Zap,
+    accent: "text-pink-600",
+  },
+  {
     title: "API‑first",
     desc: "Clean, predictable REST API designed for developers.",
     Icon: Zap,

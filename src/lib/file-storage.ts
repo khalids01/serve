@@ -70,6 +70,42 @@ export class FileStorageService {
         result.width = metadata.width
         result.height = metadata.height
 
+        // 1) Optimize the original in its native format (mobile-friendly)
+        try {
+          let optimizedBuffer: Buffer
+          const format = (metadata.format || '').toLowerCase()
+          if (format === 'jpeg' || format === 'jpg') {
+            optimizedBuffer = await sharp(buffer).jpeg({ quality: 85, mozjpeg: true }).toBuffer()
+          } else if (format === 'png') {
+            optimizedBuffer = await sharp(buffer).png({ compressionLevel: 9, palette: true }).toBuffer()
+          } else if (format === 'webp') {
+            optimizedBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer()
+          } else {
+            optimizedBuffer = await sharp(buffer).toBuffer()
+          }
+          await fs.writeFile(filePath, optimizedBuffer)
+          result.sizeBytes = optimizedBuffer.length
+
+          // 2) Generate a same-dimensions WebP copy for the web (if not already WebP)
+          if (format !== 'webp') {
+            const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer()
+            const webpFilename = `${fileId}.webp`
+            const webpPath = path.join(appDir, webpFilename)
+            await fs.writeFile(webpPath, webpBuffer)
+
+            const webpMetadata = await sharp(webpBuffer).metadata()
+            result.variants.push({
+              label: 'webp',
+              filename: webpFilename,
+              width: webpMetadata.width,
+              height: webpMetadata.height,
+              sizeBytes: webpBuffer.length
+            })
+          }
+        } catch (e) {
+          console.error('Error optimizing original or generating WebP:', e)
+        }
+
         // Generate variants
         const variants = [
           { label: 'thumb', width: 150, height: 150 },

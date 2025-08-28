@@ -9,6 +9,8 @@ import { UploadImageSection } from "@/features/docs/sections/upload-image";
 import { ListImagesSection } from "@/features/docs/sections/list-images";
 import { GetImageSection } from "@/features/docs/sections/get-image";
 import { DeleteImageSection } from "@/features/docs/sections/delete-image";
+import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
+import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
 
 export default function ApiDocsPage() {
   const [activeSection, setActiveSection] = useState("getting-started");
@@ -17,8 +19,10 @@ export default function ApiDocsPage() {
     { id: "getting-started", title: "Getting Started", icon: Book },
     { id: "authentication", title: "Authentication", icon: Zap },
     { id: "upload", title: "Upload Image", icon: Code },
+    { id: "optimization", title: "Image Optimization & WebP", icon: Code },
     { id: "list", title: "List Images", icon: Code },
     { id: "get", title: "Get Image", icon: Code },
+    { id: "resize", title: "On‑demand Resize", icon: Code },
     { id: "delete", title: "Delete Image", icon: Code },
   ];
 
@@ -83,11 +87,17 @@ export default function ApiDocsPage() {
             {/* Upload Image */}
             {activeSection === "upload" && <UploadImageSection />}
 
+            {/* Image Optimization & WebP */}
+            {activeSection === "optimization" && <ImageOptimizationSection />}
+
             {/* List Images */}
             {activeSection === "list" && <ListImagesSection />}
 
             {/* Get Image */}
             {activeSection === "get" && <GetImageSection />}
+
+            {/* On-demand Resize */}
+            {activeSection === "resize" && <OnDemandResizeSection />}
 
             {/* Delete Image */}
             {activeSection === "delete" && <DeleteImageSection />}

@@ -12,7 +12,7 @@
 - **🔐 Authentication**: Better Auth with Magic Link + Admin plugin (role field fully integrated)
 - **📧 Email System**: Magic link sending via Nodemailer, config/test endpoints, robust error handling
 - **📁 File Upload**: Core upload API with image processing and typed responses
-- **🖼️ Image Processing**: Sharp integration with automatic variants (thumb, small, medium, large)
+- **🖼️ Image Processing**: Sharp integration with automatic variants (thumb, small, medium, large), optimized originals, and WebP copy on upload
 - **🗄️ Database Schema**: Prisma models updated (User role, banned fields, Image, ApiKey, etc.)
 - **📊 Basic APIs**: Upload, list images, get/delete individual images (typed)
 - **🏢 Applications**: Basic application CRUD operations
@@ -22,6 +22,7 @@
 ### ✅ **COMPLETED FEATURES** (Recently Added - Phase 2)
 - **🔍 Advanced Search**: Enhanced search with filename, content type, and sorting options
 - **🌐 Public API**: Complete v1 API with OpenAPI documentation and Swagger UI
+- **🧩 On‑demand Resize**: New endpoint `/api/images/:id/content` with width/height/format params and on-disk caching
 
 ### ✅ **COMPLETED FEATURES** (Recently Added)
 - **🔑 API Keys**: Complete service (generate/hash/validate/list/revoke/delete) with UI and endpoints
@@ -50,8 +51,9 @@
 6. **⚡ Rate Limiting** - Prevent API abuse
 7. **📝 Audit Logging** - Track all user actions
 8. **🔍 Enhanced Search** - ✅ Tag filtering and full-text search implemented
-9. **📈 Basic Analytics** - Usage metrics and storage stats
-10. **🚨 Error Handling** - Comprehensive error management
+9. **🖼️ Image Delivery** - ✅ On‑demand resizing & caching; 🚧 format negotiation via Accept header
+10. **📈 Basic Analytics** - Usage metrics and storage stats
+11. **🚨 Error Handling** - Comprehensive error management
 
 ### **Phase 3: Advanced Features** ⭐ ✅ **PARTIALLY COMPLETED**
 11. **🌐 Public API Documentation** - ✅ OpenAPI/Swagger docs implemented with v1 API endpoints
@@ -59,6 +61,24 @@
 13. **📱 Mobile Optimization** - Responsive UI improvements
 14. **🎯 Webhook System** - Real-time notifications
 15. **🏗️ S3 Compatibility** - Cloud storage integration
+
+---
+
+## 🧭 IMAGE ROADMAP SNAPSHOT
+
+### ✅ Done
+- Optimize originals (JPEG/PNG/WebP) on upload
+- Generate same‑dimension WebP copy on upload
+- Provide prebuilt JPEG size variants (thumb/small/medium/large)
+- On‑demand resize API with disk cache and immutable headers
+
+### 🚧 In Progress
+- Frontend URL helpers for building resize URLs
+- Optional WebP/AVIF output negotiation based on `Accept` header
+
+### ⏳ Not Yet
+- Generate WebP variants for each sized variant
+- CDN integration examples and presets
 
 ---
 

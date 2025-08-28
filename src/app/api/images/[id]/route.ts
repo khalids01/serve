@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
+import path from 'path'
+import fs from 'fs/promises'
 
 export async function GET(
   request: NextRequest,
@@ -64,6 +66,18 @@ export async function DELETE(
     for (const variant of image.variants) {
       await fileStorage.deleteFile(variant.filename, image.applicationId)
     }
+
+    // Delete cached resized files (created by /api/images/[id]/content)
+    try {
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', image.applicationId, '_cache')
+      const base = path.parse(image.filename).name
+      const entries = await fs.readdir(uploadsDir).catch(() => [])
+      await Promise.all(
+        entries
+          .filter((name) => name.startsWith(base))
+          .map((name) => fs.unlink(path.join(uploadsDir, name)).catch(() => {}))
+      )
+    } catch {}
 
     // Delete from database
     await prisma.image.delete({
