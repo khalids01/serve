@@ -1,6 +1,4 @@
 'use client'
-
-import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,60 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { User, Mail, Shield, Database, Server, AlertTriangle } from 'lucide-react'
-import { toast } from 'sonner'
 import { useSession } from '@/lib/auth-client'
+import { useEmailConfig } from '@/features/settings/hooks/use-email-config'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
-  const [emailConfig, setEmailConfig] = useState<{ configured: boolean; error: string | null }>({ configured: false, error: null })
-  const [testingEmail, setTestingEmail] = useState(false)
-  const [testEmail, setTestEmail] = useState('')
-
-  useEffect(() => {
-    checkEmailConfiguration()
-  }, [])
-
-  const checkEmailConfiguration = async () => {
-    try {
-      const response = await fetch('/api/admin/email/test')
-      if (response.ok) {
-        const data: { configured: boolean; error: string | null } = await response.json()
-        setEmailConfig({ configured: data.configured, error: data.error })
-      }
-    } catch (error) {
-      console.error('Error checking email config:', error)
-    }
-  }
-
-  const sendTestEmail = async () => {
-    if (!testEmail) {
-      toast.error('Please enter an email address')
-      return
-    }
-
-    setTestingEmail(true)
-    try {
-      const response = await fetch('/api/admin/email/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: testEmail }),
-      })
-
-      if (response.ok) {
-        toast.success('Test email sent successfully')
-        setTestEmail('')
-      } else {
-        const errorData: { error?: string } = await response.json()
-        toast.error(errorData.error || 'Failed to send test email')
-      }
-    } catch (error) {
-      toast.error('Error sending test email')
-    } finally {
-      setTestingEmail(false)
-    }
-  }
+  const { emailConfig, testingEmail, testEmail, setTestEmail, sendTestEmail } = useEmailConfig()
 
   return (
     <div className="min-h-screen">

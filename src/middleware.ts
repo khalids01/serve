@@ -31,37 +31,39 @@ export async function middleware(request: NextRequest) {
   if (isUploadRoute || isImagesRoute) {
     const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
     
-    if (!apiKey) {
+    if (apiKey) {
+      try {
+        const validation = await ApiKeyService.validateKey(apiKey)
+        if (!validation) {
+          return NextResponse.json(
+            { error: 'Invalid or revoked API key' },
+            { status: 401 }
+          )
+        }
+        // API key is valid; forward context as request headers
+        const requestHeaders = new Headers(request.headers)
+        requestHeaders.set('x-user-id', validation.user.id)
+        requestHeaders.set('x-application-id', validation.application.id)
+        requestHeaders.set('x-api-key-id', validation.apiKey.id)
+        return NextResponse.next({ request: { headers: requestHeaders } })
+      } catch (error) {
+        console.error('API key validation error:', error)
+        return NextResponse.json(
+          { error: 'Authentication failed' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Fallback to session-based authentication for dashboard-initiated requests
+    const user = await getCurrentUser(request.headers)
+    if (!user) {
       return NextResponse.json(
-        { error: 'API key required' },
+        { error: 'API key required or active session' },
         { status: 401 }
       )
     }
-
-    try {
-      const validation = await ApiKeyService.validateKey(apiKey)
-      
-      if (!validation) {
-        return NextResponse.json(
-          { error: 'Invalid or revoked API key' },
-          { status: 401 }
-        )
-      }
-
-      // Add user and application info to headers for the API route
-      const response = NextResponse.next()
-      response.headers.set('x-user-id', validation.user.id)
-      response.headers.set('x-application-id', validation.application.id)
-      response.headers.set('x-api-key-id', validation.apiKey.id)
-      
-      return response
-    } catch (error) {
-      console.error('API key validation error:', error)
-      return NextResponse.json(
-        { error: 'Authentication failed' },
-        { status: 500 }
-      )
-    }
+    return NextResponse.next()
   }
 
   // For applications API routes, require session authentication

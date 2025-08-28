@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
+import { getCurrentUser } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,9 +9,23 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const tags = formData.get('tags') as string
 
-    // Get application ID from middleware (API key validation)
-    const applicationId = request.headers.get('x-application-id')
-    const userId = request.headers.get('x-user-id')
+    // Try API-key-provided headers first
+    let applicationId = request.headers.get('x-application-id') || undefined
+    let userId = request.headers.get('x-user-id') || undefined
+
+    // Fallback to session-based user when header missing
+    if (!userId) {
+      const user = await getCurrentUser(request.headers)
+      if (user) {
+        userId = user.id
+      }
+    }
+
+    // Accept applicationId from formData when header not present (dashboard upload)
+    if (!applicationId) {
+      const appFromForm = formData.get('applicationId') as string | null
+      if (appFromForm) applicationId = appFromForm
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })

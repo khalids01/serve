@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Upload, X, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
 import type { Image, ImageVariant } from "@/lib/prisma-types"
+import { useApplications } from "@/features/applications/hooks/use-applications"
 
 type UploadSuccess = {
   success: true
@@ -29,6 +30,14 @@ export default function UploadPage() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [applicationId, setApplicationId] = useState("")
   const [tags, setTags] = useState("")
+  const { data, isLoading } = useApplications()
+  const applications = data?.applications ?? []
+
+  useEffect(() => {
+    if (!applicationId && applications.length > 0) {
+      setApplicationId(applications[0].id)
+    }
+  }, [applications, applicationId])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -146,21 +155,23 @@ export default function UploadPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="application">Application</Label>
-                  <Select value={applicationId} onValueChange={setApplicationId}>
+                  <Label htmlFor="application" className="mb-2">Application</Label>
+                  <Select value={applicationId} onValueChange={setApplicationId} disabled={isLoading || applications.length === 0}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select application" />
+                      <SelectValue placeholder={isLoading ? 'Loading...' : 'Select application'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="website-assets">Website Assets</SelectItem>
-                      <SelectItem value="mobile-app">Mobile App</SelectItem>
-                      <SelectItem value="user-content">User Content</SelectItem>
+                      {applications.map((app) => (
+                        <SelectItem key={app.id} value={app.id}>
+                          {app.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <Label htmlFor="tags">Tags (comma separated)</Label>
+                  <Label htmlFor="tags" className="mb-2">Tags (comma separated)</Label>
                   <Input
                     id="tags"
                     value={tags}
