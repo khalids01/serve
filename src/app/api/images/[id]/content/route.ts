@@ -54,21 +54,38 @@ export async function GET(
     // Fetch image metadata
     const image = await prisma.image.findUnique({
       where: { id },
-      select: { id: true, filename: true, applicationId: true, contentType: true }
+      select: {
+        id: true,
+        filename: true,
+        applicationId: true,
+        contentType: true,
+        application: { select: { slug: true } }
+      }
     })
 
     if (!image) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    // Resolve paths
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', image.applicationId)
-    const originalPath = path.join(uploadsDir, image.filename)
+    // Resolve paths using project-root uploads directory (slug-based)
+    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
+    const uploadsRoot = path.isAbsolute(baseUploads) ? baseUploads : path.join(process.cwd(), baseUploads)
+    const dirKey = image.application?.slug || image.applicationId
+    const uploadsDir = path.join(uploadsRoot, dirKey)
+    const legacyUploadsDir = path.join(uploadsRoot, image.applicationId)
+    const originalPathPrimary = path.join(uploadsDir, image.filename)
+    const originalPathLegacy = path.join(legacyUploadsDir, image.filename)
 
     // If no resize requested, just stream original
     if (!width && !height) {
       try {
-        const buf = await fs.readFile(originalPath)
+        let buf: Buffer
+        try {
+          buf = await fs.readFile(originalPathPrimary)
+        } catch {
+          // Fallback to legacy applicationId-based directory
+          buf = await fs.readFile(originalPathLegacy)
+        }
         return new NextResponse(buf, {
           status: 200,
           headers: {
@@ -103,7 +120,13 @@ export async function GET(
     } catch {}
 
     // Generate on demand
-    const original = await fs.readFile(originalPath)
+    // Read original (with legacy fallback)
+    let original: Buffer
+    try {
+      original = await fs.readFile(originalPathPrimary)
+    } catch {
+      original = await fs.readFile(originalPathLegacy)
+    }
     let pipeline = sharp(original)
 
     // Maintain aspect ratio automatically if one dimension missing

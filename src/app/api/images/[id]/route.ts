@@ -22,14 +22,15 @@ export async function GET(
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    const fileStorage = new FileStorageService()
-    
     return NextResponse.json({
       ...image,
-      url: fileStorage.getFileUrl(image.filename, image.applicationId),
+      url: `/api/images/${image.id}/content`,
       variants: image.variants.map(variant => ({
         ...variant,
-        url: fileStorage.getFileUrl(variant.filename, image.applicationId)
+        url: `/api/images/${image.id}/content${variant.width || variant.height ? `?${[
+          variant.width ? `w=${variant.width}` : '',
+          variant.height ? `h=${variant.height}` : ''
+        ].filter(Boolean).join('&')}` : ''}`
       }))
     })
 
@@ -50,7 +51,10 @@ export async function DELETE(
     const { id } = await context.params
     const image = await prisma.image.findUnique({
       where: { id },
-      include: { variants: true }
+      include: {
+        variants: true,
+        application: { select: { slug: true } }
+      }
     })
 
     if (!image) {
@@ -58,25 +62,36 @@ export async function DELETE(
     }
 
     const fileStorage = new FileStorageService()
+    const dirKey = image.application?.slug || image.applicationId
     
     // Delete physical files
+    await fileStorage.deleteFile(image.filename, dirKey)
+    // Legacy directory cleanup
     await fileStorage.deleteFile(image.filename, image.applicationId)
     
-    // Delete variant files
+    // Delete variant files (only webp now, but loop remains safe)
     for (const variant of image.variants) {
+      await fileStorage.deleteFile(variant.filename, dirKey)
       await fileStorage.deleteFile(variant.filename, image.applicationId)
     }
 
     // Delete cached resized files (created by /api/images/[id]/content)
     try {
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', image.applicationId, '_cache')
+      const baseUploads = process.env.UPLOAD_DIR || 'uploads'
+      const uploadsRoot = path.isAbsolute(baseUploads) ? baseUploads : path.join(process.cwd(), baseUploads)
       const base = path.parse(image.filename).name
-      const entries = await fs.readdir(uploadsDir).catch(() => [])
-      await Promise.all(
-        entries
-          .filter((name) => name.startsWith(base))
-          .map((name) => fs.unlink(path.join(uploadsDir, name)).catch(() => {}))
-      )
+      const cacheDirs = [
+        path.join(uploadsRoot, dirKey, '_cache'),
+        path.join(uploadsRoot, image.applicationId, '_cache') // legacy fallback
+      ]
+      for (const cacheDir of cacheDirs) {
+        const entries = await fs.readdir(cacheDir).catch(() => [])
+        await Promise.all(
+          entries
+            .filter((name) => name.startsWith(base))
+            .map((name) => fs.unlink(path.join(cacheDir, name)).catch(() => {}))
+        )
+      }
     } catch {}
 
     // Delete from database

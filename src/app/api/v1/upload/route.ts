@@ -53,8 +53,10 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof Error) {
       if (error.message.includes('File too large')) {
+        const maxMb = Number(process.env.MAX_FILE_SIZE ?? '10')
+        const limit = Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb) : 10
         return NextResponse.json(
-          { error: 'File too large. Maximum size is 10MB.' },
+          { error: `File too large. Maximum size is ${limit}MB.` },
           { status: 413 }
         )
       }

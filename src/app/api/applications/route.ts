@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser, requireAuth } from '@/lib/auth-server'
+import path from 'path'
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +31,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ applications })
+    // Normalize storageDir to reflect current UPLOAD_DIR and slug
+    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
+    const appsWithComputedDir = applications.map((app) => ({
+      ...app,
+      storageDir: path.join(baseUploads, app.slug)
+    }))
+
+    return NextResponse.json({ applications: appsWithComputedDir })
 
   } catch (error) {
     console.error('List applications error:', error)
@@ -65,12 +73,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
     const application = await prisma.application.create({
       data: {
         name,
         slug,
         ownerId: user.id,
-        storageDir: `uploads/${slug}`
+        storageDir: path.join(baseUploads, slug)
       }
     })
 

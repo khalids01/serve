@@ -8,19 +8,29 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
     throw new Error('Invalid file type. Only images are allowed.')
   }
 
-  // Check file size (10MB limit)
-  const maxSize = 10 * 1024 * 1024 // 10MB
+  // Check file size (env-configurable, defaults to 10MB)
+  const maxMb = Number(process.env.MAX_FILE_SIZE ?? '10')
+  const maxSize = (Number.isFinite(maxMb) && maxMb > 0 ? maxMb : 10) * 1024 * 1024
   if (file.size > maxSize) {
-    throw new Error('File too large. Maximum size is 10MB.')
+    throw new Error(`File too large. Maximum size is ${Math.floor(maxSize / (1024 * 1024))}MB.`)
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const fileStorage = new FileStorageService()
   
+  // Resolve human-readable directory (application slug)
+  const app = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { id: true, slug: true }
+  })
+  if (!app) {
+    throw new Error('Application not found')
+  }
+
   const uploadResult = await fileStorage.saveFile(
     buffer,
     file.name,
-    applicationId,
+    app.slug,
     file.type
   )
 
@@ -55,10 +65,19 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
   
   return {
     ...imageWithVariants,
-    url: fileStorage.getFileUrl(imageWithVariants.filename, applicationId),
-    variants: imageWithVariants.variants.map((variant: ImageVariant) => ({
-      ...variant,
-      url: fileStorage.getFileUrl(variant.filename, applicationId)
-    }))
+    // Serve via API to avoid direct public file paths
+    url: `/api/images/${imageWithVariants.id}/content`,
+    variants: imageWithVariants.variants.map((variant: ImageVariant) => {
+      const base = `/api/images/${imageWithVariants.id}/content`
+      // For the 'webp' variant, request webp explicitly, no resize params
+      if ((variant as any).label === 'webp') {
+        return { ...variant, url: `${base}?f=webp` }
+      }
+      const params = [
+        variant.width ? `w=${variant.width}` : '',
+        variant.height ? `h=${variant.height}` : ''
+      ].filter(Boolean)
+      return { ...variant, url: `${base}${params.length ? `?${params.join('&')}` : ''}` }
+    })
   }
 }

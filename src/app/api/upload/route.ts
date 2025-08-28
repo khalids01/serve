@@ -44,13 +44,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
+    // Validate max file size from env (defaults to 10MB)
+    const maxMb = Number(process.env.MAX_FILE_SIZE ?? '10')
+    const limitMb = (Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb) : 10)
+    const maxSize = limitMb * 1024 * 1024
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${limitMb}MB.` },
+        { status: 413 }
+      )
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer())
     const fileStorage = new FileStorageService()
     
     const uploadResult = await fileStorage.saveFile(
       buffer,
       file.name,
-      applicationId,
+      application.slug, // use human-readable dir
       file.type
     )
 
@@ -85,10 +96,13 @@ export async function POST(request: NextRequest) {
       success: true,
       image: {
         ...image,
-        url: fileStorage.getFileUrl(image.filename, applicationId),
+        url: `/api/images/${image.id}/content`,
         variants: image.variants.map(variant => ({
           ...variant,
-          url: fileStorage.getFileUrl(variant.filename, applicationId)
+          url: `/api/images/${image.id}/content${variant.width || variant.height ? `?${[
+            variant.width ? `w=${variant.width}` : '',
+            variant.height ? `h=${variant.height}` : ''
+          ].filter(Boolean).join('&')}` : ''}`
         }))
       }
     })

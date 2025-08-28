@@ -24,8 +24,9 @@ export interface FileUploadResult {
 export class FileStorageService {
   private baseUploadDir: string
 
-  constructor(baseUploadDir = 'public/uploads') {
-    this.baseUploadDir = baseUploadDir
+  constructor(baseUploadDir = process.env.UPLOAD_DIR || 'uploads') {
+    const dir = baseUploadDir
+    this.baseUploadDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
   }
 
   async ensureDirectoryExists(dirPath: string): Promise<void> {
@@ -70,25 +71,55 @@ export class FileStorageService {
         result.width = metadata.width
         result.height = metadata.height
 
+        // Optionally downscale very large images to reduce file size
+        const maxDimEnv = Number(process.env.ORIGINAL_MAX_DIM || '2560')
+        const MAX_DIM = Number.isFinite(maxDimEnv) && maxDimEnv > 0 ? Math.floor(maxDimEnv) : 2560
+        let processedBuffer = buffer
+        if (
+          (metadata.width && metadata.width > MAX_DIM) ||
+          (metadata.height && metadata.height > MAX_DIM)
+        ) {
+          processedBuffer = await sharp(buffer)
+            .resize(MAX_DIM, MAX_DIM, { fit: 'inside', withoutEnlargement: true })
+            .toBuffer()
+          const resizedMeta = await sharp(processedBuffer).metadata()
+          result.width = resizedMeta.width
+          result.height = resizedMeta.height
+        }
+
         // 1) Optimize the original in its native format (mobile-friendly)
         try {
           let optimizedBuffer: Buffer
           const format = (metadata.format || '').toLowerCase()
           if (format === 'jpeg' || format === 'jpg') {
-            optimizedBuffer = await sharp(buffer).jpeg({ quality: 85, mozjpeg: true }).toBuffer()
+            optimizedBuffer = await sharp(processedBuffer)
+              .jpeg({
+                quality: 80, // reduce size while preserving good visual quality
+                mozjpeg: true,
+                chromaSubsampling: '4:2:0',
+                progressive: true
+              })
+              .toBuffer()
           } else if (format === 'png') {
-            optimizedBuffer = await sharp(buffer).png({ compressionLevel: 9, palette: true }).toBuffer()
+            optimizedBuffer = await sharp(processedBuffer)
+              .png({
+                compressionLevel: 9,
+                palette: true,
+                quality: 80, // stronger quantization for smaller files
+                colors: 128
+              })
+              .toBuffer()
           } else if (format === 'webp') {
-            optimizedBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer()
+            optimizedBuffer = await sharp(processedBuffer).webp({ quality: 80 }).toBuffer()
           } else {
-            optimizedBuffer = await sharp(buffer).toBuffer()
+            optimizedBuffer = await sharp(processedBuffer).toBuffer()
           }
           await fs.writeFile(filePath, optimizedBuffer)
           result.sizeBytes = optimizedBuffer.length
 
           // 2) Generate a same-dimensions WebP copy for the web (if not already WebP)
           if (format !== 'webp') {
-            const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer()
+            const webpBuffer = await sharp(processedBuffer).webp({ quality: 80 }).toBuffer()
             const webpFilename = `${fileId}.webp`
             const webpPath = path.join(appDir, webpFilename)
             await fs.writeFile(webpPath, webpBuffer)
@@ -106,38 +137,8 @@ export class FileStorageService {
           console.error('Error optimizing original or generating WebP:', e)
         }
 
-        // Generate variants
-        const variants = [
-          { label: 'thumb', width: 150, height: 150 },
-          { label: 'small', width: 400 },
-          { label: 'medium', width: 800 },
-          { label: 'large', width: 1200 }
-        ]
-
-        for (const variant of variants) {
-          if (metadata.width && metadata.width > variant.width) {
-            const variantBuffer = await image
-              .resize(variant.width, variant.height, { 
-                fit: variant.height ? 'cover' : 'inside',
-                withoutEnlargement: true 
-              })
-              .jpeg({ quality: 85 })
-              .toBuffer()
-
-            const variantFilename = `${fileId}_${variant.label}.jpg`
-            const variantPath = path.join(appDir, variantFilename)
-            await fs.writeFile(variantPath, variantBuffer)
-
-            const variantMetadata = await sharp(variantBuffer).metadata()
-            result.variants.push({
-              label: variant.label,
-              filename: variantFilename,
-              width: variantMetadata.width,
-              height: variantMetadata.height,
-              sizeBytes: variantBuffer.length
-            })
-          }
-        }
+        // Skip generating preset size variants to reduce storage.
+        // On-demand resizing is supported via `/api/images/[id]/content?w=...&h=...`.
       } catch (error) {
         console.error('Error processing image:', error)
       }

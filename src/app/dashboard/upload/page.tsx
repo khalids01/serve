@@ -32,6 +32,8 @@ export default function UploadPage() {
   const [tags, setTags] = useState("")
   const { data, isLoading } = useApplications()
   const applications = data?.applications ?? []
+  const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? '10')
+  const maxFileSizeBytes = (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 10) * 1024 * 1024
 
   useEffect(() => {
     if (!applicationId && applications.length > 0) {
@@ -57,7 +59,7 @@ export default function UploadPage() {
       'application/pdf': ['.pdf'],
       'text/*': ['.txt', '.md', '.json'],
     },
-    maxSize: 10 * 1024 * 1024 // 10MB
+    maxSize: maxFileSizeBytes
   })
 
   const removeFile = (index: number) => {
@@ -192,7 +194,7 @@ export default function UploadPage() {
                   <div><strong>Videos:</strong> MP4, WebM, MOV</div>
                   <div><strong>Audio:</strong> MP3, WAV, OGG</div>
                   <div><strong>Documents:</strong> PDF, TXT, MD</div>
-                  <div className="text-muted-foreground">Max size: 10MB per file</div>
+                  <div className="text-muted-foreground">Max size: {MAX_MB}MB per file</div>
                 </div>
               </CardContent>
             </Card>
