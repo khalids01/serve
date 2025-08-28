@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { testEmailConfiguration, sendTestEmail } from '@/lib/email'
 import { requireAuth } from '@/lib/auth-server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
     

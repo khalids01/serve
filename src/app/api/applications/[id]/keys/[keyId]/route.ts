@@ -4,13 +4,13 @@ import { requireAuth } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
 
 interface RouteParams {
-  params: { id: string; keyId: string }
+  params: Promise<{ id: string; keyId: string }>
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const user = await requireAuth()
-    const { id: applicationId, keyId } = params
+    const { id: applicationId, keyId } = await params
     const { action } = await request.json()
 
     // Verify user owns the application
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const user = await requireAuth()
-    const { id: applicationId, keyId } = params
+    const { id: applicationId, keyId } = await params
 
     // Verify user owns the application
     const application = await prisma.application.findFirst({

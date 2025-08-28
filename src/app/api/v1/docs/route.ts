@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const openApiPath = join(process.cwd(), 'src/app/api/v1/openapi.json')
     const openApiSpec = await readFile(openApiPath, 'utf-8')

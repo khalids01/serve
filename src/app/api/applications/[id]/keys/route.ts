@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
