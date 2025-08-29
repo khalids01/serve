@@ -99,9 +99,15 @@ export async function GET(
 
     const origExt = path.extname(image.filename).replace(".", "").toLowerCase();
     const targetExt = getTargetExt(fmtParam || requestedExt || origExt);
+    const normalizedOrigExt = origExt === "jpeg" ? "jpg" : origExt;
+
+    // Enforce stricter outputs: only original format and WebP are allowed
+    if (targetExt !== normalizedOrigExt && targetExt !== "webp") {
+      return NextResponse.json({ error: "Unsupported output format" }, { status: 404 });
+    }
 
     // If no resize and requested format matches original (or no ext provided), stream the original
-    if (!width && !height && targetExt === origExt) {
+    if (!width && !height && targetExt === normalizedOrigExt) {
       try {
         let buf: Buffer;
         try {
@@ -128,8 +134,8 @@ export async function GET(
       }
     }
 
-    // If no resize and requested format differs from original, try prebuilt same-dimension file (e.g., webp) first
-    if (!width && !height && targetExt !== origExt) {
+    // If no resize and requested format differs from original, try prebuilt same-dimension file (webp) first
+    if (!width && !height && targetExt !== normalizedOrigExt) {
       const prebuiltPrimary = path.join(uploadsDir, `${baseName}.${targetExt}`);
       const prebuiltLegacy = path.join(legacyUploadsDir, `${baseName}.${targetExt}`);
       try {
@@ -148,6 +154,11 @@ export async function GET(
           },
         });
       } catch {}
+      // No prebuilt same-dimension variant available
+      return NextResponse.json(
+        { error: "Variant not found" },
+        { status: 404 }
+      );
     }
 
     // Prepare cache

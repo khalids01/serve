@@ -92,8 +92,8 @@ Query params:
 - `q` or `quality`: output quality (1–100)
 
 Notes:
-- To request a different output format, use the corresponding extension in `:name` (e.g. `.webp`, `.avif`).
-- If no resize is requested and a same-dimension optimized file exists (e.g., WebP), it will be streamed directly.
+- To request a different output format, only `.webp` is supported via the `:name` extension.
+- If no resize is requested and a same-dimension optimized WebP exists, it will be streamed directly; otherwise returns 404.
 
 Delete an image:
 

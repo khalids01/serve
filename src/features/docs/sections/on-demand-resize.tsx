@@ -21,9 +21,8 @@ export function OnDemandResizeSection() {
           <div className="text-sm text-muted-foreground mt-2">
             Query params: <code>w</code> (or <code>width</code>), <code>h</code>{" "}
             (or <code>height</code>), optional <code>q</code> (or{" "}
-            <code>quality</code>, 1–100). To change format, request a different
-            extension in <code>:name</code> (e.g. <code>.webp</code>,{" "}
-            <code>.avif</code>).
+            <code>quality</code>, 1–100). To change format, request
+            <code className="mx-1">.webp</code> in <code>:name</code>.
           </div>
         </div>
 

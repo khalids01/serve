@@ -12,7 +12,7 @@
 - **🔐 Authentication**: Better Auth with Magic Link + Admin plugin (role field fully integrated)
 - **📧 Email System**: Magic link sending via Nodemailer, config/test endpoints, robust error handling
 - **📁 File Upload**: Core upload API with image processing and typed responses
-- **🖼️ Image Processing**: Sharp integration with automatic variants (thumb, small, medium, large), optimized originals, and WebP copy on upload
+- **🖼️ Image Processing**: Sharp integration with optimized originals, same‑dimension WebP copy, and on‑demand resize with caching
 - **🗄️ Database Schema**: Prisma models updated (User role, banned fields, Image, ApiKey, etc.)
 - **📊 Basic APIs**: Upload, list images, get/delete individual images (typed)
 - **🏢 Applications**: Basic application CRUD operations
@@ -22,7 +22,7 @@
 ### ✅ **COMPLETED FEATURES** (Recently Added - Phase 2)
 - **🔍 Advanced Search**: Enhanced search with filename, content type, and sorting options
 - **🌐 Public API**: Complete v1 API with OpenAPI documentation and Swagger UI
-- **🧩 On‑demand Resize**: New endpoint `/api/img/:name` with width/height params, extension-based format (e.g. `.webp`, `.avif`), and on-disk caching
+- **🧩 On‑demand Resize**: New endpoint `/api/img/:name` with width/height params, extension-based format (e.g. `.webp`), and on-disk caching
 
 ### ✅ **COMPLETED FEATURES** (Recently Added)
 - **🔑 API Keys**: Complete service (generate/hash/validate/list/revoke/delete) with UI and endpoints
@@ -69,12 +69,11 @@
 ### ✅ Done
 - Optimize originals (JPEG/PNG/WebP) on upload
 - Generate same‑dimension WebP copy on upload
-- Provide prebuilt JPEG size variants (thumb/small/medium/large)
 - On‑demand resize API with disk cache and immutable headers
 
 ### 🚧 In Progress
 - Frontend URL helpers for building resize URLs
-- Optional WebP/AVIF output negotiation based on `Accept` header
+- Optional WebP output negotiation based on `Accept` header
 
 ### ⏳ Not Yet
 - Generate WebP variants for each sized variant
@@ -180,7 +179,7 @@
 - **Backend**: Next.js Route Handlers (`app/api/**`) for REST APIs
 - **Auth**: Better-Auth with Magic Link authentication
 - **Database**: Prisma ORM + SQLite (configurable for PostgreSQL/MySQL)
-- **Storage**: Local filesystem under `public/uploads/{applicationId}/`
+- **Storage**: Local filesystem under `UPLOAD_DIR` (segmented by app slug); public serving via `/api/img/:name`
 - **Image Processing**: Sharp for compression, thumbnails, and transforms
 - **Search**: SQLite queries + FTS5 virtual table for filename/tags
 - **API Access**: Per-application API keys (hashed in DB), RBAC (admin/user)
