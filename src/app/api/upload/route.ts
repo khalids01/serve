@@ -121,10 +121,10 @@ export async function POST(request: NextRequest) {
       success: true,
       image: {
         ...image,
-        url: `/api/images/${image.id}/content`,
+        url: `/api/img/${image.filename}`,
         variants: image.variants.map(variant => ({
           ...variant,
-          url: `/api/images/${image.id}/content${variant.width || variant.height ? `?${[
+          url: `/api/img/${image.filename}${variant.width || variant.height ? `?${[
             variant.width ? `w=${variant.width}` : '',
             variant.height ? `h=${variant.height}` : ''
           ].filter(Boolean).join('&')}` : ''}`

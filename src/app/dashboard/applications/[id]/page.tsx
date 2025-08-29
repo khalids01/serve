@@ -360,7 +360,7 @@ export default function ApplicationDetailsPage() {
                 ) : (
                   <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
                     {images.map((img) => {
-                      const url = `/api/images/${img.id}/content`
+                      const url = `/api/img/${img.filename}`
                       if (viewMode === 'grid') {
                         return (
                           <div key={img.id} className="border rounded-lg overflow-hidden">
@@ -431,7 +431,7 @@ export default function ApplicationDetailsPage() {
                 </DialogHeader>
                 {previewImage && (
                   <img
-                    src={`/api/images/${previewImage.id}/content?w=1280`}
+                    src={`/api/img/${previewImage.filename}?w=1280`}
                     alt={previewImage.originalName}
                     className="w-full h-auto rounded-md"
                   />

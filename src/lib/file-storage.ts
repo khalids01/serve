@@ -138,7 +138,7 @@ export class FileStorageService {
         }
 
         // Skip generating preset size variants to reduce storage.
-        // On-demand resizing is supported via `/api/images/[id]/content?w=...&h=...`.
+        // On-demand resizing is supported via `/api/img/:name?w=...&h=...`.
       } catch (error) {
         console.error('Error processing image:', error)
       }

@@ -22,7 +22,7 @@
 ### ✅ **COMPLETED FEATURES** (Recently Added - Phase 2)
 - **🔍 Advanced Search**: Enhanced search with filename, content type, and sorting options
 - **🌐 Public API**: Complete v1 API with OpenAPI documentation and Swagger UI
-- **🧩 On‑demand Resize**: New endpoint `/api/images/:id/content` with width/height/format params and on-disk caching
+- **🧩 On‑demand Resize**: New endpoint `/api/img/:name` with width/height params, extension-based format (e.g. `.webp`, `.avif`), and on-disk caching
 
 ### ✅ **COMPLETED FEATURES** (Recently Added)
 - **🔑 API Keys**: Complete service (generate/hash/validate/list/revoke/delete) with UI and endpoints

@@ -42,16 +42,22 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await context.params
+    const { id: rawId } = await context.params
     const url = new URL(request.url)
     const wParam = url.searchParams.get('width') || url.searchParams.get('w')
     const hParam = url.searchParams.get('height') || url.searchParams.get('h')
     const fmtParam = url.searchParams.get('format') || url.searchParams.get('f')
 
+    // Support both `/api/images/:id/content` and `/api/images/:id.ext/content`
+    const [id, idExt] = rawId.includes('.') ? ((): [string, string | null] => {
+      const dotIdx = rawId.indexOf('.')
+      return [rawId.slice(0, dotIdx), rawId.slice(dotIdx + 1).toLowerCase()]
+    })() : [rawId, null]
+
     const width = clamp(wParam ? parseInt(wParam, 10) : null)
     const height = clamp(hParam ? parseInt(hParam, 10) : null)
 
-    // Fetch image metadata
+    // Fetch image metadata (by ID only)
     const image = await prisma.image.findUnique({
       where: { id },
       select: {
@@ -76,8 +82,12 @@ export async function GET(
     const originalPathPrimary = path.join(uploadsDir, image.filename)
     const originalPathLegacy = path.join(legacyUploadsDir, image.filename)
 
-    // If no resize requested, just stream original
-    if (!width && !height) {
+    // Determine target format: query param wins, otherwise use extension from path if provided
+    const targetExt = getTargetExt((fmtParam || idExt) || undefined)
+    const origExt = path.extname(image.filename).replace('.', '').toLowerCase()
+
+    // If no resize requested and no transcode requested, stream original
+    if (!width && !height && (!idExt || targetExt === origExt) && !fmtParam) {
       try {
         let buf: Buffer
         try {
@@ -99,8 +109,30 @@ export async function GET(
       }
     }
 
-    // Prepare cache
-    const targetExt = getTargetExt(fmtParam || undefined)
+    // Special-case: requesting the uploaded WebP copy without resize
+    if (!width && !height && targetExt === 'webp') {
+      const webpName = `${path.parse(image.filename).name}.webp`
+      const webpPrimary = path.join(uploadsDir, webpName)
+      const webpLegacy = path.join(legacyUploadsDir, webpName)
+      try {
+        let buf: Buffer
+        try {
+          buf = await fs.readFile(webpPrimary)
+        } catch {
+          buf = await fs.readFile(webpLegacy)
+        }
+        const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+        return new NextResponse(body as ArrayBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/webp',
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        })
+      } catch {}
+    }
+
+    // Prepare cache (includes format in extension)
     const base = path.parse(image.filename).name
     const cacheDir = path.join(uploadsDir, '_cache')
     await fs.mkdir(cacheDir, { recursive: true })

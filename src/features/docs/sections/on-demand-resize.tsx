@@ -17,12 +17,11 @@ export function OnDemandResizeSection() {
       <div className="rounded-lg border bg-card p-6 space-y-6">
         <div>
           <h4 className="font-semibold mb-3">Endpoint</h4>
-          <code className="text-sm">GET /api/images/:id/content</code>
+          <code className="text-sm">GET /api/img/:name</code>
           <div className="text-sm text-muted-foreground mt-2">
             Query params: <code>w</code> (or <code>width</code>), <code>h</code>{" "}
-            (or <code>height</code>), optional <code>format</code> (
-            <code>jpg</code> default, <code>png</code>, <code>webp</code>,{" "}
-            <code>avif</code>).
+            (or <code>height</code>). To change format, request a different
+            extension in <code>:name</code> (e.g. <code>.webp</code>, <code>.avif</code>).
           </div>
         </div>
 
@@ -33,23 +32,23 @@ export function OnDemandResizeSection() {
             language="bash"
             code={`# Original (no resize)
 curl -i \
-  "https://your-domain.com/api/images/IMG_ID/content"
+  "https://your-domain.com/api/img/IMG_NAME.jpg"
 
 # Width only (keeps aspect ratio)
 curl -i \
-  "https://your-domain.com/api/images/IMG_ID/content?w=800"
+  "https://your-domain.com/api/img/IMG_NAME.jpg?w=800"
 
 # Height only (keeps aspect ratio)
 curl -i \
-  "https://your-domain.com/api/images/IMG_ID/content?h=600"
+  "https://your-domain.com/api/img/IMG_NAME.jpg?h=600"
 
 # Width and height (fit=inside, no upscaling)
 curl -i \
-  "https://your-domain.com/api/images/IMG_ID/content?w=1200&h=800"
+  "https://your-domain.com/api/img/IMG_NAME.jpg?w=1200&h=800"
 
-# Request WebP output
+# Request WebP output by extension
 curl -i \
-  "https://your-domain.com/api/images/IMG_ID/content?w=800&format=webp"`}
+  "https://your-domain.com/api/img/IMG_NAME.webp?w=800"`}
           />
         </div>
 

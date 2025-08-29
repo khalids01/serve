@@ -25,10 +25,10 @@ export async function GET(
 
     return NextResponse.json({
       ...image,
-      url: `/api/images/${image.id}/content`,
+      url: `/api/img/${image.filename}`,
       variants: image.variants.map(variant => ({
         ...variant,
-        url: `/api/images/${image.id}/content${variant.width || variant.height ? `?${[
+        url: `/api/img/${image.filename}${variant.width || variant.height ? `?${[
           variant.width ? `w=${variant.width}` : '',
           variant.height ? `h=${variant.height}` : ''
         ].filter(Boolean).join('&')}` : ''}`
@@ -76,7 +76,7 @@ export async function DELETE(
       await fileStorage.deleteFile(variant.filename, image.applicationId)
     }
 
-    // Delete cached resized files (created by /api/images/[id]/content)
+    // Delete cached resized files (created by /api/img/:name or legacy /api/images/:id/content)
     try {
       const baseUploads = process.env.UPLOAD_DIR || 'uploads'
       const uploadsRoot = path.isAbsolute(baseUploads) ? baseUploads : path.join(process.cwd(), baseUploads)

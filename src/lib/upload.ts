@@ -66,13 +66,9 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
   return {
     ...imageWithVariants,
     // Serve via API to avoid direct public file paths
-    url: `/api/images/${imageWithVariants.id}/content`,
+    url: `/api/img/${imageWithVariants.filename}`,
     variants: imageWithVariants.variants.map((variant: ImageVariant) => {
-      const base = `/api/images/${imageWithVariants.id}/content`
-      // For the 'webp' variant, request webp explicitly, no resize params
-      if ((variant as any).label === 'webp') {
-        return { ...variant, url: `${base}?f=webp` }
-      }
+      const base = `/api/img/${imageWithVariants.filename}`
       const params = [
         variant.width ? `w=${variant.width}` : '',
         variant.height ? `h=${variant.height}` : ''

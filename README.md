@@ -134,9 +134,9 @@ const { images } = await imagesRes.json()
 
 // Preview/serve content with optional resize
 // Original
-const url = `/api/images/${images[0].id}/content`
+const url = `/api/img/${images[0].filename}`
 // Resized thumbnail (fit inside width)
-const thumb = `/api/images/${images[0].id}/content?w=320`
+const thumb = `/api/img/${images[0].filename}?w=320`
 
 // Delete a file (removes from storage + DB)
 await fetch(`/api/images/${images[0].id}`, { method: 'DELETE' })

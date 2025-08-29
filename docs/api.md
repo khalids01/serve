@@ -66,18 +66,20 @@ List images for an application:
 GET /api/images?applicationId=<APP_ID>&limit=50
 ```
 
-Get original content:
+Get original content (served by filename):
 
 ```
-GET /api/images/:id/content
+GET /api/img/:name
 ```
 
 On-demand resize (fits inside width/height):
 
 ```
-GET /api/images/:id/content?w=320
-GET /api/images/:id/content?h=320
+GET /api/img/:name?w=320
+GET /api/img/:name?h=320
 ```
+
+To request a different output format, use the corresponding extension in `:name` (e.g. `.webp`, `.avif`).
 
 Delete an image:
 

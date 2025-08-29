@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
   const isUploadRoute = pathname.startsWith('/api/upload')
   const isImagesRoute = pathname.startsWith('/api/images')
   const isApplicationsRoute = pathname.startsWith('/api/applications')
+  // Publicly accessible endpoint to serve image bytes (optionally resized)
+  const isPublicImageContent = /^\/api\/images\/[^/]+\/content$/.test(pathname)
   
   // Skip auth routes
   if (isAuthRoute) {
@@ -29,6 +31,10 @@ export async function middleware(request: NextRequest) {
 
   // For upload and images routes, check for API key authentication
   if (isUploadRoute || isImagesRoute) {
+    // Allow public access for image content serving
+    if (isPublicImageContent) {
+      return NextResponse.next()
+    }
     const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
     
     if (apiKey) {
