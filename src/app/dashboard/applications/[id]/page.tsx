@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FolderOpen, Key, Upload, Image, Trash2, Eye, List, Grid2X2 } from 'lucide-react'
+import { FolderOpen, Key, Upload, Image, Trash2, Eye, List, Grid2X2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import {
@@ -80,6 +80,13 @@ export default function ApplicationDetailsPage() {
   const [previewImage, setPreviewImage] = useState<ImageFile | null>(null)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [targetDelete, setTargetDelete] = useState<ImageFile | null>(null)
+
+  // Absolute URL for preview image (used by the "open in new tab" button)
+  const previewAbsoluteUrl = previewImage
+    ? (typeof window !== 'undefined'
+        ? new URL(`/api/img/${previewImage.filename}`, window.location.origin).toString()
+        : `/api/img/${previewImage.filename}`)
+    : ''
 
   useEffect(() => {
     fetchApplication()
@@ -425,16 +432,26 @@ export default function ApplicationDetailsPage() {
 
             {/* Preview dialog */}
             <Dialog open={!!previewImage} onOpenChange={(o) => !o && setPreviewImage(null)}>
-              <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle>{previewImage?.originalName}</DialogTitle>
+              <DialogContent className="!w-full !max-w-[900px] h-[90vh]">
+                <DialogHeader className="flex flex-row items-center justify-between">
+                  <DialogTitle className="truncate">{previewImage?.originalName}</DialogTitle>
+                  {previewImage && (
+                    <Button variant="ghost" size="icon" asChild>
+                      <a href={previewAbsoluteUrl} target="_blank" rel="noopener noreferrer" title="Open in new tab">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
                 </DialogHeader>
+
                 {previewImage && (
-                  <img
-                    src={`/api/img/${previewImage.filename}?w=1280`}
-                    alt={previewImage.originalName}
-                    className="w-full h-auto rounded-md"
-                  />
+                  <div className="h-full overflow-auto">
+                    <img
+                      src={`/api/img/${previewImage.filename}?w=1280`}
+                      alt={previewImage.originalName}
+                      className="mx-auto h-full w-auto max-h-full object-contain rounded-md"
+                    />
+                  </div>
                 )}
               </DialogContent>
             </Dialog>

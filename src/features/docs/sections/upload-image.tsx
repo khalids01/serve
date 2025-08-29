@@ -14,7 +14,7 @@ export function UploadImageSection() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">POST</span>
-            <code className="text-lg font-mono">/api/v1/upload</code>
+            <code className="text-lg font-mono">/api/upload</code>
           </div>
         </div>
 
@@ -22,16 +22,47 @@ export function UploadImageSection() {
           <div>
             <h4 className="font-semibold mb-3">Request</h4>
             <CodeBlock
-              code={`curl -X POST https://your-domain.com/api/v1/upload \\\n  -H "Authorization: Bearer sk_live_your_api_key" \\\n  -F "file=@image.jpg" \\\n  -F "tags=profile,avatar"`}
+              code={`curl -X POST https://your-domain.com/api/upload \
+  -H "Authorization: Bearer sk_live_your_api_key" \
+  -H "X-Application-Id: app_123456" \
+  -F "file=@image.jpg" \
+  -F "tags=profile,avatar"`}
               language="bash"
               id="upload-curl"
             />
           </div>
 
           <div>
+            <h4 className="font-semibold mb-3">Postman</h4>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="mb-1 font-medium">URL</p>
+                <CodeBlock code="https://your-domain.com/api/upload" language="text" id="upload-postman-url" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Method</p>
+                <CodeBlock code="POST" language="text" id="upload-postman-method" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Headers</p>
+                <CodeBlock code={`Authorization: Bearer sk_live_your_api_key\nX-Application-Id: app_123456`} language="text" id="upload-postman-headers" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Body (form-data)</p>
+                <CodeBlock
+                  code={`file: [Choose File]\napplicationId: app_123456\ntags: profile,avatar`}
+                  language="text"
+                  id="upload-postman-body"
+                />
+                <p className="text-muted-foreground mt-1">Tip: Select "form-data" in Postman. Content-Type is set automatically.</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <h4 className="font-semibold mb-3">JavaScript Example</h4>
             <CodeBlock
-              code={`const formData = new FormData();\nformData.append('file', fileInput.files[0]);\nformData.append('tags', 'profile,avatar');\n\nconst response = await fetch('/api/v1/upload', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer sk_live_your_api_key'\n  },\n  body: formData\n});\n\nconst result = await response.json();`}
+              code={`const formData = new FormData();\nformData.append('file', fileInput.files[0]);\nformData.append('tags', 'profile,avatar');\n\nconst response = await fetch('/api/upload', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer sk_live_your_api_key'\n  },\n  body: formData\n});\n\nconst result = await response.json();`}
               language="javascript"
               id="upload-js"
             />

@@ -15,7 +15,7 @@ export function DeleteImageSection() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3">DELETE</span>
-            <code className="text-lg font-mono">/api/v1/images/{"{id}"}</code>
+            <code className="text-lg font-mono">/api/images/{"{id}"}</code>
           </div>
         </div>
 
@@ -37,10 +37,37 @@ export function DeleteImageSection() {
           <div>
             <h4 className="font-semibold mb-3">Request</h4>
             <CodeBlock
-              code={`curl -X DELETE "https://your-domain.com/api/v1/images/img_123456789" \\\n  -H "Authorization: Bearer sk_live_your_api_key"`}
+              code={`curl -X DELETE "https://your-domain.com/api/images/img_123456789" \\
+  -H "Authorization: Bearer sk_live_your_api_key"`}
               language="bash"
               id="delete-curl"
             />
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-3">Postman</h4>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="mb-1 font-medium">URL</p>
+                <CodeBlock code="https://your-domain.com/api/images/img_123456789" language="text" id="delete-postman-url" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Method</p>
+                <CodeBlock code="DELETE" language="text" id="delete-postman-method" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Headers</p>
+                <CodeBlock code={`Authorization: Bearer sk_live_your_api_key`} language="text" id="delete-postman-headers" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Query Params</p>
+                <CodeBlock code={`N/A`} language="text" id="delete-postman-params" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Body</p>
+                <CodeBlock code={`N/A`} language="text" id="delete-postman-body" />
+              </div>
+            </div>
           </div>
 
           <div>

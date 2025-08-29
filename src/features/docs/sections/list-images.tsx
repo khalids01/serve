@@ -14,7 +14,7 @@ export function ListImagesSection() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <span className="bg-muted text-foreground text-xs font-medium px-2.5 py-0.5 rounded mr-3">GET</span>
-            <code className="text-lg font-mono">/api/v1/images</code>
+            <code className="text-lg font-mono">/api/images</code>
           </div>
         </div>
 
@@ -22,10 +22,38 @@ export function ListImagesSection() {
           <div>
             <h4 className="font-semibold mb-3">Request</h4>
             <CodeBlock
-              code={`curl -X GET "https://your-domain.com/api/v1/images?page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc" \\\n  -H "Authorization: Bearer sk_live_your_api_key"`}
+              code={`curl -X GET "https://your-domain.com/api/images?applicationId=app_123456&page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc" \\
+  -H "Authorization: Bearer sk_live_your_api_key"`}
               language="bash"
               id="list-curl"
             />
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-3">Postman</h4>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="mb-1 font-medium">URL</p>
+                <CodeBlock code="https://your-domain.com/api/images" language="text" id="list-postman-url" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Method</p>
+                <CodeBlock code="GET" language="text" id="list-postman-method" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Headers</p>
+                <CodeBlock code={`Authorization: Bearer sk_live_your_api_key`} language="text" id="list-postman-headers" />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Query Params</p>
+                <CodeBlock
+                  code={`applicationId=app_123456\npage=1\nlimit=20\nsearch=avatar\ncontentType=image/jpeg\nsortBy=createdAt\nsortOrder=desc`}
+                  language="text"
+                  id="list-postman-params"
+                />
+                <p className="text-muted-foreground mt-1">Tip: Use the Params tab in Postman to add key/value pairs.</p>
+              </div>
+            </div>
           </div>
 
           <div>

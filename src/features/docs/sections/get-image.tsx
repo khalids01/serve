@@ -9,10 +9,36 @@ export function GetImageSection() {
           Retrieve detailed information about a specific image including all variants.
         </p>
         <CodeBlock
-          code={`curl -X GET "https://your-domain.com/api/v1/images/img_123456789" \\\n  -H "Authorization: Bearer sk_live_your_api_key"`}
+          code={`curl -X GET "https://your-domain.com/api/images/img_123456789" \\\n  -H "Authorization: Bearer sk_live_your_api_key"`}
           language="bash"
           id="get-curl"
         />
+      </div>
+
+      <div>
+        <h4 className="font-semibold mb-3">Postman</h4>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="mb-1 font-medium">URL</p>
+            <CodeBlock code="https://your-domain.com/api/images/img_123456789" language="text" id="get-postman-url" />
+          </div>
+          <div>
+            <p className="mb-1 font-medium">Method</p>
+            <CodeBlock code="GET" language="text" id="get-postman-method" />
+          </div>
+          <div>
+            <p className="mb-1 font-medium">Headers</p>
+            <CodeBlock code={`Authorization: Bearer sk_live_your_api_key`} language="text" id="get-postman-headers" />
+          </div>
+          <div>
+            <p className="mb-1 font-medium">Query Params</p>
+            <CodeBlock code={`N/A`} language="text" id="get-postman-params" />
+          </div>
+          <div>
+            <p className="mb-1 font-medium">Body</p>
+            <CodeBlock code={`N/A`} language="text" id="get-postman-body" />
+          </div>
+        </div>
       </div>
 
       <div>
