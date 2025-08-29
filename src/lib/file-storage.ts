@@ -1,40 +1,33 @@
-import fs from 'fs/promises'
-import path from 'path'
-import sharp from 'sharp'
-import { createHash } from 'crypto'
+import fs from "fs/promises";
+import path from "path";
+import { env } from "@/env";
+import { contentHash16 } from "@/lib/storage/hash";
+import {
+  resolveBaseUploadDir,
+  ensureDirectoryExists,
+  getAppDir,
+} from "@/lib/storage/paths";
+import {
+  readMetadata,
+  downscaleIfTooLarge,
+  optimizeOriginal,
+  toWebp,
+  normalizeRasterFormat,
+  placeholder,
+  placeholderWebp,
+} from "@/lib/storage/image";
+import type { FileUploadResult } from "@/lib/storage/types";
 
-export interface FileUploadResult {
-  id: string
-  filename: string
-  originalName: string
-  contentType: string
-  sizeBytes: number
-  width?: number
-  height?: number
-  hash?: string
-  variants: Array<{
-    label: string
-    filename: string
-    width?: number
-    height?: number
-    sizeBytes: number
-  }>
-}
 
 export class FileStorageService {
-  private baseUploadDir: string
+  private baseUploadDir: string;
 
-  constructor(baseUploadDir = process.env.UPLOAD_DIR || 'uploads') {
-    const dir = baseUploadDir
-    this.baseUploadDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
+  constructor(baseUploadDir = env.UPLOAD_DIR || "uploads") {
+    this.baseUploadDir = resolveBaseUploadDir(baseUploadDir);
   }
 
   async ensureDirectoryExists(dirPath: string): Promise<void> {
-    try {
-      await fs.access(dirPath)
-    } catch {
-      await fs.mkdir(dirPath, { recursive: true })
-    }
+    await ensureDirectoryExists(dirPath);
   }
 
   async saveFile(
@@ -43,15 +36,15 @@ export class FileStorageService {
     applicationId: string,
     contentType: string
   ): Promise<FileUploadResult> {
-    const fileId = createHash('sha256').update(buffer).digest('hex').substring(0, 16)
-    const ext = path.extname(originalName)
-    const filename = `${fileId}${ext}`
-    
-    const appDir = path.join(this.baseUploadDir, applicationId)
-    await this.ensureDirectoryExists(appDir)
-    
-    const filePath = path.join(appDir, filename)
-    await fs.writeFile(filePath, buffer)
+    const fileId = contentHash16(buffer);
+    const ext = path.extname(originalName);
+    const filename = `${fileId}${ext}`;
+
+    const appDir = getAppDir(this.baseUploadDir, applicationId);
+    await this.ensureDirectoryExists(appDir);
+
+    const filePath = path.join(appDir, filename);
+    await fs.writeFile(filePath, buffer);
 
     const result: FileUploadResult = {
       id: fileId,
@@ -59,107 +52,126 @@ export class FileStorageService {
       originalName,
       contentType,
       sizeBytes: buffer.length,
-      variants: []
-    }
+      variants: [],
+    };
 
     // Process image files
-    if (contentType.startsWith('image/')) {
+    if (contentType.startsWith("image/")) {
       try {
-        const image = sharp(buffer)
-        const metadata = await image.metadata()
-        
-        result.width = metadata.width
-        result.height = metadata.height
+        const metadata = await readMetadata(buffer);
+        result.width = metadata.width;
+        result.height = metadata.height;
 
         // Optionally downscale very large images to reduce file size
-        const maxDimEnv = Number(process.env.ORIGINAL_MAX_DIM || '2560')
-        const MAX_DIM = Number.isFinite(maxDimEnv) && maxDimEnv > 0 ? Math.floor(maxDimEnv) : 2560
-        let processedBuffer = buffer
-        if (
-          (metadata.width && metadata.width > MAX_DIM) ||
-          (metadata.height && metadata.height > MAX_DIM)
-        ) {
-          processedBuffer = await sharp(buffer)
-            .resize(MAX_DIM, MAX_DIM, { fit: 'inside', withoutEnlargement: true })
-            .toBuffer()
-          const resizedMeta = await sharp(processedBuffer).metadata()
-          result.width = resizedMeta.width
-          result.height = resizedMeta.height
-        }
+        const downscaled = await downscaleIfTooLarge(buffer, env.ORIGINAL_MAX_DIM);
+        let processedBuffer = downscaled.buffer;
+        result.width = downscaled.width ?? result.width;
+        result.height = downscaled.height ?? result.height;
 
         // 1) Optimize the original in its native format (mobile-friendly)
         try {
-          let optimizedBuffer: Buffer
-          const format = (metadata.format || '').toLowerCase()
-          if (format === 'jpeg' || format === 'jpg') {
-            optimizedBuffer = await sharp(processedBuffer)
-              .jpeg({
-                quality: 80, // reduce size while preserving good visual quality
-                mozjpeg: true,
-                chromaSubsampling: '4:2:0',
-                progressive: true
-              })
-              .toBuffer()
-          } else if (format === 'png') {
-            optimizedBuffer = await sharp(processedBuffer)
-              .png({
-                compressionLevel: 9,
-                palette: true,
-                quality: 80, // stronger quantization for smaller files
-                colors: 128
-              })
-              .toBuffer()
-          } else if (format === 'webp') {
-            optimizedBuffer = await sharp(processedBuffer).webp({ quality: 80 }).toBuffer()
-          } else {
-            optimizedBuffer = await sharp(processedBuffer).toBuffer()
-          }
-          await fs.writeFile(filePath, optimizedBuffer)
-          result.sizeBytes = optimizedBuffer.length
+          const format = (metadata.format || "").toLowerCase();
+          const optimizedBuffer = await optimizeOriginal(processedBuffer, format);
+          await fs.writeFile(filePath, optimizedBuffer);
+          result.sizeBytes = optimizedBuffer.length;
 
           // 2) Generate a same-dimensions WebP copy for the web (if not already WebP)
-          if (format !== 'webp') {
-            const webpBuffer = await sharp(processedBuffer).webp({ quality: 80 }).toBuffer()
-            const webpFilename = `${fileId}.webp`
-            const webpPath = path.join(appDir, webpFilename)
-            await fs.writeFile(webpPath, webpBuffer)
+          if (format !== "webp") {
+            const webpBuffer = await toWebp(processedBuffer, 80);
+            const webpFilename = `${fileId}.webp`;
+            const webpPath = path.join(appDir, webpFilename);
+            await fs.writeFile(webpPath, webpBuffer);
 
-            const webpMetadata = await sharp(webpBuffer).metadata()
+            const webpMeta = await readMetadata(webpBuffer);
             result.variants.push({
-              label: 'webp',
+              label: "webp",
               filename: webpFilename,
-              width: webpMetadata.width,
-              height: webpMetadata.height,
-              sizeBytes: webpBuffer.length
-            })
+              width: webpMeta.width,
+              height: webpMeta.height,
+              sizeBytes: webpBuffer.length,
+            });
           }
         } catch (e) {
-          console.error('Error optimizing original or generating WebP:', e)
+          console.error("Error optimizing original or generating WebP:", e);
+        }
+
+        // 3) Generate blurred placeholders (very small, blurred) for fast preview
+        try {
+          const normalizedOrigExt = normalizeRasterFormat(metadata.format);
+          // Only generate for supported raster formats
+          if (normalizedOrigExt) {
+            // Placeholder (original format)
+            const placeholderBuf = await placeholder(
+              processedBuffer,
+              normalizedOrigExt,
+              env.PLACEHOLDER_WIDTH,
+              env.PLACEHOLDER_QUALITY,
+            );
+
+            const placeholderFilename = `${fileId}-placeholder.${normalizedOrigExt}`;
+            const placeholderPath = path.join(appDir, placeholderFilename);
+            await fs.writeFile(placeholderPath, placeholderBuf);
+
+            const phMeta = await readMetadata(placeholderBuf);
+            result.variants.push({
+              label: "placeholder",
+              filename: placeholderFilename,
+              width: phMeta.width,
+              height: phMeta.height,
+              sizeBytes: placeholderBuf.length,
+            });
+
+            // Placeholder WebP (skip duplicate if original is already webp)
+            if (normalizedOrigExt !== "webp") {
+              const placeholderWebpBuf = await placeholderWebp(
+                processedBuffer,
+                env.PLACEHOLDER_WIDTH,
+                60,
+              );
+              const placeholderWebpFilename = `${fileId}-placeholder.webp`;
+              const placeholderWebpPath = path.join(
+                appDir,
+                placeholderWebpFilename
+              );
+              await fs.writeFile(placeholderWebpPath, placeholderWebpBuf);
+
+              const phWebpMeta = await readMetadata(placeholderWebpBuf);
+              result.variants.push({
+                label: "placeholder-webp",
+                filename: placeholderWebpFilename,
+                width: phWebpMeta.width,
+                height: phWebpMeta.height,
+                sizeBytes: placeholderWebpBuf.length,
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Error generating placeholders:", e);
         }
 
         // Skip generating preset size variants to reduce storage.
         // On-demand resizing is supported via `/api/img/:name?w=...&h=...`.
       } catch (error) {
-        console.error('Error processing image:', error)
+        console.error("Error processing image:", error);
       }
     }
 
-    return result
+    return result;
   }
 
   async deleteFile(filename: string, applicationId: string): Promise<void> {
-    const appDir = path.join(this.baseUploadDir, applicationId)
-    const filePath = path.join(appDir, filename)
-    
+    const appDir = path.join(this.baseUploadDir, applicationId);
+    const filePath = path.join(appDir, filename);
+
     try {
-      await fs.unlink(filePath)
+      await fs.unlink(filePath);
     } catch (error) {
-      console.error('Error deleting file:', error)
+      console.error("Error deleting file:", error);
     }
   }
 
   getFileUrl(filename: string, applicationId: string): string {
     // Public serving is handled by the image route; application scoping is internal
-    return `/api/img/${filename}`
+    return `/api/img/${filename}`;
   }
 }
