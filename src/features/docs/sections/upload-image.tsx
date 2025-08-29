@@ -40,7 +40,7 @@ export function UploadImageSection() {
           <div>
             <h4 className="font-semibold mb-3">Response</h4>
             <CodeBlock
-              code={`{\n  "success": true,\n  "image": {\n    "id": "img_123456789",\n    "filename": "image_processed.jpg",\n    "originalName": "image.jpg",\n    "contentType": "image/jpeg",\n    "sizeBytes": 245760,\n    "width": 1920,\n    "height": 1080,\n    "url": "https://your-domain.com/uploads/app_id/image_processed.jpg",\n    "variants": [\n      {\n        "label": "thumb",\n        "filename": "image_processed_thumb.jpg",\n        "width": 150,\n        "height": 150,\n        "url": "https://your-domain.com/uploads/app_id/image_processed_thumb.jpg"\n      }\n    ],\n    "createdAt": "2024-01-01T00:00:00.000Z"\n  }\n}`}
+              code={`{\n  "success": true,\n  "image": {\n    "id": "img_123456789",\n    "filename": "image_processed.jpg",\n    "originalName": "image.jpg",\n    "contentType": "image/jpeg",\n    "sizeBytes": 245760,\n    "width": 1920,\n    "height": 1080,\n    "url": "/api/img/img_123456789.jpg",\n    "variants": [\n      {\n        "label": "webp",\n        "filename": "img_123456789.webp",\n        "width": 1920,\n        "height": 1080,\n        "url": "/api/img/img_123456789.webp"\n      }\n    ],\n    "createdAt": "2024-01-01T00:00:00.000Z"\n  }\n}`}
               language="json"
               id="upload-response"
             />

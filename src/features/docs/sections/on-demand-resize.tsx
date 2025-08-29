@@ -20,8 +20,10 @@ export function OnDemandResizeSection() {
           <code className="text-sm">GET /api/img/:name</code>
           <div className="text-sm text-muted-foreground mt-2">
             Query params: <code>w</code> (or <code>width</code>), <code>h</code>{" "}
-            (or <code>height</code>). To change format, request a different
-            extension in <code>:name</code> (e.g. <code>.webp</code>, <code>.avif</code>).
+            (or <code>height</code>), optional <code>q</code> (or{" "}
+            <code>quality</code>, 1–100). To change format, request a different
+            extension in <code>:name</code> (e.g. <code>.webp</code>,{" "}
+            <code>.avif</code>).
           </div>
         </div>
 
@@ -48,7 +50,11 @@ curl -i \
 
 # Request WebP output by extension
 curl -i \
-  "https://your-domain.com/api/img/IMG_NAME.webp?w=800"`}
+  "https://your-domain.com/api/img/IMG_NAME.webp?w=800"
+
+# Control output quality (format-dependent)
+curl -i \
+  "https://your-domain.com/api/img/IMG_NAME.webp?w=1200&q=70"`}
           />
         </div>
 

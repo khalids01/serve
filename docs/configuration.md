@@ -47,7 +47,8 @@ bun run db:studio # or: npx prisma studio
 ## File Storage
 
 - Local filesystem under `UPLOAD_DIR`
-- Original image is optimized; WebP copy and size variants are generated
+- Original image is optimized; a same‑dimension WebP copy is generated
+- Size variants are served on‑demand via `/api/img/:name?w=...&h=...` with optional `q` (quality) and cached on disk
 
 ## API Keys
 

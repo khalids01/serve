@@ -72,14 +72,28 @@ Get original content (served by filename):
 GET /api/img/:name
 ```
 
-On-demand resize (fits inside width/height):
+On-demand resize (fits inside width/height), format switch, and quality control:
 
 ```
 GET /api/img/:name?w=320
 GET /api/img/:name?h=320
+GET /api/img/:name?w=1200&h=800
+
+# Request a different output format by changing extension in :name
+GET /api/img/:baseId.webp?w=800
+
+# Control compression quality (1–100, format-dependent)
+GET /api/img/:baseId.webp?w=1200&q=70
 ```
 
-To request a different output format, use the corresponding extension in `:name` (e.g. `.webp`, `.avif`).
+Query params:
+- `w` or `width`: target width (pixels)
+- `h` or `height`: target height (pixels)
+- `q` or `quality`: output quality (1–100)
+
+Notes:
+- To request a different output format, use the corresponding extension in `:name` (e.g. `.webp`, `.avif`).
+- If no resize is requested and a same-dimension optimized file exists (e.g., WebP), it will be streamed directly.
 
 Delete an image:
 

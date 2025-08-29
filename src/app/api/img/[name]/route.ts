@@ -13,6 +13,12 @@ function clamp(n: number | null): number | null {
   return Math.max(1, Math.min(MAX_DIMENSION, Math.floor(n)));
 }
 
+function clampQuality(n: number | null): number | null {
+  if (n == null) return null;
+  if (Number.isNaN(n)) return null;
+  return Math.max(1, Math.min(100, Math.floor(n)));
+}
+
 function getTargetExt(format?: string | null): "jpg" | "png" | "webp" | "avif" {
   const f = (format || "").toLowerCase();
   if (f === "webp") return "webp";
@@ -48,21 +54,23 @@ export async function GET(
     const wParam = url.searchParams.get("width") || url.searchParams.get("w");
     const hParam = url.searchParams.get("height") || url.searchParams.get("h");
     const fmtParam = url.searchParams.get("format") || url.searchParams.get("f");
+    const qParam = url.searchParams.get("quality") || url.searchParams.get("q");
 
     const width = clamp(wParam ? parseInt(wParam, 10) : null);
     const height = clamp(hParam ? parseInt(hParam, 10) : null);
+    const quality = clampQuality(qParam ? parseInt(qParam, 10) : null);
 
     // Parse name: either `id.ext` or just `id`
     let requestedExt: string | null = null;
+    let baseName = rawName;
     if (rawName.includes(".")) {
       const dot = rawName.lastIndexOf(".");
+      baseName = rawName.slice(0, dot);
       requestedExt = rawName.slice(dot + 1).toLowerCase();
     }
-    // Fetch image by exact filename
-    const image = await prisma.image.findFirst({
-      where: {
-        filename: rawName,
-      },
+    // Fetch image by base id (supports switching extension)
+    const image = await prisma.image.findUnique({
+      where: { id: baseName },
       select: {
         id: true,
         filename: true,
@@ -120,14 +128,36 @@ export async function GET(
       }
     }
 
+    // If no resize and requested format differs from original, try prebuilt same-dimension file (e.g., webp) first
+    if (!width && !height && targetExt !== origExt) {
+      const prebuiltPrimary = path.join(uploadsDir, `${baseName}.${targetExt}`);
+      const prebuiltLegacy = path.join(legacyUploadsDir, `${baseName}.${targetExt}`);
+      try {
+        let buf: Buffer;
+        try {
+          buf = await fs.readFile(prebuiltPrimary);
+        } catch {
+          buf = await fs.readFile(prebuiltLegacy);
+        }
+        const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        return new NextResponse(body as ArrayBuffer, {
+          status: 200,
+          headers: {
+            "Content-Type": getContentTypeByExt(targetExt),
+            "Cache-Control": "public, max-age=31536000, immutable",
+          },
+        });
+      } catch {}
+    }
+
     // Prepare cache
-    const base = path.parse(image.filename).name;
+    const base = baseName;
     const cacheDir = path.join(uploadsDir, "_cache");
     await fs.mkdir(cacheDir, { recursive: true });
 
     const cacheName = `${base}${width ? `_w${width}` : ""}${
       height ? `_h${height}` : ""
-    }.${targetExt}`;
+    }${quality ? `_q${quality}` : ""}.${targetExt}`;
     const cachePath = path.join(cacheDir, cacheName);
 
     // Serve from cache when available
@@ -162,11 +192,11 @@ export async function GET(
       });
     }
 
-    if (targetExt === "webp") pipeline = pipeline.webp({ quality: 80 });
+    if (targetExt === "webp") pipeline = pipeline.webp({ quality: quality ?? 80 });
     else if (targetExt === "png")
-      pipeline = pipeline.png({ compressionLevel: 9, palette: true });
-    else if (targetExt === "avif") pipeline = pipeline.avif({ quality: 50 });
-    else pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true });
+      pipeline = pipeline.png({ compressionLevel: 9, palette: true, quality: quality ?? 80 });
+    else if (targetExt === "avif") pipeline = pipeline.avif({ quality: quality ?? 50 });
+    else pipeline = pipeline.jpeg({ quality: quality ?? 85, mozjpeg: true });
 
     const out = await pipeline.toBuffer();
     await fs.writeFile(cachePath, out);

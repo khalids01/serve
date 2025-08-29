@@ -28,12 +28,13 @@ export function ImageOptimizationSection() {
               Create same-dimension WebP copy using the same base filename
             </li>
             <li>
-              Generate size variants: <code>thumb</code>, <code>small</code>,{" "}
-              <code>medium</code>, <code>large</code>
+              Files are stored under your <code>UPLOAD_DIR</code> (by app slug)
+              and are served via <code>/api/img/:name</code>.
             </li>
             <li>
-              All files are accessible under{" "}
-              <code>/uploads/&lt;applicationId&gt;/</code>
+              Size variants are served <em>on-demand</em> via query params
+              (e.g., <code>?w=640</code>, <code>?h=480</code>, optional
+              <code>?q=80</code>), and cached on disk.
             </li>
           </ul>
         </div>
@@ -48,13 +49,9 @@ export function ImageOptimizationSection() {
   "image": {
     "id": "img_123",
     "filename": "<fileId>.jpg",
-    "url": "/uploads/<appId>/<fileId>.jpg",
+    "url": "/api/img/<fileId>.jpg",
     "variants": [
-      { "label": "webp", "filename": "<fileId>.webp", "url": "/uploads/<appId>/<fileId>.webp" },
-      { "label": "thumb", "filename": "<fileId>_thumb.jpg" },
-      { "label": "small", "filename": "<fileId>_small.jpg" },
-      { "label": "medium", "filename": "<fileId>_medium.jpg" },
-      { "label": "large", "filename": "<fileId>_large.jpg" }
+      { "label": "webp", "filename": "<fileId>.webp", "url": "/api/img/<fileId>.webp" }
     ]
   }
 }`}

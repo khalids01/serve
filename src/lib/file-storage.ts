@@ -159,6 +159,7 @@ export class FileStorageService {
   }
 
   getFileUrl(filename: string, applicationId: string): string {
-    return `/uploads/${applicationId}/${filename}`
+    // Public serving is handled by the image route; application scoping is internal
+    return `/api/img/${filename}`
   }
 }

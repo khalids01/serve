@@ -122,13 +122,20 @@ export async function POST(request: NextRequest) {
       image: {
         ...image,
         url: `/api/img/${image.filename}`,
-        variants: image.variants.map(variant => ({
-          ...variant,
-          url: `/api/img/${image.filename}${variant.width || variant.height ? `?${[
-            variant.width ? `w=${variant.width}` : '',
-            variant.height ? `h=${variant.height}` : ''
-          ].filter(Boolean).join('&')}` : ''}`
-        }))
+        variants: image.variants.map(variant => {
+          const isWebp = (variant.label || '').toLowerCase() === 'webp'
+          const baseName = isWebp ? `${image.id}.webp` : image.filename
+          const query = (!isWebp && (variant.width || variant.height))
+            ? `?${[
+                variant.width ? `w=${variant.width}` : '',
+                variant.height ? `h=${variant.height}` : ''
+              ].filter(Boolean).join('&')}`
+            : ''
+          return {
+            ...variant,
+            url: `/api/img/${baseName}${query}`
+          }
+        })
       }
     })
 
