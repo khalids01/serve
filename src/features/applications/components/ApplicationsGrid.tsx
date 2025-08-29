@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FolderOpen, Key, Settings, Upload } from 'lucide-react'
-import { Application } from '@/features/applications/hooks/use-applications'
+import { Application } from '@/features/applications/hooks/use-application-data'
 
 export function ApplicationsGrid({ applications }: { applications: Application[] }) {
   return (

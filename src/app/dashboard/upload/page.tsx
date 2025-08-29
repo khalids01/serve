@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Upload, X, CheckCircle, AlertCircle } from "lucide-react"
 import { useDropzone } from "react-dropzone"
 import type { Image, ImageVariant } from "@/lib/prisma-types"
-import { useApplications } from "@/features/applications/hooks/use-applications"
+import { useApplicationData } from "@/features/applications/hooks/use-application-data"
 
 type UploadSuccess = {
   success: true
@@ -30,8 +30,9 @@ export default function UploadPage() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [applicationId, setApplicationId] = useState("")
   const [tags, setTags] = useState("")
-  const { data, isLoading } = useApplications()
-  const applications = data?.applications ?? []
+  const { applications, applicationLoading } = useApplicationData({
+    fetchList: true,
+  })
   const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? '10')
   const maxFileSizeBytes = (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 10) * 1024 * 1024
 
@@ -158,9 +159,9 @@ export default function UploadPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="application" className="mb-2">Application</Label>
-                  <Select value={applicationId} onValueChange={setApplicationId} disabled={isLoading || applications.length === 0}>
+                  <Select value={applicationId} onValueChange={setApplicationId} disabled={applicationLoading || applications.length === 0}>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoading ? 'Loading...' : 'Select application'} />
+                      <SelectValue placeholder={applicationLoading ? 'Loading...' : 'Select application'} />
                     </SelectTrigger>
                     <SelectContent>
                       {applications.map((app) => (
