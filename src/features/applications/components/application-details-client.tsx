@@ -309,65 +309,6 @@ export default function ApplicationDetailsClient({
                 )}
               </CardContent>
             </Card>
-
-            <Dialog
-              open={!!previewImage}
-              onOpenChange={(o) => !o && setPreviewImage(null)}
-            >
-              <DialogContent className="!w-full !max-w-[900px] h-[90vh]">
-                <DialogHeader className="flex flex-row items-center justify-between">
-                  <DialogTitle className="truncate">
-                    {previewImage?.originalName}
-                  </DialogTitle>
-                  {previewImage && (
-                    <Button variant="ghost" size="icon" asChild>
-                      <a
-                        href={previewAbsoluteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open in new tab"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                </DialogHeader>
-
-                {previewImage && (
-                  <div className="h-full overflow-auto">
-                    <img
-                      src={`/api/img/${previewImage.filename}?w=1280`}
-                      alt={previewImage.originalName}
-                      className="mx-auto h-full w-auto max-h-full object-contain rounded-md"
-                    />
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
-
-            <AlertDialog
-              open={confirmDeleteOpen}
-              onOpenChange={setConfirmDeleteOpen}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this file?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the file and its variants from
-                    storage and the database.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={confirmDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="files" className="space-y-6">
@@ -577,6 +518,65 @@ export default function ApplicationDetailsClient({
                 </div>
               </CardContent>
             </Card>
+
+            <Dialog
+              open={!!previewImage}
+              onOpenChange={(o) => !o && setPreviewImage(null)}
+            >
+              <DialogContent className="!w-full !max-w-[900px] h-[90vh]">
+                <DialogHeader className="flex flex-row items-center justify-between">
+                  <DialogTitle className="truncate">
+                    {previewImage?.originalName}
+                  </DialogTitle>
+                  {previewImage && (
+                    <Button variant="ghost" size="icon" asChild>
+                      <a
+                        href={previewAbsoluteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open in new tab"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                </DialogHeader>
+
+                {previewImage && (
+                  <div className="h-full overflow-auto">
+                    <img
+                      src={`/api/img/${previewImage.filename}?w=1280`}
+                      alt={previewImage.originalName}
+                      className="mx-auto h-full w-auto max-h-full object-contain rounded-md"
+                    />
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            <AlertDialog
+              open={confirmDeleteOpen}
+              onOpenChange={setConfirmDeleteOpen}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this file?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the file and its variants from
+                    storage and the database.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={confirmDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
         </Tabs>
       </main>

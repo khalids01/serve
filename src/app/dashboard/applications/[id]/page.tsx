@@ -1,13 +1,21 @@
-import { notFound, redirect } from 'next/navigation'
-import path from 'path'
-import { prisma } from '@/lib/prisma'
-import { getCurrentUser } from '@/lib/auth-server'
-import ApplicationDetailsClient, { type ApplicationDTO, type ImageFileDTO, type AuditLogItemDTO, type CacheResponse } from '@/features/applications/components/application-details-client'
+import { notFound, redirect } from "next/navigation";
+import path from "path";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth-server";
+import ApplicationDetailsClient, {
+  type ApplicationDTO,
+  type ImageFileDTO,
+  type AuditLogItemDTO,
+  type CacheResponse,
+} from "@/features/applications/components/application-details-client";
 
-export default async function ApplicationDetailsPage({ params }: { params: { id: string } }) {
-  const user = await getCurrentUser()
+export default async function ApplicationDetailsPage(props: {
+  params: Promise<{ id: string }>;
+}) {
+  const params = await props.params;
+  const user = await getCurrentUser();
   if (!user) {
-    redirect('/auth')
+    redirect("/auth");
   }
 
   const app = await prisma.application.findFirst({
@@ -15,25 +23,25 @@ export default async function ApplicationDetailsPage({ params }: { params: { id:
     include: {
       _count: { select: { images: true, apiKeys: true } },
     },
-  })
+  });
 
-  if (!app) return notFound()
+  if (!app) return notFound();
 
   // Normalize storageDir to reflect current UPLOAD_DIR and slug
-  const baseUploads = process.env.UPLOAD_DIR || 'uploads'
-  const storageDir = path.join(baseUploads, app.slug)
+  const baseUploads = process.env.UPLOAD_DIR || "uploads";
+  const storageDir = path.join(baseUploads, app.slug);
 
   const imagesRaw = await prisma.image.findMany({
     where: { applicationId: app.id },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     include: { variants: true },
-  })
+  });
 
   const activityRaw = await prisma.auditLog.findMany({
     where: { applicationId: app.id },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     take: 10,
-  })
+  });
 
   const application: ApplicationDTO = {
     id: app.id,
@@ -42,7 +50,7 @@ export default async function ApplicationDetailsPage({ params }: { params: { id:
     createdAt: app.createdAt.toISOString(),
     storageDir,
     _count: app._count as any,
-  }
+  };
 
   const images: ImageFileDTO[] = imagesRaw.map((img) => ({
     id: img.id,
@@ -61,7 +69,7 @@ export default async function ApplicationDetailsPage({ params }: { params: { id:
       height: v.height ?? undefined,
       sizeBytes: v.sizeBytes,
     })),
-  }))
+  }));
 
   const activity: AuditLogItemDTO[] = activityRaw.map((a) => ({
     id: a.id,
@@ -73,9 +81,9 @@ export default async function ApplicationDetailsPage({ params }: { params: { id:
     userAgent: a.userAgent ?? null,
     metadata: a.metadata as any,
     createdAt: a.createdAt.toISOString(),
-  }))
+  }));
 
-  const cacheData: CacheResponse | null = null
+  const cacheData: CacheResponse | null = null;
 
   return (
     <ApplicationDetailsClient
@@ -84,5 +92,5 @@ export default async function ApplicationDetailsPage({ params }: { params: { id:
       activity={activity}
       cacheData={cacheData}
     />
-  )
+  );
 }
