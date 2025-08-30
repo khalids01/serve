@@ -11,6 +11,7 @@ import { GetImageSection } from "@/features/docs/sections/get-image";
 import { DeleteImageSection } from "@/features/docs/sections/delete-image";
 import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
 import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
+import { AuditLogsSection } from "@/features/docs/sections/audit-logs";
 
 export default function ApiDocsPage() {
   const [activeSection, setActiveSection] = useState("getting-started");
@@ -23,6 +24,7 @@ export default function ApiDocsPage() {
     { id: "list", title: "List Images", icon: Code },
     { id: "get", title: "Get Image", icon: Code },
     { id: "resize", title: "On‑demand Resize", icon: Code },
+    { id: "audit-logs", title: "Audit Logs", icon: Code },
     { id: "delete", title: "Delete Image", icon: Code },
   ];
 
@@ -98,6 +100,9 @@ export default function ApiDocsPage() {
 
             {/* On-demand Resize */}
             {activeSection === "resize" && <OnDemandResizeSection />}
+
+            {/* Audit Logs */}
+            {activeSection === "audit-logs" && <AuditLogsSection />}
 
             {/* Delete Image */}
             {activeSection === "delete" && <DeleteImageSection />}

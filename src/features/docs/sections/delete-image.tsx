@@ -73,7 +73,7 @@ export function DeleteImageSection() {
           <div>
             <h4 className="font-semibold mb-3">Response</h4>
             <CodeBlock
-              code={`{\n  "success": true,\n  "message": "Image deleted successfully"\n}`}
+              code={`{\n  "success": true\n}`}
               language="json"
               id="delete-response"
             />

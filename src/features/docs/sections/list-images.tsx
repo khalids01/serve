@@ -115,7 +115,7 @@ export function ListImagesSection() {
           <div>
             <h4 className="font-semibold mb-3">Response</h4>
             <CodeBlock
-              code={`{\n  "images": [\n    {\n      "id": "img_123456789",\n      "filename": "image_processed.jpg",\n      "originalName": "avatar.jpg",\n      "contentType": "image/jpeg",\n      "sizeBytes": 245760,\n      "width": 1920,\n      "height": 1080,\n      "variants": [...],\n      "createdAt": "2024-01-01T00:00:00.000Z"\n    }\n  ],\n  "pagination": {\n    "page": 1,\n    "limit": 20,\n    "total": 150,\n    "pages": 8\n  }\n}`}
+              code={`{\n  "images": [\n    {\n      "id": "img_123456789",\n      "filename": "img_123456789.jpg",\n      "originalName": "avatar.jpg",\n      "contentType": "image/jpeg",\n      "sizeBytes": 245760,\n      "width": 1920,\n      "height": 1080,\n      "tags": ["profile", "avatar"],\n      "variants": [\n        {\n          "id": "var_123",\n          "label": "webp",\n          "filename": "img_123456789.webp",\n          "width": 1920,\n          "height": 1080,\n          "sizeBytes": 180000\n        }\n      ],\n      "createdAt": "2024-01-01T00:00:00.000Z",\n      "updatedAt": "2024-01-01T00:00:00.000Z"\n    }\n  ],\n  "pagination": {\n    "page": 1,\n    "limit": 20,\n    "total": 150,\n    "pages": 8,\n    "hasNext": true,\n    "hasPrev": false\n  }\n}`}
               language="json"
               id="list-response"
             />

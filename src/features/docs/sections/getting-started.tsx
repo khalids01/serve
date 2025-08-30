@@ -50,7 +50,10 @@ export function GettingStartedSection() {
         <h3 className="font-semibold mb-4">First Request</h3>
         <p className="text-muted-foreground mb-4">Here's how to make your first API call:</p>
         <CodeBlock
-          code={`curl -X POST https://your-domain.com/api/upload \\\n  -H "Authorization: Bearer sk_live_your_api_key" \\\n  -F "file=@image.jpg" \\\n  -F "tags=profile,avatar"`}
+          code={`curl -X POST https://your-domain.com/api/upload \\
+  -H "Authorization: Bearer sk_live_your_api_key" \\
+  -F "file=@image.jpg" \\
+  -F "tags=profile,avatar"`}
           language="bash"
           id="first-request"
         />

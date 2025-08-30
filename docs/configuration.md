@@ -46,9 +46,18 @@ bun run db:studio # or: npx prisma studio
 
 ## File Storage
 
-- Local filesystem under `UPLOAD_DIR`
+- Local filesystem under `UPLOAD_DIR` organized by application slug
 - Original image is optimized; a same‑dimension WebP copy is generated
 - Size variants are served on‑demand via `/api/img/:name?w=...&h=...` with optional `q` (quality) and cached on disk
+- Supports format conversion (WebP output via extension: `/api/img/image.webp`)
+- Cache directory: `{UPLOAD_DIR}/{app-slug}/_cache/`
+
+## Audit Logging
+
+- All file uploads and deletions are automatically tracked
+- Logs include action type, target ID, metadata, timestamp, IP, and user agent
+- Access via `/api/audit-logs` with pagination support
+- Requires authentication and application ownership validation
 
 ## API Keys
 

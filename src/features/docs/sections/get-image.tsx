@@ -44,7 +44,7 @@ export function GetImageSection() {
       <div>
         <h4 className="font-semibold mb-3">Response</h4>
         <CodeBlock
-          code={`{\n  "id": "img_123456789",\n  "filename": "image_processed.jpg",\n  "originalName": "avatar.jpg",\n  "contentType": "image/jpeg",\n  "sizeBytes": 245760,\n  "width": 1920,\n  "height": 1080,\n  "tags": ["profile", "avatar"],\n  "variants": [\n    {\n      "id": "var_123",\n      "label": "thumb",\n      "filename": "image_processed_thumb.jpg",\n      "width": 150,\n      "height": 150,\n      "sizeBytes": 8192\n    }\n  ],\n  "createdAt": "2024-01-01T00:00:00.000Z",\n  "updatedAt": "2024-01-01T00:00:00.000Z"\n}`}
+          code={`{\n  "id": "img_123456789",\n  "filename": "img_123456789.jpg",\n  "originalName": "avatar.jpg",\n  "contentType": "image/jpeg",\n  "sizeBytes": 245760,\n  "width": 1920,\n  "height": 1080,\n  "tags": ["profile", "avatar"],\n  "applicationId": "app_123456",\n  "url": "/api/img/img_123456789.jpg",\n  "variants": [\n    {\n      "id": "var_123",\n      "label": "webp",\n      "filename": "img_123456789.webp",\n      "width": 1920,\n      "height": 1080,\n      "sizeBytes": 180000,\n      "url": "/api/img/img_123456789.webp"\n    }\n  ],\n  "application": {\n    "id": "app_123456",\n    "name": "My App",\n    "slug": "my-app"\n  },\n  "createdAt": "2024-01-01T00:00:00.000Z",\n  "updatedAt": "2024-01-01T00:00:00.000Z"\n}`}
           language="json"
           id="get-response"
         />

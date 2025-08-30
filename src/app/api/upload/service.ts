@@ -27,12 +27,20 @@ export async function handleUpload(request: NextRequest) {
       if (appFromForm) applicationId = appFromForm
     }
 
+
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (!applicationId || !userId) {
-      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
+    if (!applicationId) {
+      return NextResponse.json({ 
+        error: 'Application ID required. Provide either a valid API key or applicationId in form data.',
+        details: 'When using API key authentication, the application ID is automatically determined from your key.'
+      }, { status: 400 })
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     // Verify application exists (should always exist due to middleware validation)

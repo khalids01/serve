@@ -23,8 +23,9 @@
 - **🎯 API-First Design** - RESTful APIs for easy integration
 - **🔧 Self-Hosted** - Complete control over your data
 - **🌐 Modern UI** - Beautiful, responsive interface built with Tailwind CSS
-- **📜 Recent Activity** - Audit logs for uploads and deletions per application
+- **📜 Audit Logs** - Complete activity tracking for uploads and deletions per application
 - **🗂️ Files Management UI** - List/grid views, preview, and safe delete with confirmation
+- **🔍 Advanced Search** - Search files by name, content type, with sorting options
 
 ## 🏗️ Tech Stack
 
@@ -94,11 +95,13 @@
 // Upload a file via API
 const formData = new FormData();
 formData.append('file', file);
-formData.append('applicationId', 'my-app');
 formData.append('tags', JSON.stringify(['profile', 'avatar']));
 
 const response = await fetch('/api/upload', {
   method: 'POST',
+  headers: {
+    'Authorization': 'Bearer sk_live_your_api_key'
+  },
   body: formData
 });
 
@@ -106,22 +109,28 @@ const result = await response.json();
 console.log('File uploaded:', result.url);
 ```
 
-### Recent Activity (Audit Logs)
+### Audit Logs
 
 Fetch audit logs for an application:
 
 ```ts
-// GET recent activity
-const logsRes = await fetch(`/api/audit-logs?applicationId=<APP_ID>&limit=10`)
+// GET audit logs with pagination
+const logsRes = await fetch(`/api/audit-logs?applicationId=<APP_ID>&page=1&limit=10`)
 const { logs, pagination } = await logsRes.json()
 
-// Log shape example
+// Log structure
 // {
-//   id, action: 'UPLOAD' | 'DELETE', targetId, metadata: { filename, originalName }, createdAt, ip, userAgent
+//   id: string,
+//   action: 'UPLOAD' | 'DELETE',
+//   targetId: string,
+//   metadata: { filename: string, originalName: string },
+//   createdAt: string,
+//   ip: string,
+//   userAgent: string
 // }
 ```
 
-Events are recorded for file uploads and deletions.
+Events are automatically recorded for file uploads and deletions with full pagination support.
 
 ### Files Management
 
@@ -155,7 +164,7 @@ Example (cURL):
 curl -X POST \
   -H "x-api-key: sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
   -F "file=@/path/to/file.jpg" \
-  -F "applicationId=<APP_ID>" \
+  -F "tags=profile,avatar" \
   http://localhost:3003/api/upload
 ```
 

@@ -55,16 +55,28 @@ POST /api/upload
 
 Multipart form fields:
 - file: the binary file
-- applicationId: your application ID
 - tags (optional): comma-separated or JSON array
+
+Note: When using API key authentication, the application ID is automatically determined from your key. No need to specify applicationId.
 
 ## Images
 
-List images for an application:
+List images for an application with advanced search and sorting:
 
 ```
-GET /api/images?applicationId=<APP_ID>&limit=50
+GET /api/images?applicationId=<APP_ID>&page=1&limit=50&search=avatar&sortBy=createdAt&sortOrder=desc
 ```
+
+Query parameters:
+- `applicationId`: application ID (optional with API key auth)
+- `page`: page number (default: 1)
+- `limit`: items per page (default: 20, max: 100)
+- `search`: search in filename, original name, content type
+- `contentType`: filter by MIME type (e.g., "image/jpeg")
+- `sortBy`: sort field (createdAt, name, size, type)
+- `sortOrder`: sort direction (asc, desc)
+
+Response includes pagination metadata and image variants.
 
 Get original content (served by filename):
 
@@ -100,6 +112,53 @@ Delete an image:
 ```
 DELETE /api/images/:id
 ```
+
+## Audit Logs
+
+Retrieve activity logs for an application with pagination:
+
+```
+GET /api/audit-logs?applicationId=<APP_ID>&page=1&limit=10
+```
+
+Response:
+
+```json
+{
+  "logs": [
+    {
+      "id": "log_123",
+      "action": "UPLOAD",
+      "targetId": "img_456",
+      "metadata": {
+        "filename": "processed_image.jpg",
+        "originalName": "photo.jpg"
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "ip": "192.168.1.1",
+      "userAgent": "curl/7.68.0"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "pages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+Query params:
+- `applicationId`: required application ID
+- `page`: page number (default: 1)
+- `limit`: items per page (default: 10, max: 100)
+
+Notes:
+- Logs track UPLOAD and DELETE actions
+- Requires session authentication (dashboard) or API key for the application
+- Metadata includes original filename and processed filename
 
 ## API Keys
 
