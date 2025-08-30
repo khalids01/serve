@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser, requireAuth } from '@/lib/auth-server'
 import path from 'path'
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const user = await getCurrentUser()
     
@@ -14,8 +17,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const { id } = params
     const application = await prisma.application.findFirst({
       where: {
+        id,
         ownerId: user.id
       },
       include: {
@@ -40,9 +45,14 @@ export async function GET(request: NextRequest) {
 
     // Normalize storageDir to reflect current UPLOAD_DIR and slug
     const baseUploads = process.env.UPLOAD_DIR || 'uploads'
-    const appsWithComputedDir = path.join(baseUploads, application.slug)
+    const storageDir = path.join(baseUploads, application.slug)
 
-    return NextResponse.json({ application: appsWithComputedDir })
+    return NextResponse.json({ 
+      application: {
+        ...application,
+        storageDir
+      }
+    })
 
   } catch (error) {
     console.error('List applications error:', error)
