@@ -22,11 +22,15 @@ export function ListImagesSection() {
           <div>
             <h4 className="font-semibold mb-3">Request</h4>
             <CodeBlock
-              code={`curl -X GET "https://your-domain.com/api/images?applicationId=app_123456&page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc" \\
+              code={`curl -X GET "https://your-domain.com/api/images?page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc" \\
   -H "Authorization: Bearer sk_live_your_api_key"`}
               language="bash"
               id="list-curl"
             />
+            <p className="text-sm text-muted-foreground mt-2">
+              <strong>Note:</strong> When using API key authentication, the application ID is automatically determined from your API key. 
+              You can optionally include <code>applicationId</code> in the query, but it must match your API key's application.
+            </p>
           </div>
 
           <div>
@@ -47,11 +51,11 @@ export function ListImagesSection() {
               <div>
                 <p className="mb-1 font-medium">Query Params</p>
                 <CodeBlock
-                  code={`applicationId=app_123456\npage=1\nlimit=20\nsearch=avatar\ncontentType=image/jpeg\nsortBy=createdAt\nsortOrder=desc`}
+                  code={`page=1\nlimit=20\nsearch=avatar\ncontentType=image/jpeg\nsortBy=createdAt\nsortOrder=desc`}
                   language="text"
                   id="list-postman-params"
                 />
-                <p className="text-muted-foreground mt-1">Tip: Use the Params tab in Postman to add key/value pairs.</p>
+                <p className="text-muted-foreground mt-1">Tip: Use the Params tab in Postman to add key/value pairs. The applicationId is optional when using API key authentication.</p>
               </div>
             </div>
           </div>
@@ -68,6 +72,11 @@ export function ListImagesSection() {
                   </tr>
                 </thead>
                 <tbody className="text-muted-foreground">
+                  <tr className="border-b">
+                    <td className="py-2"><code>applicationId</code></td>
+                    <td className="py-2">string</td>
+                    <td className="py-2">Application ID (optional with API key auth)</td>
+                  </tr>
                   <tr className="border-b">
                     <td className="py-2"><code>page</code></td>
                     <td className="py-2">integer</td>
