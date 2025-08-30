@@ -43,6 +43,7 @@ import {
 import { toast } from "sonner";
 import { useClearCacheMutation } from "@/features/applications/hooks/use-clear-cache";
 import { useDeleteImageMutation } from "@/features/applications/hooks/use-delete-image";
+import { ApplicationSettingsForm } from "./application-settings-form";
 
 export interface ApplicationDTO {
   id: string;
@@ -590,6 +591,51 @@ export default function ApplicationDetailsClient({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Application Settings</CardTitle>
+                <CardDescription>
+                  Update your application configuration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ApplicationSettingsForm application={application} />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Storage Information</CardTitle>
+                <CardDescription>
+                  Application storage details
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Storage Directory</label>
+                    <div className="text-sm font-mono bg-muted p-2 rounded mt-1">
+                      {application.storageDir}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Files are stored in this directory. This cannot be changed after creation.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Application ID</label>
+                    <div className="text-sm font-mono bg-muted p-2 rounded mt-1">
+                      {application.id}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use this ID when making API calls or uploading files.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>

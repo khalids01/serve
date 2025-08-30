@@ -52,3 +52,81 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const { id } = params
+    const body = await request.json()
+    const { name } = body
+
+    // Validate input
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json(
+        { error: 'Application name is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if application exists and user owns it
+    const existingApplication = await prisma.application.findFirst({
+      where: {
+        id,
+        ownerId: user.id
+      }
+    })
+
+    if (!existingApplication) {
+      return NextResponse.json(
+        { error: 'Application not found or access denied' },
+        { status: 404 }
+      )
+    }
+
+    // Update the application
+    const updatedApplication = await prisma.application.update({
+      where: { id },
+      data: {
+        name: name.trim(),
+        updatedAt: new Date()
+      },
+      include: {
+        _count: {
+          select: {
+            images: true,
+            apiKeys: true
+          }
+        }
+      }
+    })
+
+    // Normalize storageDir
+    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
+    const storageDir = path.join(baseUploads, updatedApplication.slug)
+
+    return NextResponse.json({
+      application: {
+        ...updatedApplication,
+        storageDir
+      }
+    })
+
+  } catch (error) {
+    console.error('Update application error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update application' },
+      { status: 500 }
+    )
+  }
+}
