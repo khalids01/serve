@@ -37,7 +37,13 @@ export default function UploadPage() {
   const maxFileSizeBytes = (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 10) * 1024 * 1024
 
   useEffect(() => {
-    if (!applicationId && applications.length > 0) {
+    // Check for app parameter in URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const appParam = urlParams.get('app')
+    
+    if (appParam && applications.some(app => app.id === appParam)) {
+      setApplicationId(appParam)
+    } else if (!applicationId && applications.length > 0) {
       setApplicationId(applications[0].id)
     }
   }, [applications, applicationId])
