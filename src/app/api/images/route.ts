@@ -5,7 +5,7 @@ import { Prisma } from '@/lib/prisma-types'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const applicationId = searchParams.get('applicationId')
+    const queryApplicationId = searchParams.get('applicationId')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search')
@@ -14,8 +14,25 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
+    // Get application ID from authenticated context (set by middleware)
+    const authenticatedApplicationId = request.headers.get('x-application-id')
+    
+    // Use authenticated application ID if available, otherwise require it in query
+    const applicationId = authenticatedApplicationId || queryApplicationId
+
     if (!applicationId) {
-      return NextResponse.json({ error: 'Application ID required' }, { status: 400 })
+      return NextResponse.json({ 
+        error: 'Application ID required. Provide either a valid API key or applicationId query parameter.',
+        details: 'When using API key authentication, the application ID is automatically determined from your key.'
+      }, { status: 400 })
+    }
+
+    // If both are provided, ensure they match for security
+    if (authenticatedApplicationId && queryApplicationId && authenticatedApplicationId !== queryApplicationId) {
+      return NextResponse.json({ 
+        error: 'Application ID mismatch',
+        details: 'The applicationId in your query does not match your API key\'s application.'
+      }, { status: 403 })
     }
 
     const skip = (page - 1) * limit
@@ -87,8 +104,36 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('List images error:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      // Check for common database errors
+      if (error.message.includes('Invalid `prisma.image.findMany()` invocation')) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid query parameters',
+            details: 'Please check your search parameters and try again.'
+          },
+          { status: 400 }
+        )
+      }
+      
+      if (error.message.includes('Record to update not found')) {
+        return NextResponse.json(
+          { 
+            error: 'Application not found',
+            details: 'The specified application ID does not exist or you do not have access to it.'
+          },
+          { status: 404 }
+        )
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch images' },
+      { 
+        error: 'Failed to fetch images',
+        details: 'An unexpected error occurred while retrieving images. Please try again later.'
+      },
       { status: 500 }
     )
   }
