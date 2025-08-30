@@ -86,13 +86,19 @@ export function useApplicationData(options?: UseApplicationDataOptions) {
 
   const applicationQuery = useQuery({
     queryKey: ["application", id],
-    queryFn: () => api.get(`/api/applications/${id}`),
+    queryFn: async () => {
+      const response = await api.get(`/api/applications/${id}`);
+      return response.data;
+    },
     enabled: !!id,
   });
 
   const listQuery = useQuery<{ applications: Application[] }>({
     queryKey: ["applications", "list"],
-    queryFn: () => api.get("/api/applications"),
+    queryFn: async () => {
+      const response = await api.get("/api/applications");
+      return response.data;
+    },
     enabled: Boolean(fetchList),
   });
 
@@ -108,26 +114,28 @@ export function useApplicationData(options?: UseApplicationDataOptions) {
 
   const imagesQuery = useQuery<ImageFile[]>({
     queryKey: ["application-images", id],
-    queryFn: () =>
-      api
-        .get(`/api/images?applicationId=${id}`)
-        ?.then((data) => data.data?.images ?? []),
+    queryFn: async () => {
+      const response = await api.get(`/api/images?applicationId=${id}`);
+      return response.data?.images ?? [];
+    },
     enabled: Boolean(doImages && id),
   });
 
   const activityQuery = useQuery<AuditLogItem[]>({
     queryKey: ["application-activity", id],
-    // /api/audit-logs?applicationId=${applicationId}&limit=10
-    queryFn: () =>
-      api
-        .get(`/api/audit-logs?applicationId=${id}&limit=10`)
-        ?.then((data) => data.data?.logs ?? []),
+    queryFn: async () => {
+      const response = await api.get(`/api/audit-logs?applicationId=${id}&limit=10`);
+      return response.data?.logs ?? [];
+    },
     enabled: Boolean(doActivity && id),
   });
 
   const cacheQuery = useQuery<CacheResponse>({
     queryKey: ["application-cache", id],
-    queryFn: () => api.get(`/api/applications/${id}/cache`),
+    queryFn: async () => {
+      const response = await api.get(`/api/applications/${id}/cache`);
+      return response.data;
+    },
     enabled: Boolean(doCache && id),
   });
 
