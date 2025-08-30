@@ -45,3 +45,5 @@ next-env.d.ts
 
 # runtime uploads
 /uploads/
+
+dev.db

@@ -5,7 +5,7 @@ import path from 'path'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -17,7 +17,7 @@ export async function GET(
       )
     }
 
-    const { id } = params
+    const { id } = await context.params
     const application = await prisma.application.findFirst({
       where: {
         id,
@@ -65,7 +65,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -77,7 +77,7 @@ export async function PATCH(
       )
     }
 
-    const { id } = params
+    const { id } = await context.params
     const body = await request.json()
     const { name } = body
 
