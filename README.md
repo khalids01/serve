@@ -56,36 +56,47 @@
 2. **Install dependencies**
    ```bash
    bun install
-   # or npm install
+   # or npm/pnpm install
    ```
 
-3. **Set up environment variables**
+3. **Create database file**
    ```bash
-   cp .env.example .env.local
+   touch dev.db
+   ```
+
+4. **Set up environment variables**
+   ```bash
+   cp .env.example .env
    ```
    
-   Edit `.env.local` with your configuration:
+   Edit `.env` with your configuration (required variables):
    ```env
-   NEXT_PUBLIC_APP_URL=http://localhost:3003
+   NEXT_PUBLIC_APP_URL=http://localhost:4000
    DATABASE_URL="file:./dev.db"
-   BETTER_AUTH_SECRET="your-secret-key"
-   # Add email configuration for magic links
+   BETTER_AUTH_SECRET="your-secure-secret-key-change-in-production"
+   
+   # Email configuration for magic links (required for auth)
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   EMAIL=your-email@gmail.com
+   EMAIL_PASSWORD=your-app-password
+   EMAIL_FROM="Serve File Storage"
    ```
 
-4. **Initialize the database**
+5. **Run database migrations**
    ```bash
-   bun run db:push
-   # or npx prisma db push
+   bunx prisma migrate dev
+   # or npx prisma migrate dev
    ```
 
-5. **Start the development server**
+6. **Start the development server**
    ```bash
    bun dev
    # or npm run dev
    ```
 
-6. **Open your browser**
-   Navigate to [http://localhost:3003](http://localhost:3003)
+7. **Open your browser**
+   Navigate to [http://localhost:4000](http://localhost:4000)
 
 ## 📖 Usage
 
@@ -277,8 +288,10 @@ bun format           # Format code
 
 3. **🗄️ Setup Database**
    ```bash
-   cp .env.example .env.local
-   bun run db:push
+   touch dev.db
+   cp .env.example .env
+   # Edit .env with your configuration
+   bunx prisma migrate dev
    ```
 
 4. **🔥 Start Developing**
