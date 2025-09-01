@@ -13,7 +13,7 @@ interface TestResult {
 }
 
 export function useApiTestRequest() {
-  const { selectedApiKey, getSelectedApplication } = useApiTest();
+  const { apiKey } = useApiTest();
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
 
@@ -23,10 +23,10 @@ export function useApiTestRequest() {
     body?: FormData | string,
     additionalHeaders?: Record<string, string>
   ) => {
-    if (!selectedApiKey) {
+    if (!apiKey.trim()) {
       setTestResult({
         success: false,
-        error: "Please select an application and API key first"
+        error: "Please enter your API key"
       });
       return;
     }
@@ -36,7 +36,7 @@ export function useApiTestRequest() {
 
     try {
       const headers: Record<string, string> = {
-        'x-api-key': selectedApiKey,
+        'Authorization': `Bearer ${apiKey}`,
         ...additionalHeaders
       };
 
@@ -94,6 +94,6 @@ export function useApiTestRequest() {
     isLoading,
     testResult,
     clearResult,
-    hasApiKey: !!selectedApiKey
+    hasApiKey: !!apiKey
   };
 }

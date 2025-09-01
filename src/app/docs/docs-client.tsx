@@ -61,67 +61,69 @@ export default function DocsClient({ data }: DocsClientProps) {
 
         {/* API Key Selector - Only show if user is logged in */}
         {data.user && data.applications.length > 0 && (
-          <ApiKeySelector />
+          <div className="container mx-auto">
+            <ApiKeySelector />
+          </div>
         )}
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar Navigation */}
-          <div className="w-64 flex-shrink-0">
-            <div className="sticky top-8">
-              <nav className="space-y-1">
-                {sections.map((section) => {
-                  const Icon = section.icon;
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        activeSection === section.id
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <Icon className="mr-3 h-4 w-4" />
-                      {section.title}
-                    </button>
-                  );
-                })}
-              </nav>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex gap-8">
+            {/* Sidebar Navigation */}
+            <div className="w-64 flex-shrink-0">
+              <div className="sticky top-8">
+                <nav className="space-y-1">
+                  {sections.map((section) => {
+                    const Icon = section.icon;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          activeSection === section.id
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <Icon className="mr-3 h-4 w-4" />
+                        {section.title}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 max-w-4xl">
+              {/* Getting Started */}
+              {activeSection === "getting-started" && <GettingStartedSection />}
+
+              {/* Authentication */}
+              {activeSection === "authentication" && <AuthenticationSection />}
+
+              {/* Upload Image */}
+              {activeSection === "upload" && <UploadImageSection />}
+
+              {/* Image Optimization & WebP */}
+              {activeSection === "optimization" && <ImageOptimizationSection />}
+
+              {/* List Images */}
+              {activeSection === "list" && <ListImagesSection />}
+
+              {/* Get Image */}
+              {activeSection === "get" && <GetImageSection />}
+
+              {/* On-demand Resize */}
+              {activeSection === "resize" && <OnDemandResizeSection />}
+
+              {/* Audit Logs */}
+              {activeSection === "audit-logs" && <AuditLogsSection />}
+
+              {/* Delete Image */}
+              {activeSection === "delete" && <DeleteImageSection />}
             </div>
           </div>
-
-          {/* Main Content */}
-          <div className="flex-1 max-w-4xl">
-            {/* Getting Started */}
-            {activeSection === "getting-started" && <GettingStartedSection />}
-
-            {/* Authentication */}
-            {activeSection === "authentication" && <AuthenticationSection />}
-
-            {/* Upload Image */}
-            {activeSection === "upload" && <UploadImageSection />}
-
-            {/* Image Optimization & WebP */}
-            {activeSection === "optimization" && <ImageOptimizationSection />}
-
-            {/* List Images */}
-            {activeSection === "list" && <ListImagesSection />}
-
-            {/* Get Image */}
-            {activeSection === "get" && <GetImageSection />}
-
-            {/* On-demand Resize */}
-            {activeSection === "resize" && <OnDemandResizeSection />}
-
-            {/* Audit Logs */}
-            {activeSection === "audit-logs" && <AuditLogsSection />}
-
-            {/* Delete Image */}
-            {activeSection === "delete" && <DeleteImageSection />}
-          </div>
         </div>
-      </div>
       </div>
     </ApiTestProvider>
   );

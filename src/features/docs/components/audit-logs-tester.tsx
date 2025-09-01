@@ -13,7 +13,7 @@ export function AuditLogsApiTester() {
   const handleTest = async (makeRequest: any) => {
     const params = new URLSearchParams();
     
-    if (action.trim()) params.append('action', action.trim());
+    if (action.trim() && action !== "all") params.append('action', action.trim());
     if (limit.trim()) params.append('limit', limit.trim());
 
     const endpoint = `/api/audit-logs${params.toString() ? `?${params.toString()}` : ''}`;
@@ -34,7 +34,7 @@ export function AuditLogsApiTester() {
               <SelectValue placeholder="All actions" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All actions</SelectItem>
+              <SelectItem value="all">All actions</SelectItem>
               <SelectItem value="UPLOAD">UPLOAD</SelectItem>
               <SelectItem value="DELETE">DELETE</SelectItem>
               <SelectItem value="LOGIN">LOGIN</SelectItem>

@@ -83,7 +83,7 @@ export function ApiTester({ applications }: ApiTesterProps) {
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          'x-api-key': selectedApiKey,
+          'Authorization': `Bearer ${selectedApiKey}`,
         },
         body: formData
       });
