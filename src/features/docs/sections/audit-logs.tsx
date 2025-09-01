@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/features/docs/code-block";
+import { AuditLogsApiTester } from "../components/audit-logs-tester";
 
 export function AuditLogsSection() {
   return (
@@ -153,6 +154,8 @@ export function AuditLogsSection() {
           </div>
         </div>
       </div>
+
+      <AuditLogsApiTester />
     </div>
   );
 }

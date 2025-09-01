@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/features/docs/code-block";
+import { UploadApiTester } from "../components/upload-api-tester";
 
 export function UploadImageSection() {
   return (
@@ -77,6 +78,8 @@ export function UploadImageSection() {
           </div>
         </div>
       </div>
+
+      <UploadApiTester />
     </div>
   );
 }

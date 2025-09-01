@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/features/docs/code-block";
+import { DeleteImageApiTester } from "../components/delete-image-tester";
 import { Zap } from "lucide-react";
 
 export function DeleteImageSection() {
@@ -80,6 +81,8 @@ export function DeleteImageSection() {
           </div>
         </div>
       </div>
+
+      <DeleteImageApiTester />
     </div>
   );
 }

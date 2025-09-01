@@ -12,7 +12,8 @@ import { DeleteImageSection } from "@/features/docs/sections/delete-image";
 import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
 import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
 import { AuditLogsSection } from "@/features/docs/sections/audit-logs";
-import { ApiTester } from "@/features/docs/api-tester";
+import { ApiTestProvider } from "@/features/docs/api-test-provider";
+import { ApiKeySelector } from "@/features/docs/api-key-selector";
 import type { DocsPageData } from "./page";
 
 interface DocsClientProps {
@@ -35,36 +36,33 @@ export default function DocsClient({ data }: DocsClientProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <PublicHeader />
+    <ApiTestProvider applications={data.applications}>
+      <div className="min-h-screen bg-background">
+        <PublicHeader />
 
-      {/* Docs Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Serve API</h1>
-              <p className="text-muted-foreground">
-                Fast, secure file storage API
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                v1.0.0
-              </span>
+        {/* Docs Header */}
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Serve API</h1>
+                <p className="text-muted-foreground">
+                  Fast, secure file storage API
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                  v1.0.0
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* API Tester - Only show if user is logged in */}
-      {data.user && data.applications.length > 0 && (
-        <div className="border-b bg-muted/30">
-          <div className="container mx-auto px-4 py-4">
-            <ApiTester applications={data.applications} />
-          </div>
-        </div>
-      )}
+        {/* API Key Selector - Only show if user is logged in */}
+        {data.user && data.applications.length > 0 && (
+          <ApiKeySelector />
+        )}
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex gap-8">
@@ -124,6 +122,7 @@ export default function DocsClient({ data }: DocsClientProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ApiTestProvider>
   );
 }

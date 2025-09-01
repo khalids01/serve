@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/features/docs/code-block";
+import { ListImagesApiTester } from "../components/list-images-tester";
 
 export function ListImagesSection() {
   return (
@@ -122,6 +123,8 @@ export function ListImagesSection() {
           </div>
         </div>
       </div>
+
+      <ListImagesApiTester />
     </div>
   );
 }

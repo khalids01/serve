@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/features/docs/code-block";
+import { GetImageApiTester } from "../components/get-image-tester";
 
 export function GetImageSection() {
   return (
@@ -49,6 +50,8 @@ export function GetImageSection() {
           id="get-response"
         />
       </div>
+
+      <GetImageApiTester />
     </div>
   );
 }
