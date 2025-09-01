@@ -35,11 +35,14 @@ export async function middleware(request: NextRequest) {
     if (isPublicImageContent) {
       return NextResponse.next()
     }
+    
     const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
+    console.log({apiKey})
     
     if (apiKey) {
       try {
         const validation = await ApiKeyService.validateKey(apiKey)
+        console.log({validation})
         if (!validation) {
           return NextResponse.json(
             { error: 'Invalid or revoked API key' },
@@ -61,14 +64,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Fallback to session-based authentication for dashboard-initiated requests
-    const user = await getCurrentUser(request.headers)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'API key required or active session' },
-        { status: 401 }
-      )
-    }
+    // No authentication required - allow unauthenticated access for docs testing
     return NextResponse.next()
   }
 

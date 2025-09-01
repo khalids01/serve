@@ -59,12 +59,10 @@ export default function DocsClient({ data }: DocsClientProps) {
           </div>
         </div>
 
-        {/* API Key Selector - Only show if user is logged in */}
-        {data.user && data.applications.length > 0 && (
-          <div className="container mx-auto">
-            <ApiKeySelector />
-          </div>
-        )}
+        {/* API Key Selector - Always show for testing */}
+        <div className="container mx-auto">
+          <ApiKeySelector />
+        </div>
 
         <div className="container mx-auto px-4 py-8">
           <div className="flex gap-8">
