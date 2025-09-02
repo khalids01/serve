@@ -26,6 +26,9 @@
 - **📜 Audit Logs** - Complete activity tracking for uploads and deletions per application
 - **🗂️ Files Management UI** - List/grid views, preview, and safe delete with confirmation
 - **🔍 Advanced Search** - Search files by name, content type, with sorting options
+- **📚 Interactive API Documentation** - Built-in docs with live testing at `/docs`
+- **🔧 API Testing Interface** - Test APIs directly from documentation without login
+- **🔑 Bearer Token Authentication** - Modern API key authentication with Authorization headers
 
 ## 🏗️ Tech Stack
 
@@ -97,6 +100,10 @@
 
 7. **Open your browser**
    Navigate to [http://localhost:4000](http://localhost:4000)
+
+## 📖 API Documentation
+
+Visit `/docs` for interactive API documentation with live testing capabilities. You can test all API endpoints directly from the documentation page by entering your API key - no login required!
 
 ## 📖 Usage
 
