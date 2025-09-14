@@ -4,7 +4,7 @@ import { getCurrentUser } from './lib/auth-server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+
   // Handle dashboard routes - require session authentication
   if (pathname.startsWith('/dashboard')) {
     const user = await getCurrentUser(request.headers)
@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
   const isApplicationsRoute = pathname.startsWith('/api/applications')
   // Publicly accessible endpoint to serve image bytes (optionally resized)
   const isPublicImageContent = /^\/api\/images\/[^/]+\/content$/.test(pathname)
-  
+
   // Skip auth routes
   if (isAuthRoute) {
     return NextResponse.next()
@@ -35,14 +35,12 @@ export async function middleware(request: NextRequest) {
     if (isPublicImageContent) {
       return NextResponse.next()
     }
-    
+
     const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
-    console.log({apiKey})
-    
+
     if (apiKey) {
       try {
         const validation = await ApiKeyService.validateKey(apiKey)
-        console.log({validation})
         if (!validation) {
           return NextResponse.json(
             { error: 'Invalid or revoked API key' },
