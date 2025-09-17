@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma"
 import { magicLink, admin } from "better-auth/plugins"
 import { prisma } from "./prisma"
 import { sendMagicLinkEmail } from "./email"
+import { env } from "../env"
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -14,8 +15,33 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url, token }) => {
-        await sendMagicLinkEmail(email, url)
-      }
+        // Better Auth generates an absolute URL based on the incoming request.
+        // When running behind a reverse proxy or non-standard port, this can default to localhost.
+        // To ensure users receive a link with the correct public origin, rewrite the origin
+        // using NEXT_PUBLIC_APP_URL if provided.
+        try {
+          const appUrl = env.NEXT_PUBLIC_APP_URL
+          let finalUrl = url
+          if (appUrl) {
+            try {
+              const targetOrigin = new URL(appUrl)
+              const u = new URL(url)
+              // Replace only the origin (protocol + host[:port])
+              u.protocol = targetOrigin.protocol
+              u.host = targetOrigin.host
+              finalUrl = u.toString()
+            } catch {
+              // If URL parsing fails for any reason, fall back to the original url
+            }
+          }
+          await sendMagicLinkEmail(email, finalUrl)
+        } catch (e) {
+          // Re-throw to let Better Auth propagate the error upstream
+          throw e
+        }
+      },
+      // When signup is disabled, Better Auth will only allow magic link sign-in for existing users
+      disableSignUp: !env.ENABLE_SIGNUP,
     }),
     admin({
       defaultRole: "user",
