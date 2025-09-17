@@ -11,6 +11,9 @@ export const env = {
   EMAIL_PASSWORD: process.env.EMAIL_PASSWORD,
   EMAIL_FROM: process.env.EMAIL_FROM ?? "Serve File Server",
 
+  // When false, new user sign-ups are disabled (existing users can still sign in)
+  ENABLE_SIGNUP: process.env.ENABLE_SIGNUP !== 'false',
+
   MAX_FILE_SIZE: Number(process.env.MAX_FILE_SIZE) ?? 50,
   NEXT_PUBLIC_MAX_FILE_SIZE:
     Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE) ?? 50,

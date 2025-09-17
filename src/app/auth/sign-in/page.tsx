@@ -1,7 +1,9 @@
 import { SignInForm } from "@/features/auth/sign-in-form"
 import { PublicHeader } from "@/components/core/public-header"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function SignInPage() {
+  const signupEnabled = process.env.ENABLE_SIGNUP !== 'false'
   return (
     <div className="min-h-screen">
       <PublicHeader />
@@ -14,8 +16,16 @@ export default function SignInPage() {
               Sign in to access your file storage dashboard
             </p>
           </div>
+          {!signupEnabled && (
+            <Alert className="max-w-md">
+              <AlertTitle>New signups are disabled</AlertTitle>
+              <AlertDescription>
+                Only existing users can sign in. Contact your administrator to request access.
+              </AlertDescription>
+            </Alert>
+          )}
           
-          <SignInForm />
+          <SignInForm signupEnabled={signupEnabled} />
         </div>
       </main>
     </div>

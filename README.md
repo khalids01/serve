@@ -71,7 +71,6 @@
    ```bash
    cp .env.example .env
    ```
-   
    Edit `.env` with your configuration (required variables):
    ```env
    NEXT_PUBLIC_APP_URL=http://localhost:4000
@@ -84,6 +83,9 @@
    EMAIL=your-email@gmail.com
    EMAIL_PASSWORD=your-app-password
    EMAIL_FROM="Serve File Storage"
+   
+   # Allow new user registration via magic link (set to false to disable signups)
+   ENABLE_SIGNUP=true
    ```
 
 5. **Run database migrations**
@@ -368,6 +370,7 @@ Be respectful, inclusive, and helpful. We follow the [Contributor Covenant](http
 | `NEXT_PUBLIC_APP_URL` | Application URL | `http://localhost:3003` |
 | `DATABASE_URL` | Database connection string | `file:./dev.db` |
 | `BETTER_AUTH_SECRET` | Authentication secret key | Required |
+| `ENABLE_SIGNUP` | Allow new user registration via magic link | `true` |
 | `UPLOAD_DIR` | Root directory for uploaded files | `uploads` |
 | `ORIGINAL_MAX_DIM` | Max dimension for optimized originals (px) | `2560` |
 | `MAX_FILE_SIZE` | Max upload size in bytes | `10_000_000` |

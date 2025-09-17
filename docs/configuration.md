@@ -11,6 +11,7 @@ Copy `.env.example` to `.env.local` and set values:
 | NEXT_PUBLIC_APP_URL | Public app URL | http://localhost:3003 |
 | DATABASE_URL | Prisma connection string | file:./dev.db |
 | BETTER_AUTH_SECRET | Secret for auth | (required) |
+| ENABLE_SIGNUP | Allow new user registration via magic link | true |
 | UPLOAD_DIR | Root directory for uploaded files | uploads |
 | ORIGINAL_MAX_DIM | Max dimension for optimized originals (px) | 2560 |
 | MAX_FILE_SIZE | Max upload size in bytes | 10000000 |
@@ -43,6 +44,7 @@ bun run db:studio # or: npx prisma studio
 
 - Magic Link via Better-Auth
 - Configure SMTP to send magic link emails in production
+- To disable new signups (allowing only existing users to sign in), set `ENABLE_SIGNUP=false` in your environment
 
 ## File Storage
 
