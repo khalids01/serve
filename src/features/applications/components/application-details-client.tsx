@@ -39,11 +39,14 @@ import {
   List,
   Grid2X2,
   ExternalLink,
+  Crop,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useClearCacheMutation } from "@/features/applications/hooks/use-clear-cache";
 import { useDeleteImageMutation } from "@/features/applications/hooks/use-delete-image";
+import { useCropImageMutation } from "@/features/applications/hooks/use-crop-image";
 import { ApplicationSettingsForm } from "./application-settings-form";
+import { ImageCropDialog } from "./image-crop-dialog";
 
 export interface ApplicationDTO {
   id: string;
@@ -111,8 +114,10 @@ export default function ApplicationDetailsClient({
   const applicationId = application.id;
   const clearCacheMutation = useClearCacheMutation(applicationId);
   const deleteImageMutation = useDeleteImageMutation(applicationId);
+  const cropImageMutation = useCropImageMutation(applicationId);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [previewImage, setPreviewImage] = useState<ImageFileDTO | null>(null);
+  const [cropImage, setCropImage] = useState<ImageFileDTO | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [targetDelete, setTargetDelete] = useState<ImageFileDTO | null>(null);
 
@@ -123,7 +128,7 @@ export default function ApplicationDetailsClient({
     ? typeof window !== "undefined"
       ? new URL(
           `/api/img/${previewImage.filename}`,
-          window.location.origin
+          window.location.origin,
         ).toString()
       : `/api/img/${previewImage.filename}`
     : "";
@@ -151,6 +156,35 @@ export default function ApplicationDetailsClient({
       setTargetDelete(null);
     } catch (e) {
       toast.error("Failed to delete file");
+    }
+  };
+
+  const handleCropImage = (img: ImageFileDTO) => {
+    setCropImage(img);
+    setPreviewImage(null);
+  };
+
+  const handleSaveCrop = async (
+    croppedBlob: Blob,
+    saveMode: "new" | "replace",
+  ) => {
+    if (!cropImage) return;
+    try {
+      await cropImageMutation.mutateAsync({
+        imageId: cropImage.id,
+        croppedBlob,
+        saveMode,
+      });
+      
+      if (saveMode === "replace") {
+        toast.success("Image replaced with cropped version");
+      } else {
+        toast.success("Cropped image saved as new file");
+      }
+      // Dialog will close after page reloads
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save cropped image");
+      setCropImage(null);
     }
   };
 
@@ -257,16 +291,34 @@ export default function ApplicationDetailsClient({
                   <div className="space-y-2">
                     <div className="text-2xl font-bold">
                       {formatFileSize(
-                        images.reduce((total, img) => total + img.sizeBytes + 
-                          img.variants.reduce((vTotal, variant) => vTotal + variant.sizeBytes, 0), 0) + 
-                        cacheTotalBytes
+                        images.reduce(
+                          (total, img) =>
+                            total +
+                            img.sizeBytes +
+                            img.variants.reduce(
+                              (vTotal, variant) => vTotal + variant.sizeBytes,
+                              0,
+                            ),
+                          0,
+                        ) + cacheTotalBytes,
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1">
-                      <div>Files: {formatFileSize(
-                        images.reduce((total, img) => total + img.sizeBytes + 
-                          img.variants.reduce((vTotal, variant) => vTotal + variant.sizeBytes, 0), 0)
-                      )}</div>
+                      <div>
+                        Files:{" "}
+                        {formatFileSize(
+                          images.reduce(
+                            (total, img) =>
+                              total +
+                              img.sizeBytes +
+                              img.variants.reduce(
+                                (vTotal, variant) => vTotal + variant.sizeBytes,
+                                0,
+                              ),
+                            0,
+                          ),
+                        )}
+                      </div>
                       <div>Cache: {formatFileSize(cacheTotalBytes)}</div>
                     </div>
                   </div>
@@ -537,27 +589,39 @@ export default function ApplicationDetailsClient({
               open={!!previewImage}
               onOpenChange={(o) => !o && setPreviewImage(null)}
             >
-              <DialogContent className="!w-full !max-w-[900px] h-[90vh]">
+              <DialogContent className="!w-full !max-w-[900px] h-[90vh] flex flex-col">
                 <DialogHeader className="flex flex-row items-center justify-between">
                   <DialogTitle className="truncate">
                     {previewImage?.originalName}
                   </DialogTitle>
-                  {previewImage && (
-                    <Button variant="ghost" size="icon" asChild>
-                      <a
-                        href={previewAbsoluteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open in new tab"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {previewImage && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCropImage(previewImage)}
+                        >
+                          <Crop className="h-4 w-4 mr-2" />
+                          Crop
+                        </Button>
+                        <Button variant="ghost" size="icon" asChild>
+                          <a
+                            href={previewAbsoluteUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open in new tab"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </DialogHeader>
 
                 {previewImage && (
-                  <div className="h-full overflow-auto">
+                  <div className="flex-1 overflow-auto">
                     <img
                       src={`/api/img/${previewImage.filename}?w=1280`}
                       alt={previewImage.originalName}
@@ -567,6 +631,14 @@ export default function ApplicationDetailsClient({
                 )}
               </DialogContent>
             </Dialog>
+
+            <ImageCropDialog
+              open={!!cropImage}
+              onOpenChange={(open) => !open && setCropImage(null)}
+              imageUrl={cropImage ? `/api/img/${cropImage.filename}` : ""}
+              imageName={cropImage?.originalName || ""}
+              onSave={handleSaveCrop}
+            />
 
             <AlertDialog
               open={confirmDeleteOpen}
@@ -605,27 +677,30 @@ export default function ApplicationDetailsClient({
                 <ApplicationSettingsForm application={application} />
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Storage Information</CardTitle>
-                <CardDescription>
-                  Application storage details
-                </CardDescription>
+                <CardDescription>Application storage details</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium">Storage Directory</label>
+                    <label className="text-sm font-medium">
+                      Storage Directory
+                    </label>
                     <div className="text-sm font-mono bg-muted p-2 rounded mt-1">
                       {application.storageDir}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Files are stored in this directory. This cannot be changed after creation.
+                      Files are stored in this directory. This cannot be changed
+                      after creation.
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Application ID</label>
+                    <label className="text-sm font-medium">
+                      Application ID
+                    </label>
                     <div className="text-sm font-mono bg-muted p-2 rounded mt-1">
                       {application.id}
                     </div>

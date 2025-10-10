@@ -26,9 +26,11 @@ export const auth = betterAuth({
             try {
               const targetOrigin = new URL(appUrl)
               const u = new URL(url)
-              // Replace only the origin (protocol + host[:port])
+              // Replace origin and explicitly drop any port to avoid leaking proxy port
               u.protocol = targetOrigin.protocol
-              u.host = targetOrigin.host
+              u.hostname = targetOrigin.hostname
+              // If NEXT_PUBLIC_APP_URL has no port, this clears any port coming from the proxy
+              u.port = targetOrigin.port || ""
               finalUrl = u.toString()
             } catch {
               // If URL parsing fails for any reason, fall back to the original url
