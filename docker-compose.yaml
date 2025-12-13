@@ -1,5 +1,8 @@
 services:
   file-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: file-server:latest
     container_name: file-server
     ports:
