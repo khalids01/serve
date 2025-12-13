@@ -27,7 +27,12 @@ RUN npx prisma generate
 RUN npm run build
 
 # Non-root user
-RUN useradd -ms /bin/bash appuser
+RUN useradd -ms /bin/bash -u 10001 appuser
+
+# Persistent upload directory (bind-mount this in production)
+ENV UPLOAD_DIR=/uploads
+RUN mkdir -p /uploads && chown -R appuser:appuser /uploads
+
 USER appuser
 
 

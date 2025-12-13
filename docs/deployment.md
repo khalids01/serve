@@ -22,8 +22,8 @@ Mount uploads to persist files across restarts:
 
 ```bash
 docker run --name serve -p 3003:3003 \
-  -v $(pwd)/uploads:/app/uploads \
-  -e UPLOAD_DIR="uploads" \
+  -v $(pwd)/uploads:/uploads \
+  -e UPLOAD_DIR="/uploads" \
   ...
 ```
 

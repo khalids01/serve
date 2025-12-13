@@ -1,0 +1,11 @@
+services:
+  file-server:
+    image: file-server:latest
+    container_name: file-server
+    ports:
+      - "3002:3002"
+    environment:
+      UPLOAD_DIR: /uploads
+    volumes:
+      - /var/www/file-server-uploads:/uploads
+    restart: unless-stopped
