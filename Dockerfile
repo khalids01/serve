@@ -1,28 +1,22 @@
-FROM debian:12-slim
+FROM node:24-bookworm-slim
 
 WORKDIR /app
 
-# Install dependencies for Bun + Prisma
+# Install dependencies for Prisma
 RUN apt-get update && apt-get install -y \
-    curl \
-    unzip \
     openssl \
     libssl3 \
-    libssl-dev \
+    libc6 \
+    libgcc-s1 \
+    libstdc++6 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-RUN \. "$HOME/.nvm/nvm.sh"
-RUN nvm install 24
-RUN nvm use 24
-
 # Copy only package files first (better caching)
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
 # Install ALL dependencies (dev + prod)
-RUN npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copy the rest of the project
 COPY . .
