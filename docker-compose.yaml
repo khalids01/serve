@@ -5,10 +5,10 @@ services:
       dockerfile: Dockerfile
     image: file-server:latest
     container_name: file-server
+    env_file:
+      - .env
     ports:
       - "3002:3002"
-    environment:
-      UPLOAD_DIR: /uploads
     volumes:
       - /var/www/file-server-uploads:/uploads
     restart: unless-stopped

@@ -12,29 +12,27 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only package files first (better caching)
+# Install dependencies
 COPY package.json package-lock.json* ./
-
-# Install ALL dependencies (dev + prod)
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-# Copy the rest of the project
+# Copy project files
 COPY . .
 
+# Generate Prisma client
 RUN npx prisma generate
 
 # Build the Next.js app
 RUN npm run build
 
-# Non-root user
+# Add non-root user
 RUN useradd -ms /bin/bash -u 10001 appuser
 
-# Persistent upload directory (bind-mount this in production)
+# Create uploads directory
 ENV UPLOAD_DIR=/uploads
 RUN mkdir -p /uploads && chown -R appuser:appuser /uploads
 
 USER appuser
-
 
 EXPOSE 3002
 
