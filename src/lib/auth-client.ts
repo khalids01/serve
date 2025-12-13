@@ -8,7 +8,12 @@ export const authClient = createAuthClient({
     adminClient(),
     magicLinkClient()
   ],
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003"
+  baseURL:
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.BETTER_AUTH_URL ||
+        "http://localhost:3002"
 })
 
 // Infer strictly-typed Session from the client (includes user with plugin-added fields like `role`)

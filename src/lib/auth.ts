@@ -6,6 +6,7 @@ import { sendMagicLinkEmail } from "./email";
 import { env } from "../env";
 
 export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL,
   database: prismaAdapter(prisma, {
     provider: "sqlite",
   }),
@@ -57,7 +58,7 @@ export const auth = betterAuth({
   user: {
     modelName: "User",
   },
-  trustedOrigins: [env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3003"],
+  trustedOrigins: [env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3002"],
 });
 
 // Inferred types from Better Auth (includes plugin-augmented fields like `role`)
