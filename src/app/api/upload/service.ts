@@ -102,7 +102,7 @@ export async function handleUpload(request: NextRequest) {
   try {
     const formData = await request.formData();
 
-    console.log(formData.get("file"));
+    // console.log(formData.get("file"));
 
     // Try API-key-provided headers first
     let applicationId = request.headers.get("x-application-id") || undefined;
