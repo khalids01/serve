@@ -7,11 +7,15 @@ import sharp from 'sharp'
 import path from 'path'
 import fs from 'fs/promises'
 
+export const runtime = "nodejs";
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Get form data first to avoid disturbed body errors
+    const formData = await request.formData();
     const { id } = await context.params;
     const user = await getCurrentUser(request.headers);
 
@@ -19,8 +23,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get form data
-    const formData = await request.formData();
     const croppedFile = formData.get("file") as File;
     const saveMode = formData.get("saveMode") as "new" | "replace";
 

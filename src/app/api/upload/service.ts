@@ -104,9 +104,8 @@ async function processFile(
   };
 }
 
-export async function handleUpload(request: NextRequest) {
+export async function handleUpload(request: NextRequest, formData: FormData) {
   try {
-    const formData = await request.formData();
 
     // console.log(formData.get("file"));
 

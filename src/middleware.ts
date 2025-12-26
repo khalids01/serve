@@ -48,9 +48,10 @@ export async function middleware(request: NextRequest) {
           )
         }
 
-        // For upload routes, we avoid cloning the request to prevent "disturbed body" errors
-        // in some environments (like Node.js runtime with large payloads)
-        if (isUploadRoute && request.method === 'POST') {
+        // For routes with bodies (POST, PUT, PATCH), we avoid cloning the request 
+        // to prevent "disturbed body" errors in some environments
+        const hasBody = ['POST', 'PUT', 'PATCH'].includes(request.method)
+        if (hasBody) {
           return NextResponse.next()
         }
 
