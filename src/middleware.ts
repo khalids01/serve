@@ -47,6 +47,13 @@ export async function middleware(request: NextRequest) {
             { status: 401 }
           )
         }
+
+        // For upload routes, we avoid cloning the request to prevent "disturbed body" errors
+        // in some environments (like Node.js runtime with large payloads)
+        if (isUploadRoute && request.method === 'POST') {
+          return NextResponse.next()
+        }
+
         // API key is valid; forward context as request headers
         const requestHeaders = new Headers(request.headers)
         requestHeaders.set('x-user-id', validation.user.id)

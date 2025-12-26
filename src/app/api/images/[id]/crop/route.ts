@@ -152,7 +152,6 @@ export async function POST(
       // Create new database record with variants
       const newImage = await prisma.image.create({
         data: {
-          id: result.id,
           applicationId: originalImage.applicationId,
           filename: result.filename, // Hash-based filename like 0d3c2d3a8e7dbc9c.jpeg
           originalName: croppedOriginalName, // Human-readable name for display
@@ -160,6 +159,7 @@ export async function POST(
           sizeBytes: result.sizeBytes,
           width: result.width || null,
           height: result.height || null,
+          hash: result.id, // Store content hash here
           variants: {
             create: result.variants.map((v) => ({
               label: v.label,

@@ -37,7 +37,6 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
   // Save to database
   const image = await prisma.image.create({
     data: {
-      id: uploadResult.id,
       applicationId,
       filename: uploadResult.filename,
       originalName: uploadResult.originalName,
@@ -45,6 +44,7 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
       sizeBytes: uploadResult.sizeBytes,
       width: uploadResult.width,
       height: uploadResult.height,
+      hash: uploadResult.id,
       tags: tags.length > 0 ? tags as any : null,
       variants: {
         create: uploadResult.variants.map(variant => ({

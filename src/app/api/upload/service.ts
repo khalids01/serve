@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
 import { getCurrentUser } from "@/lib/auth-server";
+import { ApiKeyService } from "@/lib/api-keys";
 import type { ImageVariant } from "@/lib/prisma-types";
 
 interface FileWithTags {
@@ -38,7 +39,6 @@ async function processFile(
   // Save to database
   const image = await prisma.image.create({
     data: {
-      id: uploadResult.id,
       applicationId,
       filename: uploadResult.filename,
       originalName: uploadResult.originalName,
@@ -46,6 +46,7 @@ async function processFile(
       sizeBytes: uploadResult.sizeBytes,
       width: uploadResult.width,
       height: uploadResult.height,
+      hash: uploadResult.id, // Store content hash here
       tags: tags ?? undefined,
       variants: {
         create: uploadResult.variants.map((variant) => ({
@@ -107,6 +108,19 @@ export async function handleUpload(request: NextRequest) {
     // Try API-key-provided headers first
     let applicationId = request.headers.get("x-application-id") || undefined;
     let userId = request.headers.get("x-user-id") || undefined;
+
+    // Check for direct API key if headers missing (e.g. middleware skipped cloning to avoid disturbed body)
+    if (!userId || !applicationId) {
+      const apiKey = request.headers.get("x-api-key") || 
+                     request.headers.get("authorization")?.replace("Bearer ", "");
+      if (apiKey) {
+        const validation = await ApiKeyService.validateKey(apiKey);
+        if (validation) {
+          userId = validation.user.id;
+          applicationId = validation.application.id;
+        }
+      }
+    }
 
     // Fallback to session-based user when header missing
     if (!userId) {
