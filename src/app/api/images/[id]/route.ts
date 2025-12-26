@@ -23,12 +23,13 @@ export async function GET(
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
+    const ext = path.extname(image.filename);
     return NextResponse.json({
       ...image,
-      url: `/api/img/${image.filename}`,
+      url: `/api/img/${image.id}${ext}`,
       variants: image.variants.map(variant => ({
         ...variant,
-        url: `/api/img/${image.filename}${variant.width || variant.height ? `?${[
+        url: `/api/img/${image.id}${ext}${variant.width || variant.height ? `?${[
           variant.width ? `w=${variant.width}` : '',
           variant.height ? `h=${variant.height}` : ''
         ].filter(Boolean).join('&')}` : ''}`

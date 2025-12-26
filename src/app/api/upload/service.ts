@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import path from "path";
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
 import { getCurrentUser } from "@/lib/auth-server";
@@ -89,12 +90,16 @@ async function processFile(
     console.error("Audit log (UPLOAD) error:", e);
   }
 
+  const ext = path.extname(image.filename);
   return {
     ...image,
-    url: `/api/img/${image.filename}`,
+    url: `/api/img/${image.id}${ext}`,
     variants: image.variants.map((variant: ImageVariant) => ({
       ...variant,
-      url: `/api/img/${variant.filename}`,
+      url: `/api/img/${image.id}${ext}${variant.width || variant.height ? `?${[
+        variant.width ? `w=${variant.width}` : '',
+        variant.height ? `h=${variant.height}` : ''
+      ].filter(Boolean).join('&')}` : ''}`,
     })),
   };
 }
@@ -252,9 +257,13 @@ export async function handleUpload(request: NextRequest) {
       request,
     );
 
+    const ext = path.extname(result.filename);
     return NextResponse.json({
       success: true,
-      image: result,
+      image: {
+        ...result,
+        url: `/api/img/${result.id}${ext}`,
+      },
     });
   } catch (error) {
     console.error("Upload error:", error);

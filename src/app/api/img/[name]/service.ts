@@ -69,7 +69,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
     const lookupId = isPlaceholder ? baseName.slice(0, -PLACEHOLDER_SUFFIX.length) : baseName;
 
     // Fetch image by base id (supports switching extension)
-    const image = await prisma.image.findUnique({
+    let image = await prisma.image.findUnique({
       where: { id: lookupId },
       select: {
         id: true,
@@ -79,6 +79,27 @@ export async function serveImage(request: NextRequest, rawName: string) {
         application: { select: { slug: true } },
       },
     });
+
+    if (!image) {
+      // Fallback: search by hash or filename if ID lookup fails
+      // This handles cases where people are using the filename base (hash) as the lookup key
+      image = await prisma.image.findFirst({
+        where: {
+          OR: [
+            { hash: lookupId },
+            { filename: lookupId },
+            { filename: { startsWith: lookupId + "." } }
+          ]
+        },
+        select: {
+          id: true,
+          filename: true,
+          applicationId: true,
+          contentType: true,
+          application: { select: { slug: true } },
+        },
+      });
+    }
 
     if (!image) {
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
@@ -104,13 +125,15 @@ export async function serveImage(request: NextRequest, rawName: string) {
       return NextResponse.json({ error: "Unsupported output format" }, { status: 404 });
     }
 
+    const base = path.parse(image.filename).name;
+
     // Handle explicit placeholder requests (no resizing allowed)
     if (isPlaceholder) {
       if (width || height) {
         return NextResponse.json({ error: "Resize not supported for placeholder" }, { status: 404 });
       }
-      const phPrimary = path.join(uploadsDir, `${lookupId}-placeholder.${targetExt}`);
-      const phLegacy = path.join(legacyUploadsDir, `${lookupId}-placeholder.${targetExt}`);
+      const phPrimary = path.join(uploadsDir, `${base}-placeholder.${targetExt}`);
+      const phLegacy = path.join(legacyUploadsDir, `${base}-placeholder.${targetExt}`);
       try {
         let buf: Buffer;
         try {
@@ -161,8 +184,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     // If no resize and requested format differs from original, try prebuilt same-dimension file (webp) first
     if (!width && !height && targetExt !== normalizedOrigExt) {
-      const prebuiltPrimary = path.join(uploadsDir, `${baseName}.${targetExt}`);
-      const prebuiltLegacy = path.join(legacyUploadsDir, `${baseName}.${targetExt}`);
+      const prebuiltPrimary = path.join(uploadsDir, `${base}.${targetExt}`);
+      const prebuiltLegacy = path.join(legacyUploadsDir, `${base}.${targetExt}`);
       try {
         let buf: Buffer;
         try {
@@ -187,7 +210,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
     }
 
     // Prepare cache
-    const base = baseName;
+    // base is already defined above from image.filename
     const cacheDir = path.join(uploadsDir, "_cache");
     await fs.mkdir(cacheDir, { recursive: true });
 

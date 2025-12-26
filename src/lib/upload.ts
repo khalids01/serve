@@ -1,3 +1,4 @@
+import path from 'path'
 import { prisma } from './prisma'
 import { FileStorageService } from './file-storage'
 import type { Image, ImageVariant } from '@/lib/prisma-types'
@@ -62,13 +63,14 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
   })
 
   const imageWithVariants = image as Image & { variants: ImageVariant[] }
+  const ext = path.extname(imageWithVariants.filename);
+  const base = `/api/img/${imageWithVariants.id}${ext}`;
   
   return {
     ...imageWithVariants,
     // Serve via API to avoid direct public file paths
-    url: `/api/img/${imageWithVariants.filename}`,
+    url: base,
     variants: imageWithVariants.variants.map((variant: ImageVariant) => {
-      const base = `/api/img/${imageWithVariants.filename}`
       const params = [
         variant.width ? `w=${variant.width}` : '',
         variant.height ? `h=${variant.height}` : ''
