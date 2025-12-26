@@ -2,7 +2,7 @@ services:
   file-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.m
     image: file-server:latest
     container_name: file-server
     env_file:
@@ -10,5 +10,5 @@ services:
     ports:
       - "3002:3002"
     volumes:
-      - /var/www/file-server-uploads:/uploads
+      - /var/www/file-server-uploads:/app/uploads
     restart: unless-stopped
