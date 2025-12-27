@@ -51,16 +51,16 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -ms /bin/bash -u 10001 appuser
 
 # ---- Copy ONLY what is needed ----
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
+COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
+COPY --from=builder --chown=appuser:appuser /app/public ./public
+COPY --from=builder --chown=appuser:appuser /app/prisma ./prisma
 
 # ---- Uploads ----
 ENV UPLOAD_DIR=/uploads
 ENV PORT=3002
 
-RUN mkdir -p /uploads && chown -R appuser:appuser /uploads
+RUN mkdir -p /uploads && chown -R appuser:appuser /uploads && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 3002

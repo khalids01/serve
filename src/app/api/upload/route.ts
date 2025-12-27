@@ -19,18 +19,22 @@ export async function POST(request: NextRequest) {
   // ✅ NOW read the body (ONE TIME)
   const formData = await request.formData();
 
+  const _headers = {
+    userAgent,
+    ip,
+    applicationId: headers.get("x-application-id"),
+    userId: headers.get("x-user-id"),
+    apiKey:
+      headers.get("x-api-key") ??
+      headers.get("authorization")?.replace("Bearer ", ""),
+  }
+
+  console.log({ _headers })
+
   // ✅ Pass ONLY plain data forward
   return handleUpload({
     formData,
     sessionUser,
-    headers: {
-      userAgent,
-      ip,
-      applicationId: headers.get("x-application-id"),
-      userId: headers.get("x-user-id"),
-      apiKey:
-        headers.get("x-api-key") ??
-        headers.get("authorization")?.replace("Bearer ", ""),
-    },
+    headers: _headers,
   });
 }
