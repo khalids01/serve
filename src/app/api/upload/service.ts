@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, } from "next/server";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
-import { getCurrentUser } from "@/lib/auth-server";
 import { ApiKeyService } from "@/lib/api-keys";
 import type { ImageVariant } from "@/lib/prisma-types";
 
@@ -11,14 +10,23 @@ interface FileWithTags {
   tags?: string[];
 }
 
-async function processFile(
-  file: File,
-  tags: string[] | null,
-  applicationId: string,
-  userId: string,
-  application: any,
-  request: NextRequest,
-) {
+async function processFile({
+  file,
+  tags,
+  applicationId,
+  userId,
+  application,
+  userAgent,
+  ip,
+}: {
+  file: File;
+  tags: string[] | null;
+  applicationId: string;
+  userId: string;
+  application: any;
+  userAgent?: string | null;
+  ip?: string | null;
+}) {
   // Validate max file size from env (defaults to 10MB)
   const maxMb = Number(process.env.MAX_FILE_SIZE ?? "10");
   const limitMb = Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb) : 10;
@@ -66,11 +74,6 @@ async function processFile(
 
   // Create audit log
   try {
-    const userAgent = request.headers.get("user-agent") || undefined;
-    const ip =
-      (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
-      request.headers.get("x-real-ip") ||
-      undefined;
     await prisma.auditLog.create({
       data: {
         userId: userId || null,
@@ -104,21 +107,36 @@ async function processFile(
   };
 }
 
-export async function handleUpload(request: NextRequest) {
+type UploadContext = {
+  formData: FormData;
+  sessionUser?: { id: string } | null;
+  headers: {
+    userAgent?: string | null;
+    ip?: string;
+    applicationId?: string | null;
+    userId?: string | null;
+    apiKey?: string | null;
+  };
+};
+
+
+export async function handleUpload({
+  formData,
+  sessionUser,
+  headers,
+}: UploadContext) {
   try {
 
-  const formData = await request.formData()
     // console.log(formData.get("file"));
 
     // Try API-key-provided headers first
-    let applicationId = request.headers.get("x-application-id") || undefined;
-    let userId = request.headers.get("x-user-id") || undefined;
+    let applicationId = headers.applicationId || undefined;
+    let userId = headers.userId || undefined;
 
     // Check for direct API key if headers missing (e.g. middleware skipped cloning to avoid disturbed body)
     if (!userId || !applicationId) {
-      const apiKey = request.headers.get("x-api-key") || 
-                     request.headers.get("authorization")?.replace("Bearer ", "");
-      if (apiKey) {
+      const apiKey = headers.apiKey
+      if (!!apiKey) {
         const validation = await ApiKeyService.validateKey(apiKey);
         if (validation) {
           userId = validation.user.id;
@@ -129,7 +147,7 @@ export async function handleUpload(request: NextRequest) {
 
     // Fallback to session-based user when header missing
     if (!userId) {
-      const user = await getCurrentUser(request.headers);
+      const user = sessionUser
       if (user) {
         userId = user.id;
       }
@@ -206,13 +224,15 @@ export async function handleUpload(request: NextRequest) {
         }
 
         try {
-          const result = await processFile(
+          const result = await processFile({
             file,
-            config.tags || null,
+            tags: config.tags || null,
             applicationId,
             userId,
             application,
-            request,
+            userAgent: headers.userAgent,
+            ip: headers.ip,
+          }
           );
           results.push(result);
         } catch (error) {
@@ -248,14 +268,15 @@ export async function handleUpload(request: NextRequest) {
     }
 
     const parsedTags = tags ? JSON.parse(tags) : null;
-    const result = await processFile(
+    const result = await processFile({
       file,
-      parsedTags,
+      tags: parsedTags,
       applicationId,
       userId,
       application,
-      request,
-    );
+      userAgent: headers.userAgent,
+      ip: headers.ip,
+    });
 
     const ext = path.extname(result.filename);
     return NextResponse.json({
