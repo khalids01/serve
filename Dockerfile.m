@@ -65,4 +65,4 @@ USER appuser
 EXPOSE 3002
 
 # ---- Runtime: DB exists here ----
-CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["node", "server.js"]

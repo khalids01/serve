@@ -1,4 +1,14 @@
 services:
+  prisma-migrate:
+    image: node:24-bookworm-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: npx prisma migrate deploy
+    restart: "no"
+
   file-server:
     build:
       context: .
@@ -10,5 +20,7 @@ services:
     ports:
       - "3002:3002"
     volumes:
-      - /var/www/file-server-uploads:/app/uploads
+      - /var/www/file-server-uploads:/uploads
+    depends_on:
+      - prisma-migrate
     restart: unless-stopped
