@@ -24,15 +24,15 @@ services:
     depends_on:
       - prisma-migrate
     restart: unless-stopped
-labels:
-  - traefik.enable=true
+    labels:
+      - traefik.enable=true
 
-  # Disable request body buffering
-  - traefik.http.middlewares.no-buffer.buffering.maxRequestBodyBytes=0
-  - traefik.http.middlewares.no-buffer.buffering.memRequestBodyBytes=0
+      # Disable request body buffering
+      - traefik.http.middlewares.no-buffer.buffering.maxRequestBodyBytes=0
+      - traefik.http.middlewares.no-buffer.buffering.memRequestBodyBytes=0
 
-  # HTTP
-  - traefik.http.routers.alkhidmaati-fileservercompose-ebrmey-4-web.middlewares=redirect-to-https@file,no-buffer
+      # HTTP
+      - traefik.http.routers.alkhidmaati-fileservercompose-ebrmey-4-web.middlewares=redirect-to-https@file,no-buffer
 
-  # HTTPS
-  - traefik.http.routers.alkhidmaati-fileservercompose-ebrmey-4-websecure.middlewares=no-buffer
+      # HTTPS
+      - traefik.http.routers.alkhidmaati-fileservercompose-ebrmey-4-websecure.middlewares=no-buffer
