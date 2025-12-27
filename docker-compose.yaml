@@ -24,3 +24,10 @@ services:
     depends_on:
       - prisma-migrate
     restart: unless-stopped
+
+    labels:
+    - "traefik.enable=true"
+    # 🔥 DISABLE REQUEST BODY BUFFERING (FIXES multipart boundary errors)
+    - "traefik.http.middlewares.no-buffer.buffering.maxRequestBodyBytes=0"
+    - "traefik.http.middlewares.no-buffer.buffering.memRequestBodyBytes=0"
+    - "traefik.http.routers.file-server.middlewares=no-buffer"
