@@ -104,9 +104,10 @@ async function processFile(
   };
 }
 
-export async function handleUpload(request: NextRequest, formData: FormData) {
+export async function handleUpload(request: NextRequest) {
   try {
 
+  const formData = await request.formData()
     // console.log(formData.get("file"));
 
     // Try API-key-provided headers first
