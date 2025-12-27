@@ -1,12 +1,12 @@
 services:
   prisma-migrate:
-    image: node:24-bookworm-slim
+    image: oven/bun:latest
     working_dir: /app
     volumes:
       - .:/app
     env_file:
       - .env
-    command: npx prisma migrate deploy
+    command: bunx prisma migrate deploy
     restart: "no"
 
   file-server:

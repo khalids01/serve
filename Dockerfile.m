@@ -1,69 +1,48 @@
 # =========================
-# 1) BUILDER
+# 1) BUILDER (Bun latest)
 # =========================
-FROM node:24-bookworm-slim AS builder
+FROM oven/bun:latest AS builder
 
 WORKDIR /app
 
-# ---- System deps for Prisma ----
-RUN apt-get update && apt-get install -y \
-  openssl \
-  libssl3 \
-  libc6 \
-  libgcc-s1 \
-  libstdc++6 \
-  ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
 # ---- Install deps ----
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then \
-      npm ci --legacy-peer-deps; \
-    else \
-      npm install --legacy-peer-deps; \
-    fi
+COPY package.json bun.lockb* ./
+RUN bun install
 
 # ---- App source ----
 COPY . .
 
-# ---- Prisma (NO DB needed) ----
-RUN npx prisma generate
+# ---- Prisma client (NO DB needed) ----
+RUN bunx prisma generate
 
 # ---- Next build (standalone output) ----
-RUN npm run build
+RUN bun run build
 
 
 # =========================
-# 2) RUNTIME (SLIM)
+# 2) RUNTIME (Bun latest slim)
 # =========================
-FROM node:24-bookworm-slim
+FROM oven/bun:latest-slim
 
 WORKDIR /app
 
-# ---- Runtime system deps ----
-RUN apt-get update && apt-get install -y \
-  openssl \
-  libssl3 \
-  ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production
+ENV PORT=3002
+ENV UPLOAD_DIR=/uploads
 
 # ---- Non-root user ----
-RUN useradd -ms /bin/bash -u 10001 appuser
+RUN adduser --disabled-password --uid 10001 appuser
 
 # ---- Copy ONLY what is needed ----
-COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
-COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
-COPY --from=builder --chown=appuser:appuser /app/public ./public
-COPY --from=builder --chown=appuser:appuser /app/prisma ./prisma
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 
 # ---- Uploads ----
-ENV UPLOAD_DIR=/uploads
-ENV PORT=3002
-
-RUN mkdir -p /uploads && chown -R appuser:appuser /uploads && chown -R appuser:appuser /app
+RUN mkdir -p /uploads && chown -R appuser:appuser /uploads /app
 USER appuser
 
 EXPOSE 3002
 
-# ---- Runtime: DB exists here ----
-CMD ["node", "server.js"]
+CMD ["bun", "server.js"]
