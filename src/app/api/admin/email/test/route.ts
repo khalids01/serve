@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { testEmailConfiguration, sendTestEmail } from '@/lib/email'
-import { requireAuth } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth()
-    
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
+
     // Only allow admin users to test email configuration
     if (user.role !== 'admin') {
       return NextResponse.json(
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await testEmailConfiguration()
-    
+
     return NextResponse.json({
       configured: result.success,
       error: result.error || null,
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Email configuration test error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -40,8 +42,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth()
-    
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
+
     // Only allow admin users to send test emails
     if (user.role !== 'admin') {
       return NextResponse.json(
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { email } = await request.json()
-    
+
     if (!email) {
       return NextResponse.json(
         { error: 'Email address is required' },
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sendTestEmail(email)
-    
+
     if (result.success) {
       return NextResponse.json({
         success: true,
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Send test email error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },

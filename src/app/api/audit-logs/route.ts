@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { searchParams } = new URL(request.url)
     const applicationId = searchParams.get('applicationId')
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))

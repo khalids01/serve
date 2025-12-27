@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
-import { requireAuth } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 import { prisma } from '@/lib/prisma'
 import { resolveBaseUploadDir, getAppDir } from '@/lib/storage/paths'
 
@@ -21,7 +21,7 @@ async function listCacheDir(dir: string): Promise<CacheItemDto[]> {
       try {
         const st = await fs.stat(p)
         items.push({ name: f.name, sizeBytes: st.size, mtimeMs: st.mtimeMs })
-      } catch {}
+      } catch { }
     }
     return items
   } catch (e: any) {
@@ -31,9 +31,11 @@ async function listCacheDir(dir: string): Promise<CacheItemDto[]> {
   }
 }
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId } = await context.params
 
     const app = await prisma.application.findFirst({
@@ -66,9 +68,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId } = await context.params
 
     const app = await prisma.application.findFirst({
@@ -93,8 +97,8 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
 
     // Remove both caches if present
     await Promise.all([
-      fs.rm(slugCache, { recursive: true, force: true }).catch(() => {}),
-      fs.rm(legacyCache, { recursive: true, force: true }).catch(() => {}),
+      fs.rm(slugCache, { recursive: true, force: true }).catch(() => { }),
+      fs.rm(legacyCache, { recursive: true, force: true }).catch(() => { }),
     ])
 
     return NextResponse.json({ success: true, clearedBytes: totalBytes })

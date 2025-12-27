@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiKeyService } from '@/lib/api-keys'
-import { requireAuth } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
+import { protect } from '@/features/auth/guard'
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId } = await context.params
 
     // Verify user owns the application
@@ -31,7 +33,7 @@ export async function GET(
     return NextResponse.json({ keys })
   } catch (error) {
     console.error('List API keys error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -51,7 +53,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId } = await context.params
     const { name } = await request.json()
 
@@ -90,7 +94,7 @@ export async function POST(
     })
   } catch (error) {
     console.error('Create API key error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },

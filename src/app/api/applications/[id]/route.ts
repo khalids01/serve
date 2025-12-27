@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, requireAuth } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 import path from 'path'
 
 export async function GET(
@@ -8,14 +8,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
 
     const { id } = await context.params
     const application = await prisma.application.findFirst({
@@ -36,7 +31,7 @@ export async function GET(
       }
     })
 
-    if(!application){
+    if (!application) {
       return NextResponse.json(
         { error: 'Application not found' },
         { status: 404 }
@@ -47,7 +42,7 @@ export async function GET(
     const baseUploads = process.env.UPLOAD_DIR || 'uploads'
     const storageDir = path.join(baseUploads, application.slug)
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       application: {
         ...application,
         storageDir
@@ -68,14 +63,9 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
 
     const { id } = await context.params
     const body = await request.json()

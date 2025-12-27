@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
-import { getCurrentUser } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 import sharp from 'sharp'
 import path from 'path'
 import fs from 'fs/promises'
@@ -17,11 +17,10 @@ export async function POST(
     // Get form data first to avoid disturbed body errors
     const formData = await request.formData();
     const { id } = await context.params;
-    const user = await getCurrentUser(request.headers);
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await protect(request);
+    if (auth instanceof NextResponse) return auth;
+    const { user } = auth;
 
     const croppedFile = formData.get("file") as File;
     const saveMode = formData.get("saveMode") as "new" | "replace";
@@ -83,10 +82,10 @@ export async function POST(
           entries
             .filter((name) => name.startsWith(base))
             .map((name) =>
-              fs.unlink(path.join(cacheDir, name)).catch(() => {}),
+              fs.unlink(path.join(cacheDir, name)).catch(() => { }),
             ),
         );
-      } catch {}
+      } catch { }
 
       // Update database with new dimensions
       await prisma.image.update({

@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, requireAuth } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 import path from 'path'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
 
     const applications = await prisma.application.findMany({
       where: {
@@ -51,7 +46,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { name, slug } = await request.json()
 
     if (!name || !slug) {
@@ -87,14 +84,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Create application error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to create application' },
       { status: 500 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
-import { getCurrentUser } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -10,6 +10,10 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user, application: authApp } = auth
+
     const { id } = await context.params
     const image = await prisma.image.findUnique({
       where: { id },
@@ -21,6 +25,14 @@ export async function GET(
 
     if (!image) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+    }
+
+    // Security: Ensure user owns the application or the API key matches the application
+    if (authApp && image.applicationId !== authApp.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+    if (!authApp && image.application.ownerId !== user.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     const ext = path.extname(image.filename);
@@ -50,12 +62,16 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user, application: authApp } = auth
+
     const { id } = await context.params
     const image = await prisma.image.findUnique({
       where: { id },
       include: {
         variants: true,
-        application: { select: { slug: true } }
+        application: true
       }
     })
 
@@ -63,14 +79,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
+    // Security check
+    if (authApp && image.applicationId !== authApp.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+    if (!authApp && image.application.ownerId !== user.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
     const fileStorage = new FileStorageService()
     const dirKey = image.application?.slug || image.applicationId
-    
+
     // Delete physical files
     await fileStorage.deleteFile(image.filename, dirKey)
     // Legacy directory cleanup
     await fileStorage.deleteFile(image.filename, image.applicationId)
-    
+
     // Delete variant files (only webp now, but loop remains safe)
     for (const variant of image.variants) {
       await fileStorage.deleteFile(variant.filename, dirKey)
@@ -91,10 +115,10 @@ export async function DELETE(
         await Promise.all(
           entries
             .filter((name) => name.startsWith(base))
-            .map((name) => fs.unlink(path.join(cacheDir, name)).catch(() => {}))
+            .map((name) => fs.unlink(path.join(cacheDir, name)).catch(() => { }))
         )
       }
-    } catch {}
+    } catch { }
 
     // Delete from database
     await prisma.image.delete({
@@ -103,19 +127,13 @@ export async function DELETE(
 
     // Create audit log (best-effort)
     try {
-      // Try API-key-provided headers first, fallback to session
-      let userId = request.headers.get('x-user-id') || undefined
-      if (!userId) {
-        const user = await getCurrentUser(request.headers)
-        if (user) userId = user.id
-      }
       const userAgent = request.headers.get('user-agent') || undefined
       const ip =
         (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() ||
         (request.headers.get('x-real-ip') || undefined)
       await prisma.auditLog.create({
         data: {
-          userId: userId || null,
+          userId: user.id || null,
           applicationId: image.applicationId,
           action: 'DELETE',
           targetId: image.id,

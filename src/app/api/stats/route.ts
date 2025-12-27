@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser } from '@/lib/auth-server'
+import { protect } from '@/features/auth/guard'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
 
     // Find all application IDs owned by this user
     const apps = await prisma.application.findMany({

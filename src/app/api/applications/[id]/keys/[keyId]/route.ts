@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiKeyService } from '@/lib/api-keys'
-import { requireAuth } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
+import { protect } from '@/features/auth/guard'
 
 interface RouteParams {
   params: Promise<{ id: string; keyId: string }>
@@ -9,7 +9,9 @@ interface RouteParams {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId, keyId } = await params
     const { action } = await request.json()
 
@@ -30,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (action === 'revoke') {
       const success = await ApiKeyService.revokeKey(keyId, user.id)
-      
+
       if (!success) {
         return NextResponse.json(
           { error: 'API key not found' },
@@ -47,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     )
   } catch (error) {
     console.error('Update API key error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -64,7 +66,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await requireAuth()
+    const auth = await protect(request)
+    if (auth instanceof NextResponse) return auth
+    const { user } = auth
     const { id: applicationId, keyId } = await params
 
     // Verify user owns the application
@@ -83,7 +87,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const success = await ApiKeyService.deleteKey(keyId, user.id)
-    
+
     if (!success) {
       return NextResponse.json(
         { error: 'API key not found' },
@@ -94,7 +98,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: true, message: 'API key deleted' })
   } catch (error) {
     console.error('Delete API key error:', error)
-    
+
     if (error instanceof Error && error.message === 'Authentication required') {
       return NextResponse.json(
         { error: 'Authentication required' },

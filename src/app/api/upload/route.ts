@@ -1,20 +1,21 @@
 export const runtime = "nodejs";
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleUpload } from './service'
-import { getCurrentUser } from '@/lib/auth-server';
+import { protect } from '@/features/auth/guard';
 
 export async function POST(request: NextRequest) {
-  // ✅ Extract session / auth info FIRST
+  const auth = await protect(request);
+  if (auth instanceof NextResponse) return auth;
+
+  const { user, application } = auth;
   const headers = request.headers;
+
   const userAgent = headers.get("user-agent");
   const ip =
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     headers.get("x-real-ip") ??
     undefined;
-
-  // If getCurrentUser needs cookies/headers, do it NOW
-  const sessionUser = await getCurrentUser(headers);
 
   // ✅ NOW read the body (ONE TIME)
   const formData = await request.formData();
@@ -22,19 +23,17 @@ export async function POST(request: NextRequest) {
   const _headers = {
     userAgent,
     ip,
-    applicationId: headers.get("x-application-id"),
-    userId: headers.get("x-user-id"),
+    applicationId: application?.id ?? headers.get("x-application-id"),
+    userId: user.id,
     apiKey:
       headers.get("x-api-key") ??
       headers.get("authorization")?.replace("Bearer ", ""),
   }
 
-  console.log({ _headers })
-
   // ✅ Pass ONLY plain data forward
   return handleUpload({
     formData,
-    sessionUser,
+    sessionUser: user,
     headers: _headers,
   });
 }
