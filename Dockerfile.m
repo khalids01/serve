@@ -58,8 +58,9 @@ COPY --from=builder /app/prisma ./prisma
 
 # ---- Uploads ----
 ENV UPLOAD_DIR=/uploads
-RUN mkdir -p /uploads && chown -R appuser:appuser /uploads
+ENV PORT=3002
 
+RUN mkdir -p /uploads && chown -R appuser:appuser /uploads
 USER appuser
 
 EXPOSE 3002
