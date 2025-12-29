@@ -164,7 +164,16 @@ export default function UploadPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="application" className="mb-2">Application</Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="application">Application</Label>
+                    {applicationId && (
+                      <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                        <a href={`/dashboard/applications/${applicationId}#files`}>
+                          View Files
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                   <Select value={applicationId} onValueChange={setApplicationId} disabled={applicationLoading || applications.length === 0}>
                     <SelectTrigger>
                       <SelectValue placeholder={applicationLoading ? 'Loading...' : 'Select application'} />
