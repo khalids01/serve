@@ -18,8 +18,7 @@ export function normalizeRasterFormat(format?: string | null): NormalizedRasterE
 export async function downscaleIfTooLarge(
   buffer: Buffer,
   maxDim = Number(env.ORIGINAL_MAX_DIM || 2560)
-): Promise<{ buffer: Buffer; width?: number; height?: number }>
-{
+): Promise<{ buffer: Buffer; width?: number; height?: number }> {
   const image = sharp(buffer);
   const meta = await image.metadata();
   const MAX_DIM = Number.isFinite(maxDim) && maxDim > 0 ? Math.floor(maxDim) : 2560;
@@ -47,6 +46,9 @@ export async function optimizeOriginal(
   }
   if (f === "webp") {
     return sharp(buffer).webp({ quality: 80 }).toBuffer();
+  }
+  if (f === "svg") {
+    return buffer;
   }
   return sharp(buffer).toBuffer();
 }

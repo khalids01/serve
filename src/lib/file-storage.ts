@@ -56,7 +56,14 @@ export class FileStorageService {
     };
 
     // Process image files
-    if (contentType.startsWith("image/")) {
+    const OPTIMIZABLE_MIME_TYPES = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (OPTIMIZABLE_MIME_TYPES.includes(contentType)) {
       try {
         const metadata = await readMetadata(buffer);
         result.width = metadata.width;

@@ -19,12 +19,13 @@ function clampQuality(n: number | null): number | null {
   return Math.max(1, Math.min(100, Math.floor(n)));
 }
 
-function getTargetExt(format?: string | null): "jpg" | "png" | "webp" | "avif" {
+const VALID_TARGETS = ["jpg", "png", "webp", "avif"];
+
+function getTargetExt(format?: string | null): string {
   const f = (format || "").toLowerCase();
-  if (f === "webp") return "webp";
-  if (f === "png") return "png";
-  if (f === "avif") return "avif";
-  return "jpg";
+  if (VALID_TARGETS.includes(f)) return f;
+  if (f === "svg") return "svg";
+  return ""; // empty means use original
 }
 
 function getContentTypeByExt(ext: string): string {
@@ -38,6 +39,12 @@ function getContentTypeByExt(ext: string): string {
       return "image/webp";
     case "avif":
       return "image/avif";
+    case "svg":
+      return "image/svg+xml";
+    case "mp4":
+      return "video/mp4";
+    case "pdf":
+      return "application/pdf";
     default:
       return "application/octet-stream";
   }
@@ -82,7 +89,6 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     if (!image) {
       // Fallback: search by hash or filename if ID lookup fails
-      // This handles cases where people are using the filename base (hash) as the lookup key
       image = await prisma.image.findFirst({
         where: {
           OR: [
@@ -117,11 +123,30 @@ export async function serveImage(request: NextRequest, rawName: string) {
     const originalPathLegacy = path.join(legacyUploadsDir, image.filename);
 
     const origExt = path.extname(image.filename).replace(".", "").toLowerCase();
-    const targetExt = getTargetExt(fmtParam || requestedExt || origExt);
+
+    // Determine target extension
+    // If format param is explicitly set, try to use it.
+    // Otherwise fallback to requested extension from URL filename.
+    // If neither, fallback to original extension.
+    let targetExt = getTargetExt(fmtParam);
+    if (!targetExt && requestedExt) {
+      // if user requested specific ext in url (image.png), try that
+      targetExt = getTargetExt(requestedExt);
+      // if requestedExt was something like 'mp4', getTargetExt might return "" if not valid target, so we default to it
+      if (!targetExt) targetExt = requestedExt;
+    }
+    if (!targetExt) targetExt = origExt;
+
     const normalizedOrigExt = origExt === "jpeg" ? "jpg" : origExt;
 
-    // Enforce stricter outputs: only original format and WebP are allowed
-    if (targetExt !== normalizedOrigExt && targetExt !== "webp") {
+    // Special handling: if target is NOT one of the transformable types,
+    // we MUST force it to match original extension (can't convert mp4 to jpg)
+    // UNLESS it's a placeholder request.
+    const isTransformableTarget = VALID_TARGETS.includes(targetExt);
+    const isTransformableSource = ["jpg", "jpeg", "png", "webp", "avif", "tiff", "gif", "svg"].includes(normalizedOrigExt);
+
+    // If we can't transform, we just serve original if target matches.
+    if (!isTransformableSource && targetExt !== normalizedOrigExt && !isPlaceholder) {
       return NextResponse.json({ error: "Unsupported output format" }, { status: 404 });
     }
 
@@ -201,7 +226,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
             "Cache-Control": "public, max-age=31536000, immutable",
           },
         });
-      } catch {}
+      } catch { }
       // No prebuilt same-dimension variant available
       return NextResponse.json(
         { error: "Variant not found" },
@@ -214,9 +239,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
     const cacheDir = path.join(uploadsDir, "_cache");
     await fs.mkdir(cacheDir, { recursive: true });
 
-    const cacheName = `${base}${width ? `_w${width}` : ""}${
-      height ? `_h${height}` : ""
-    }${quality ? `_q${quality}` : ""}.${targetExt}`;
+    const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""
+      }${quality ? `_q${quality}` : ""}.${targetExt}`;
     const cachePath = path.join(cacheDir, cacheName);
 
     // Serve from cache when available
@@ -233,7 +257,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
           "Cache-Control": "public, max-age=31536000, immutable",
         },
       });
-    } catch {}
+    } catch { }
 
     // Generate on demand
     let original: Buffer;
