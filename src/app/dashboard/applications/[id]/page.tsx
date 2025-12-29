@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-server";
-import ApplicationDetailsClient, {
+import ApplicationDetailsClient from "@/features/applications/components/application-details-client";
+import  {
   type ApplicationDTO,
   type ImageFileDTO,
   type AuditLogItemDTO,
   type CacheResponse,
-} from "@/features/applications/components/application-details-client";
+} from "@/features/applications/components/application-details/types";
 
 export default async function ApplicationDetailsPage(props: {
   params: Promise<{ id: string }>;
