@@ -6,11 +6,15 @@ import { DashboardHeader } from "./dashboard-header";
 
 type DashboardShellProps = {
   children: React.ReactNode;
+  defaultOpen?: boolean;
 };
 
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  defaultOpen = true,
+}: DashboardShellProps) {
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultOpen}>
       <DashboardSidebar />
       <SidebarInset>
         <DashboardHeader />
