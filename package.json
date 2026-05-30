@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 4000",
-    "build": "next build --turbopack",
+    "build": "prisma generate && next build --turbopack",
     "start": "next start -p 3002",
+    "postinstall": "prisma generate",
     "lint": "biome check",
     "format": "biome format --write",
     "db:push": "prisma db push",
@@ -14,6 +15,7 @@
     "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1057.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.1",
     "@radix-ui/react-accordion": "^1.2.12",

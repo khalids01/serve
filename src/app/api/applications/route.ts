@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { protect } from '@/features/auth/guard'
-import path from 'path'
+import { tenantStoragePath } from '@/config'
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,11 +26,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Normalize storageDir to reflect current UPLOAD_DIR and slug
-    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
     const appsWithComputedDir = applications.map((app) => ({
       ...app,
-      storageDir: path.join(baseUploads, app.slug)
+      storageDir: tenantStoragePath(app.slug)
     }))
 
     return NextResponse.json({ applications: appsWithComputedDir })
@@ -58,7 +56,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if slug already exists
     const existing = await prisma.application.findUnique({
       where: { slug }
     })
@@ -70,13 +67,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
     const application = await prisma.application.create({
       data: {
         name,
         slug,
         ownerId: user.id,
-        storageDir: path.join(baseUploads, slug)
+        storageDir: tenantStoragePath(slug)
       }
     })
 

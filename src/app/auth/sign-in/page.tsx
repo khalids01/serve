@@ -1,9 +1,10 @@
 import { SignInForm } from "@/features/auth/sign-in-form"
 import { PublicHeader } from "@/components/core/public-header"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { config } from "@/config"
 
 export default function SignInPage() {
-  const signupEnabled = process.env.ENABLE_SIGNUP !== 'false'
+  const signupEnabled = config.auth.enableSignup
   return (
     <div className="min-h-screen">
       <PublicHeader />

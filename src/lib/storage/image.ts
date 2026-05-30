@@ -1,5 +1,5 @@
 import sharp, { Metadata } from "sharp";
-import { env } from "@/env";
+import { config } from "@/config";
 
 export type NormalizedRasterExt = "jpg" | "png" | "webp" | null;
 
@@ -17,7 +17,7 @@ export function normalizeRasterFormat(format?: string | null): NormalizedRasterE
 
 export async function downscaleIfTooLarge(
   buffer: Buffer,
-  maxDim = Number(env.ORIGINAL_MAX_DIM || 2560)
+  maxDim = config.image.originalMaxDim,
 ): Promise<{ buffer: Buffer; width?: number; height?: number }> {
   const image = sharp(buffer);
   const meta = await image.metadata();
@@ -60,8 +60,8 @@ export async function toWebp(buffer: Buffer, quality = 80): Promise<Buffer> {
 export async function placeholder(
   buffer: Buffer,
   target: Exclude<NormalizedRasterExt, null>,
-  width = Number(env.PLACEHOLDER_WIDTH || 24),
-  quality = Number(env.PLACEHOLDER_QUALITY || 60)
+  width = config.image.placeholderWidth,
+  quality = config.image.placeholderQuality,
 ): Promise<Buffer> {
   const base = sharp(buffer)
     .resize(width, width, { fit: "inside", withoutEnlargement: true })
@@ -74,7 +74,7 @@ export async function placeholder(
 
 export async function placeholderWebp(
   buffer: Buffer,
-  width = Number(env.PLACEHOLDER_WIDTH || 24),
+  width = config.image.placeholderWidth,
   quality = 60
 ): Promise<Buffer> {
   return sharp(buffer)

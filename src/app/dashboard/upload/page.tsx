@@ -33,8 +33,8 @@ export default function UploadPage() {
   const { applications, applicationLoading } = useApplicationData({
     fetchList: true,
   })
-  const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? '10')
-  const maxFileSizeBytes = (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 10) * 1024 * 1024
+  const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? '50')
+  const maxFileSizeBytes = (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 50) * 1024 * 1024
 
   useEffect(() => {
     // Check for app parameter in URL

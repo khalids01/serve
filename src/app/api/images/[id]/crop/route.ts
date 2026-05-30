@@ -3,9 +3,11 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
 import { protect } from '@/features/auth/guard'
+import { deleteTenantCacheByBase } from '@/lib/storage/read'
+import { uniqueTenantKeys } from '@/lib/storage/keys'
+import { getStorage } from '@/lib/storage/factory'
 import sharp from 'sharp'
 import path from 'path'
-import fs from 'fs/promises'
 
 export const runtime = "nodejs";
 
@@ -14,7 +16,6 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Get form data first to avoid disturbed body errors
     const formData = await request.formData();
     const { id } = await context.params;
 
@@ -29,7 +30,6 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Find the original image
     const originalImage = await prisma.image.findUnique({
       where: { id },
       include: {
@@ -48,7 +48,6 @@ export async function POST(
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
-    // Check ownership
     if (originalImage.application?.ownerId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -58,36 +57,24 @@ export async function POST(
       originalImage.application.slug || originalImage.applicationId;
     const buffer = Buffer.from(await croppedFile.arrayBuffer());
 
-    // Get image metadata
     const metadata = await sharp(buffer).metadata();
     const { width, height } = metadata;
 
     if (saveMode === "replace") {
-      // Replace the original file - write directly without processing
-      const appDir = path.join(process.env.UPLOAD_DIR || "uploads", dirKey);
-      await fs.mkdir(appDir, { recursive: true });
-      const filePath = path.join(appDir, originalImage.filename);
-      await fs.writeFile(filePath, buffer);
+      await fileStorage.putRaw(
+        dirKey,
+        originalImage.filename,
+        buffer,
+        originalImage.contentType,
+      );
 
-      // Delete cached files
-      try {
-        const baseUploads = process.env.UPLOAD_DIR || "uploads";
-        const uploadsRoot = path.isAbsolute(baseUploads)
-          ? baseUploads
-          : path.join(process.cwd(), baseUploads);
-        const base = path.parse(originalImage.filename).name;
-        const cacheDir = path.join(uploadsRoot, dirKey, "_cache");
-        const entries = await fs.readdir(cacheDir).catch(() => []);
-        await Promise.all(
-          entries
-            .filter((name) => name.startsWith(base))
-            .map((name) =>
-              fs.unlink(path.join(cacheDir, name)).catch(() => { }),
-            ),
-        );
-      } catch { }
+      const tenantKeys = uniqueTenantKeys(
+        originalImage.application.slug,
+        originalImage.applicationId,
+      );
+      const base = path.parse(originalImage.filename).name;
+      await deleteTenantCacheByBase(getStorage(), tenantKeys, base);
 
-      // Update database with new dimensions
       await prisma.image.update({
         where: { id },
         data: {
@@ -97,7 +84,6 @@ export async function POST(
         },
       });
 
-      // Create audit log
       try {
         const userAgent = request.headers.get("user-agent") || undefined;
         const ip =
@@ -125,7 +111,6 @@ export async function POST(
         console.error("Audit log error:", e);
       }
 
-      // Revalidate the application details page and parent paths
       revalidatePath(`/dashboard/applications/${originalImage.applicationId}`, 'page');
       revalidatePath('/dashboard/applications', 'layout');
 
@@ -139,28 +124,26 @@ export async function POST(
         },
       });
     } else {
-      // Save as new image - let saveFile generate hash-based filename
       const originalExt = path.extname(originalImage.filename);
       const croppedOriginalName = `${path.basename(originalImage.originalName, path.extname(originalImage.originalName))}_cropped${originalExt}`;
 
       const result = await fileStorage.saveFile(
         buffer,
-        croppedOriginalName, // This is just for the originalName field, actual filename will be hash-based
+        croppedOriginalName,
         dirKey,
         originalImage.contentType,
       );
 
-      // Create new database record with variants
       const newImage = await prisma.image.create({
         data: {
           applicationId: originalImage.applicationId,
-          filename: result.filename, // Hash-based filename like 0d3c2d3a8e7dbc9c.jpeg
-          originalName: croppedOriginalName, // Human-readable name for display
+          filename: result.filename,
+          originalName: croppedOriginalName,
           contentType: originalImage.contentType,
           sizeBytes: result.sizeBytes,
           width: result.width || null,
           height: result.height || null,
-          hash: result.id, // Store content hash here
+          hash: result.id,
           variants: {
             create: result.variants.map((v) => ({
               label: v.label,
@@ -173,15 +156,6 @@ export async function POST(
         },
       });
 
-      console.log('✅ Cropped image saved:', {
-        id: newImage.id,
-        filename: result.filename,
-        originalName: newImage.originalName,
-        applicationId: originalImage.applicationId,
-        dirKey,
-      });
-
-      // Create audit log
       try {
         const userAgent = request.headers.get("user-agent") || undefined;
         const ip =
@@ -210,7 +184,6 @@ export async function POST(
         console.error("Audit log error:", e);
       }
 
-      // Revalidate the application details page and parent paths
       revalidatePath(`/dashboard/applications/${originalImage.applicationId}`, 'page');
       revalidatePath('/dashboard/applications', 'layout');
 

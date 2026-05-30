@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
+import { config } from '@/config'
 
 // Types for better error handling
 interface EmailError extends Error {
@@ -22,9 +23,12 @@ interface EmailResult {
 
 // Email configuration validation
 function validateEmailConfig(): void {
-  const required = ['SMTP_HOST', 'EMAIL', 'EMAIL_PASSWORD']
-  const missing = required.filter(key => !process.env[key])
-  
+  const { host, email, password } = config.secrets.smtp
+  const missing: string[] = []
+  if (!host) missing.push('SMTP_HOST')
+  if (!email) missing.push('EMAIL')
+  if (!password) missing.push('EMAIL_PASSWORD')
+
   if (missing.length > 0) {
     throw new Error(`Missing email configuration: ${missing.join(', ')}`)
   }
@@ -35,16 +39,16 @@ function createEmailTransporter(): Transporter | null {
   try {
     validateEmailConfig()
     
-    const port = parseInt(process.env.SMTP_PORT || '465')
-    const secure = port === 465 // true for 465, false for other ports
-    
+    const { host, port, email, password } = config.secrets.smtp
+    const secure = port === 465
+
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host,
       port,
       secure,
       auth: {
-        user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASSWORD,
+        user: email,
+        pass: password,
       },
       // Add connection timeout and retry options
       connectionTimeout: 10000, // 10 seconds
@@ -68,7 +72,7 @@ export async function sendMagicLinkEmail(email: string, magicLinkUrl: string): P
   }
 
   const mailOptions = {
-    from: `"${process.env.EMAIL_FROM || 'Serve'}" <${process.env.EMAIL}>`,
+    from: `"${config.secrets.smtp.from}" <${config.secrets.smtp.email}>`,
     to: email,
     subject: 'Sign in to Serve - File Storage Server',
     html: `
@@ -167,14 +171,14 @@ export async function sendTestEmail(email: string): Promise<{ success: boolean; 
   }
 
   const mailOptions = {
-    from: `"${process.env.EMAIL_FROM || 'Serve'}" <${process.env.EMAIL}>`,
+    from: `"${config.secrets.smtp.from}" <${config.secrets.smtp.email}>`,
     to: email,
     subject: 'Serve Email Configuration Test',
     html: `
       <h2>Email Configuration Test</h2>
       <p>If you received this email, your Serve email configuration is working correctly!</p>
-      <p><strong>Server:</strong> ${process.env.SMTP_HOST}</p>
-      <p><strong>Port:</strong> ${process.env.SMTP_PORT || '465'}</p>
+      <p><strong>Server:</strong> ${config.secrets.smtp.host}</p>
+      <p><strong>Port:</strong> ${config.secrets.smtp.port}</p>
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
     `,
     text: `
@@ -182,8 +186,8 @@ export async function sendTestEmail(email: string): Promise<{ success: boolean; 
       
       If you received this email, your Serve email configuration is working correctly!
       
-      Server: ${process.env.SMTP_HOST}
-      Port: ${process.env.SMTP_PORT || '465'}
+      Server: ${config.secrets.smtp.host}
+      Port: ${config.secrets.smtp.port}
       Time: ${new Date().toISOString()}
     `
   }

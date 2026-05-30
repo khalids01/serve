@@ -3,6 +3,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
 import { ApiKeyService } from "@/lib/api-keys";
+import { maxFileSizeBytes, config } from "@/config";
 import type { ImageVariant } from "@/lib/prisma-types";
 
 interface FileWithTags {
@@ -27,10 +28,8 @@ async function processFile({
   userAgent?: string | null;
   ip?: string | null;
 }) {
-  // Validate max file size from env (defaults to 10MB)
-  const maxMb = Number(process.env.MAX_FILE_SIZE ?? "10");
-  const limitMb = Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb) : 10;
-  const maxSize = limitMb * 1024 * 1024;
+  const maxSize = maxFileSizeBytes();
+  const limitMb = config.upload.maxFileSizeMb;
   if (file.size > maxSize) {
     throw new Error(`File too large. Maximum size is ${limitMb}MB.`);
   }

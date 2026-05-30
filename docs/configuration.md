@@ -1,67 +1,121 @@
 # Configuration
 
-This guide lists environment variables and key settings to run Serve.
+This guide covers environment variables, `src/config.ts`, and storage setup for Serve.
+
+## Configuration Split
+
+**Secrets and deployment-specific values** live in `.env` (see [`.env.example`](../.env.example)).
+
+**Non-secret app settings** live in [`src/config.ts`](../src/config.ts):
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `storage.provider` | `"local"` | `"local"` or `"s3"` |
+| `upload.maxFileSizeMb` | `50` | Server-side upload limit |
+| `upload.publicMaxFileSizeMb` | `50` | Documented client limit (sync with `NEXT_PUBLIC_MAX_FILE_SIZE`) |
+| `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
+| `image.placeholderQuality` | `60` | Placeholder WebP quality |
+| `image.placeholderWidth` | `360` | Placeholder width (px) |
+| `auth.enableSignup` | `true` | Allow new magic-link signups |
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and set values:
+Copy `.env.example` to `.env` and set values:
 
-| Variable | Description | Default |
-| --- | --- | --- |
-| NEXT_PUBLIC_APP_URL | Public app URL | http://localhost:3003 |
-| DATABASE_URL | Prisma connection string | file:./dev.db |
-| BETTER_AUTH_SECRET | Secret for auth | (required) |
-| ENABLE_SIGNUP | Allow new user registration via magic link | true |
-| UPLOAD_DIR | Root directory for uploaded files | uploads |
-| ORIGINAL_MAX_DIM | Max dimension for optimized originals (px) | 2560 |
-| MAX_FILE_SIZE | Max upload size in bytes | 10000000 |
-| SMTP_HOST | Email server host (for magic links) | - |
-| SMTP_PORT | Email server port | - |
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | Prisma connection string |
+| `BETTER_AUTH_SECRET` | Auth signing secret (required) |
+| `BETTER_AUTH_URL` | Optional base URL behind proxy |
+| `NEXT_PUBLIC_APP_URL` | Public app URL |
+| `NEXT_PUBLIC_BASE_URL` | Optional API base for client |
+| `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
+| `UPLOAD_DIR` | Local upload root (local storage only) |
+| `SMTP_*`, `EMAIL`, `EMAIL_PASSWORD`, `EMAIL_FROM` | Email for magic links |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET` | S3-compatible storage credentials |
+| `S3_REGION` | Region (`auto` for R2, e.g. `us-east-1` for AWS) |
+| `S3_ENDPOINT` | Custom endpoint (R2/MinIO); omit for native AWS S3 |
 
-Notes:
-- Use a Postgres/MySQL URL in `DATABASE_URL` for production.
-- `UPLOAD_DIR` can be pointed to a mounted volume or network storage.
-- `MAX_FILE_SIZE` is enforced by the upload route.
+## File Storage
+
+### Local (default)
+
+Set in `src/config.ts`:
+
+```typescript
+storage: {
+  provider: "local",
+  // ...
+}
+```
+
+Files are stored under `{UPLOAD_DIR}/{application-slug}/`:
+
+```
+uploads/
+  my-app/
+    abc123.jpeg
+    abc123.webp
+    abc123-placeholder.jpeg
+    _cache/
+      abc123_w800_h600.webp
+```
+
+### S3-compatible storage (AWS S3, Cloudflare R2, MinIO, etc.)
+
+All S3-compatible providers use the same API. Set `storage.provider` to `"s3"` in `src/config.ts` and configure credentials in `.env`.
+
+**Cloudflare R2 example:**
+
+```env
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_BUCKET=my-bucket
+S3_REGION=auto
+S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+```
+
+In `src/config.ts`: `forcePathStyle: true`, `region: "auto"`.
+
+**AWS S3 example:**
+
+```env
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_BUCKET=my-bucket
+S3_REGION=us-east-1
+# S3_ENDPOINT omitted — uses default AWS endpoint
+```
+
+In `src/config.ts`: `forcePathStyle: false`, `region: "us-east-1"` (or match `S3_REGION`).
+
+Object keys mirror the local layout: `{slug}/{filename}` and `{slug}/_cache/{cacheName}`.
+
+Files are **not** served directly from the bucket. The app reads objects and serves them via `/api/img/*`, so no public bucket or CORS setup is required.
+
+**Note:** Switching providers does not migrate existing files. Move objects manually or use a migration script if needed.
 
 ## Database
-
-- Default: SQLite via `file:./dev.db`
-- Production: Prefer PostgreSQL
 
 Run migrations/push schema:
 
 ```bash
-bun run db:push   # or: npx prisma db push
-```
-
-Open Prisma Studio:
-
-```bash
-bun run db:studio # or: npx prisma studio
+npm run db:push
 ```
 
 ## Authentication
 
-- Magic Link via Better-Auth
+- Magic Link via Better Auth
 - Configure SMTP to send magic link emails in production
-- To disable new signups (allowing only existing users to sign in), set `ENABLE_SIGNUP=false` in your environment
+- Disable new signups: set `auth.enableSignup: false` in `src/config.ts`
 
-## File Storage
+## Image Processing
 
-- Local filesystem under `UPLOAD_DIR` organized by application slug
-- Original image is optimized; a same‑dimension WebP copy is generated
-- Size variants are served on‑demand via `/api/img/:name?w=...&h=...` with optional `q` (quality) and cached on disk
-- Supports format conversion (WebP output via extension: `/api/img/image.webp`)
-- Cache directory: `{UPLOAD_DIR}/{app-slug}/_cache/`
+- Original images are optimized; same-dimension WebP copies and blurred placeholders are generated on upload
+- On-demand resizing via `/api/img/:name?w=...&h=...` with optional `format` and `quality`
+- Resize cache stored under `{tenant}/_cache/` in the active storage backend
 
 ## Audit Logging
 
-- All file uploads and deletions are automatically tracked
-- Logs include action type, target ID, metadata, timestamp, IP, and user agent
-- Access via `/api/audit-logs` with pagination support
-- Requires authentication and application ownership validation
-
-## API Keys
-
-- Keys are hashed and validated on the server
-- Keys do not expire; revoke or delete to invalidate
+- Uploads and deletions are tracked with metadata, timestamp, IP, and user agent
+- View recent activity on each application's dashboard page

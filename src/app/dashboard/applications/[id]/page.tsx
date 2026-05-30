@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-server";
+import { tenantStoragePath } from "@/config";
 import ApplicationDetailsClient from "@/features/applications/components/application-details-client";
 import  {
   type ApplicationDTO,
@@ -28,9 +28,7 @@ export default async function ApplicationDetailsPage(props: {
 
   if (!app) return notFound();
 
-  // Normalize storageDir to reflect current UPLOAD_DIR and slug
-  const baseUploads = process.env.UPLOAD_DIR || "uploads";
-  const storageDir = path.join(baseUploads, app.slug);
+  const storageDir = tenantStoragePath(app.slug);
 
   const imagesRaw = await prisma.image.findMany({
     where: { applicationId: app.id },

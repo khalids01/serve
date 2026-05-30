@@ -1,8 +1,10 @@
 import fs from "fs/promises";
 import path from "path";
-import { env } from "@/env";
+import { config } from "@/config";
 
-export function resolveBaseUploadDir(baseUploadDir = env.UPLOAD_DIR || "uploads") {
+export function resolveBaseUploadDir(
+  baseUploadDir = config.storage.local.uploadDir,
+) {
   const dir = baseUploadDir;
   return path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
 }

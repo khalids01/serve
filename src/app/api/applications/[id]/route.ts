@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { protect } from '@/features/auth/guard'
-import path from 'path'
+import { tenantStoragePath } from '@/config'
 
 export async function GET(
   request: NextRequest,
@@ -38,14 +38,10 @@ export async function GET(
       )
     }
 
-    // Normalize storageDir to reflect current UPLOAD_DIR and slug
-    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
-    const storageDir = path.join(baseUploads, application.slug)
-
     return NextResponse.json({
       application: {
         ...application,
-        storageDir
+        storageDir: tenantStoragePath(application.slug)
       }
     })
 
@@ -71,7 +67,6 @@ export async function PATCH(
     const body = await request.json()
     const { name } = body
 
-    // Validate input
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json(
         { error: 'Application name is required' },
@@ -79,7 +74,6 @@ export async function PATCH(
       )
     }
 
-    // Check if application exists and user owns it
     const existingApplication = await prisma.application.findFirst({
       where: {
         id,
@@ -94,7 +88,6 @@ export async function PATCH(
       )
     }
 
-    // Update the application
     const updatedApplication = await prisma.application.update({
       where: { id },
       data: {
@@ -111,14 +104,10 @@ export async function PATCH(
       }
     })
 
-    // Normalize storageDir
-    const baseUploads = process.env.UPLOAD_DIR || 'uploads'
-    const storageDir = path.join(baseUploads, updatedApplication.slug)
-
     return NextResponse.json({
       application: {
         ...updatedApplication,
-        storageDir
+        storageDir: tenantStoragePath(updatedApplication.slug)
       }
     })
 

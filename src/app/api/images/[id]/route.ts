@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
 import { protect } from '@/features/auth/guard'
 import path from 'path'
-import fs from 'fs/promises'
+import { deleteTenantCacheByBase } from '@/lib/storage/read'
+import { uniqueTenantKeys } from '@/lib/storage/keys'
+import { getStorage } from '@/lib/storage/factory'
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +29,6 @@ export async function GET(
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    // Security: Ensure user owns the application or the API key matches the application
     if (authApp && image.applicationId !== authApp.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
@@ -79,7 +80,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    // Security check
     if (authApp && image.applicationId !== authApp.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
@@ -89,43 +89,23 @@ export async function DELETE(
 
     const fileStorage = new FileStorageService()
     const dirKey = image.application?.slug || image.applicationId
+    const tenantKeys = uniqueTenantKeys(image.application?.slug, image.applicationId)
 
-    // Delete physical files
     await fileStorage.deleteFile(image.filename, dirKey)
-    // Legacy directory cleanup
     await fileStorage.deleteFile(image.filename, image.applicationId)
 
-    // Delete variant files (only webp now, but loop remains safe)
     for (const variant of image.variants) {
       await fileStorage.deleteFile(variant.filename, dirKey)
       await fileStorage.deleteFile(variant.filename, image.applicationId)
     }
 
-    // Delete cached resized files (created by /api/img/:name or legacy /api/images/:id/content)
-    try {
-      const baseUploads = process.env.UPLOAD_DIR || 'uploads'
-      const uploadsRoot = path.isAbsolute(baseUploads) ? baseUploads : path.join(process.cwd(), baseUploads)
-      const base = path.parse(image.filename).name
-      const cacheDirs = [
-        path.join(uploadsRoot, dirKey, '_cache'),
-        path.join(uploadsRoot, image.applicationId, '_cache') // legacy fallback
-      ]
-      for (const cacheDir of cacheDirs) {
-        const entries = await fs.readdir(cacheDir).catch(() => [])
-        await Promise.all(
-          entries
-            .filter((name) => name.startsWith(base))
-            .map((name) => fs.unlink(path.join(cacheDir, name)).catch(() => { }))
-        )
-      }
-    } catch { }
+    const base = path.parse(image.filename).name
+    await deleteTenantCacheByBase(getStorage(), tenantKeys, base)
 
-    // Delete from database
     await prisma.image.delete({
       where: { id }
     })
 
-    // Create audit log (best-effort)
     try {
       const userAgent = request.headers.get('user-agent') || undefined
       const ip =

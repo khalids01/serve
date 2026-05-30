@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { testEmailConfiguration, sendTestEmail } from '@/lib/email'
 import { protect } from '@/features/auth/guard'
+import { config } from '@/config'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +9,6 @@ export async function GET(request: NextRequest) {
     if (auth instanceof NextResponse) return auth
     const { user } = auth
 
-    // Only allow admin users to test email configuration
     if (user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Admin access required' },
@@ -17,11 +17,17 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await testEmailConfiguration()
+    const { host, port, email } = config.secrets.smtp
 
     return NextResponse.json({
       configured: result.success,
       error: result.error || null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      smtp: {
+        host: host || null,
+        port: port || 465,
+        emailConfigured: Boolean(email),
+      },
     })
   } catch (error) {
     console.error('Email configuration test error:', error)

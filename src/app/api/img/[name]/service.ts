@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
-import fs from "fs/promises";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
+import {
+  readTenantFile,
+  readTenantCache,
+  writeTenantCache,
+} from "@/lib/storage/read";
+import { uniqueTenantKeys } from "@/lib/storage/keys";
+import { getStorage } from "@/lib/storage/factory";
 
-// Hard cap to avoid extreme CPU usage
 const MAX_DIMENSION = 4096;
 
 function clamp(n: number | null): number | null {
@@ -25,7 +30,7 @@ function getTargetExt(format?: string | null): string {
   const f = (format || "").toLowerCase();
   if (VALID_TARGETS.includes(f)) return f;
   if (f === "svg") return "svg";
-  return ""; // empty means use original
+  return "";
 }
 
 function getContentTypeByExt(ext: string): string {
@@ -50,9 +55,21 @@ function getContentTypeByExt(ext: string): string {
   }
 }
 
+function bufferResponse(buf: Buffer, contentType: string): NextResponse {
+  const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  return new NextResponse(body as ArrayBuffer, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+}
+
 export async function serveImage(request: NextRequest, rawName: string) {
   try {
     const url = new URL(request.url);
+    const storage = getStorage();
 
     const wParam = url.searchParams.get("width") || url.searchParams.get("w");
     const hParam = url.searchParams.get("height") || url.searchParams.get("h");
@@ -63,7 +80,6 @@ export async function serveImage(request: NextRequest, rawName: string) {
     const height = clamp(hParam ? parseInt(hParam, 10) : null);
     const quality = clampQuality(qParam ? parseInt(qParam, 10) : null);
 
-    // Parse name: either `id.ext`, `id-placeholder.ext`, or just `id`
     let requestedExt: string | null = null;
     let baseName = rawName;
     if (rawName.includes(".")) {
@@ -73,9 +89,10 @@ export async function serveImage(request: NextRequest, rawName: string) {
     }
     const PLACEHOLDER_SUFFIX = "-placeholder";
     const isPlaceholder = baseName.endsWith(PLACEHOLDER_SUFFIX);
-    const lookupId = isPlaceholder ? baseName.slice(0, -PLACEHOLDER_SUFFIX.length) : baseName;
+    const lookupId = isPlaceholder
+      ? baseName.slice(0, -PLACEHOLDER_SUFFIX.length)
+      : baseName;
 
-    // Fetch image by base id (supports switching extension)
     let image = await prisma.image.findUnique({
       where: { id: lookupId },
       select: {
@@ -88,15 +105,21 @@ export async function serveImage(request: NextRequest, rawName: string) {
     });
 
     if (!image) {
-      // Fallback: search by hash or filename if ID lookup fails
       image = await prisma.image.findFirst({
-        where: {
-          OR: [
-            { hash: lookupId },
-            { filename: lookupId },
-            { filename: { startsWith: lookupId + "." } }
-          ]
+        where: { hash: lookupId },
+        select: {
+          id: true,
+          filename: true,
+          applicationId: true,
+          contentType: true,
+          application: { select: { slug: true } },
         },
+      });
+    }
+
+    if (!image) {
+      image = await prisma.image.findFirst({
+        where: { filename: rawName },
         select: {
           id: true,
           filename: true,
@@ -111,160 +134,96 @@ export async function serveImage(request: NextRequest, rawName: string) {
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
-    const baseUploads = process.env.UPLOAD_DIR || "uploads";
-    const uploadsRoot = path.isAbsolute(baseUploads)
-      ? baseUploads
-      : path.join(process.cwd(), baseUploads);
-    const dirKey = image.application?.slug || image.applicationId;
-    const uploadsDir = path.join(uploadsRoot, dirKey);
-    const legacyUploadsDir = path.join(uploadsRoot, image.applicationId);
-
-    const originalPathPrimary = path.join(uploadsDir, image.filename);
-    const originalPathLegacy = path.join(legacyUploadsDir, image.filename);
+    const tenantKeys = uniqueTenantKeys(
+      image.application?.slug,
+      image.applicationId,
+    );
+    const primaryTenantKey = tenantKeys[0] ?? image.applicationId;
 
     const origExt = path.extname(image.filename).replace(".", "").toLowerCase();
 
-    // Determine target extension
-    // If format param is explicitly set, try to use it.
-    // Otherwise fallback to requested extension from URL filename.
-    // If neither, fallback to original extension.
     let targetExt = getTargetExt(fmtParam);
     if (!targetExt && requestedExt) {
-      // if user requested specific ext in url (image.png), try that
       targetExt = getTargetExt(requestedExt);
-      // if requestedExt was something like 'mp4', getTargetExt might return "" if not valid target, so we default to it
       if (!targetExt) targetExt = requestedExt;
     }
     if (!targetExt) targetExt = origExt;
 
     const normalizedOrigExt = origExt === "jpeg" ? "jpg" : origExt;
 
-    // Special handling: if target is NOT one of the transformable types,
-    // we MUST force it to match original extension (can't convert mp4 to jpg)
-    // UNLESS it's a placeholder request.
     const isTransformableTarget = VALID_TARGETS.includes(targetExt);
-    const isTransformableSource = ["jpg", "jpeg", "png", "webp", "avif", "tiff", "gif", "svg"].includes(normalizedOrigExt);
+    const isTransformableSource = [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "avif",
+      "tiff",
+      "gif",
+      "svg",
+    ].includes(normalizedOrigExt);
 
-    // If we can't transform, we just serve original if target matches.
-    if (!isTransformableSource && targetExt !== normalizedOrigExt && !isPlaceholder) {
-      return NextResponse.json({ error: "Unsupported output format" }, { status: 404 });
+    if (
+      !isTransformableSource &&
+      targetExt !== normalizedOrigExt &&
+      !isPlaceholder
+    ) {
+      return NextResponse.json(
+        { error: "Unsupported output format" },
+        { status: 404 },
+      );
     }
 
     const base = path.parse(image.filename).name;
 
-    // Handle explicit placeholder requests (no resizing allowed)
     if (isPlaceholder) {
       if (width || height) {
-        return NextResponse.json({ error: "Resize not supported for placeholder" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Resize not supported for placeholder" },
+          { status: 404 },
+        );
       }
-      const phPrimary = path.join(uploadsDir, `${base}-placeholder.${targetExt}`);
-      const phLegacy = path.join(legacyUploadsDir, `${base}-placeholder.${targetExt}`);
-      try {
-        let buf: Buffer;
-        try {
-          buf = await fs.readFile(phPrimary);
-        } catch {
-          buf = await fs.readFile(phLegacy);
-        }
-        const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-        return new NextResponse(body as ArrayBuffer, {
-          status: 200,
-          headers: {
-            "Content-Type": getContentTypeByExt(targetExt),
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      } catch {
+      const placeholderFilename = `${base}-placeholder.${targetExt}`;
+      const buf = await readTenantFile(storage, tenantKeys, placeholderFilename);
+      if (!buf) {
         return NextResponse.json({ error: "Variant not found" }, { status: 404 });
       }
+      return bufferResponse(buf, getContentTypeByExt(targetExt));
     }
 
-    // If no resize and requested format matches original (or no ext provided), stream the original
     if (!width && !height && targetExt === normalizedOrigExt) {
-      try {
-        let buf: Buffer;
-        try {
-          buf = await fs.readFile(originalPathPrimary);
-        } catch {
-          buf = await fs.readFile(originalPathLegacy);
-        }
-        const body = buf.buffer.slice(
-          buf.byteOffset,
-          buf.byteOffset + buf.byteLength
-        );
-        return new NextResponse(body as ArrayBuffer, {
-          status: 200,
-          headers: {
-            "Content-Type": image.contentType || "application/octet-stream",
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      } catch (e) {
+      const buf = await readTenantFile(storage, tenantKeys, image.filename);
+      if (!buf) {
         return NextResponse.json(
           { error: "Original file not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
+      return bufferResponse(buf, image.contentType || "application/octet-stream");
     }
 
-    // If no resize and requested format differs from original, try prebuilt same-dimension file (webp) first
     if (!width && !height && targetExt !== normalizedOrigExt) {
-      const prebuiltPrimary = path.join(uploadsDir, `${base}.${targetExt}`);
-      const prebuiltLegacy = path.join(legacyUploadsDir, `${base}.${targetExt}`);
-      try {
-        let buf: Buffer;
-        try {
-          buf = await fs.readFile(prebuiltPrimary);
-        } catch {
-          buf = await fs.readFile(prebuiltLegacy);
-        }
-        const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-        return new NextResponse(body as ArrayBuffer, {
-          status: 200,
-          headers: {
-            "Content-Type": getContentTypeByExt(targetExt),
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      } catch { }
-      // No prebuilt same-dimension variant available
-      return NextResponse.json(
-        { error: "Variant not found" },
-        { status: 404 }
-      );
+      const variantFilename = `${base}.${targetExt}`;
+      const buf = await readTenantFile(storage, tenantKeys, variantFilename);
+      if (!buf) {
+        return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+      }
+      return bufferResponse(buf, getContentTypeByExt(targetExt));
     }
 
-    // Prepare cache
-    // base is already defined above from image.filename
-    const cacheDir = path.join(uploadsDir, "_cache");
-    await fs.mkdir(cacheDir, { recursive: true });
+    const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""}${quality ? `_q${quality}` : ""}.${targetExt}`;
 
-    const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""
-      }${quality ? `_q${quality}` : ""}.${targetExt}`;
-    const cachePath = path.join(cacheDir, cacheName);
+    const cached = await readTenantCache(storage, tenantKeys, cacheName);
+    if (cached) {
+      return bufferResponse(cached, getContentTypeByExt(targetExt));
+    }
 
-    // Serve from cache when available
-    try {
-      const cached = await fs.readFile(cachePath);
-      const body = cached.buffer.slice(
-        cached.byteOffset,
-        cached.byteOffset + cached.byteLength
+    const original = await readTenantFile(storage, tenantKeys, image.filename);
+    if (!original) {
+      return NextResponse.json(
+        { error: "Original file not found" },
+        { status: 404 },
       );
-      return new NextResponse(body as ArrayBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type": getContentTypeByExt(targetExt),
-          "Cache-Control": "public, max-age=31536000, immutable",
-        },
-      });
-    } catch { }
-
-    // Generate on demand
-    let original: Buffer;
-    try {
-      original = await fs.readFile(originalPathPrimary);
-    } catch {
-      original = await fs.readFile(originalPathLegacy);
     }
 
     let pipeline = sharp(original);
@@ -277,29 +236,30 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     if (targetExt === "webp") pipeline = pipeline.webp({ quality: quality ?? 80 });
     else if (targetExt === "png")
-      pipeline = pipeline.png({ compressionLevel: 9, palette: true, quality: quality ?? 80 });
-    else if (targetExt === "avif") pipeline = pipeline.avif({ quality: quality ?? 50 });
+      pipeline = pipeline.png({
+        compressionLevel: 9,
+        palette: true,
+        quality: quality ?? 80,
+      });
+    else if (targetExt === "avif")
+      pipeline = pipeline.avif({ quality: quality ?? 50 });
     else pipeline = pipeline.jpeg({ quality: quality ?? 85, mozjpeg: true });
 
     const out = await pipeline.toBuffer();
-    await fs.writeFile(cachePath, out);
-
-    const body = out.buffer.slice(
-      out.byteOffset,
-      out.byteOffset + out.byteLength
+    await writeTenantCache(
+      storage,
+      primaryTenantKey,
+      cacheName,
+      out,
+      getContentTypeByExt(targetExt),
     );
-    return new NextResponse(body as ArrayBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": getContentTypeByExt(targetExt),
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
+
+    return bufferResponse(out, getContentTypeByExt(targetExt));
   } catch (error) {
     console.error("Public image serve error:", error);
     return NextResponse.json(
       { error: "Failed to process image" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

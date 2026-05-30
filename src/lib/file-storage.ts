@@ -1,12 +1,8 @@
-import fs from "fs/promises";
 import path from "path";
-import { env } from "@/env";
+import { config } from "@/config";
 import { contentHash16 } from "@/lib/storage/hash";
-import {
-  resolveBaseUploadDir,
-  ensureDirectoryExists,
-  getAppDir,
-} from "@/lib/storage/paths";
+import { objectKey } from "@/lib/storage/keys";
+import { getStorage } from "@/lib/storage/factory";
 import {
   readMetadata,
   downscaleIfTooLarge,
@@ -18,33 +14,22 @@ import {
 } from "@/lib/storage/image";
 import type { FileUploadResult } from "@/lib/storage/types";
 
-
 export class FileStorageService {
-  private baseUploadDir: string;
-
-  constructor(baseUploadDir = env.UPLOAD_DIR || "uploads") {
-    this.baseUploadDir = resolveBaseUploadDir(baseUploadDir);
-  }
-
-  async ensureDirectoryExists(dirPath: string): Promise<void> {
-    await ensureDirectoryExists(dirPath);
-  }
+  private storage = getStorage();
 
   async saveFile(
     buffer: Buffer,
     originalName: string,
-    applicationId: string,
-    contentType: string
+    tenantKey: string,
+    contentType: string,
   ): Promise<FileUploadResult> {
     const fileId = contentHash16(buffer);
     const ext = path.extname(originalName);
     const filename = `${fileId}${ext}`;
 
-    const appDir = getAppDir(this.baseUploadDir, applicationId);
-    await this.ensureDirectoryExists(appDir);
-
-    const filePath = path.join(appDir, filename);
-    await fs.writeFile(filePath, buffer);
+    await this.storage.put(objectKey(tenantKey, filename), buffer, {
+      contentType,
+    });
 
     const result: FileUploadResult = {
       id: fileId,
@@ -55,7 +40,6 @@ export class FileStorageService {
       variants: [],
     };
 
-    // Process image files
     const OPTIMIZABLE_MIME_TYPES = [
       "image/jpeg",
       "image/jpg",
@@ -69,25 +53,33 @@ export class FileStorageService {
         result.width = metadata.width;
         result.height = metadata.height;
 
-        // Optionally downscale very large images to reduce file size
-        const downscaled = await downscaleIfTooLarge(buffer, env.ORIGINAL_MAX_DIM);
+        const downscaled = await downscaleIfTooLarge(
+          buffer,
+          config.image.originalMaxDim,
+        );
         let processedBuffer = downscaled.buffer;
         result.width = downscaled.width ?? result.width;
         result.height = downscaled.height ?? result.height;
 
-        // 1) Optimize the original in its native format (mobile-friendly)
         try {
           const format = (metadata.format || "").toLowerCase();
-          const optimizedBuffer = await optimizeOriginal(processedBuffer, format);
-          await fs.writeFile(filePath, optimizedBuffer);
+          const optimizedBuffer = await optimizeOriginal(
+            processedBuffer,
+            format,
+          );
+          await this.storage.put(objectKey(tenantKey, filename), optimizedBuffer, {
+            contentType,
+          });
           result.sizeBytes = optimizedBuffer.length;
 
-          // 2) Generate a same-dimensions WebP copy for the web (if not already WebP)
           if (format !== "webp") {
             const webpBuffer = await toWebp(processedBuffer, 80);
             const webpFilename = `${fileId}.webp`;
-            const webpPath = path.join(appDir, webpFilename);
-            await fs.writeFile(webpPath, webpBuffer);
+            await this.storage.put(
+              objectKey(tenantKey, webpFilename),
+              webpBuffer,
+              { contentType: "image/webp" },
+            );
 
             const webpMeta = await readMetadata(webpBuffer);
             result.variants.push({
@@ -102,22 +94,22 @@ export class FileStorageService {
           console.error("Error optimizing original or generating WebP:", e);
         }
 
-        // 3) Generate blurred placeholders (very small, blurred) for fast preview
         try {
           const normalizedOrigExt = normalizeRasterFormat(metadata.format);
-          // Only generate for supported raster formats
           if (normalizedOrigExt) {
-            // Placeholder (original format)
             const placeholderBuf = await placeholder(
               processedBuffer,
               normalizedOrigExt,
-              env.PLACEHOLDER_WIDTH,
-              env.PLACEHOLDER_QUALITY,
+              config.image.placeholderWidth,
+              config.image.placeholderQuality,
             );
 
             const placeholderFilename = `${fileId}-placeholder.${normalizedOrigExt}`;
-            const placeholderPath = path.join(appDir, placeholderFilename);
-            await fs.writeFile(placeholderPath, placeholderBuf);
+            await this.storage.put(
+              objectKey(tenantKey, placeholderFilename),
+              placeholderBuf,
+              { contentType: `image/${normalizedOrigExt === "jpg" ? "jpeg" : normalizedOrigExt}` },
+            );
 
             const phMeta = await readMetadata(placeholderBuf);
             result.variants.push({
@@ -128,19 +120,18 @@ export class FileStorageService {
               sizeBytes: placeholderBuf.length,
             });
 
-            // Placeholder WebP (skip duplicate if original is already webp)
             if (normalizedOrigExt !== "webp") {
               const placeholderWebpBuf = await placeholderWebp(
                 processedBuffer,
-                env.PLACEHOLDER_WIDTH,
+                config.image.placeholderWidth,
                 60,
               );
               const placeholderWebpFilename = `${fileId}-placeholder.webp`;
-              const placeholderWebpPath = path.join(
-                appDir,
-                placeholderWebpFilename
+              await this.storage.put(
+                objectKey(tenantKey, placeholderWebpFilename),
+                placeholderWebpBuf,
+                { contentType: "image/webp" },
               );
-              await fs.writeFile(placeholderWebpPath, placeholderWebpBuf);
 
               const phWebpMeta = await readMetadata(placeholderWebpBuf);
               result.variants.push({
@@ -155,9 +146,6 @@ export class FileStorageService {
         } catch (e) {
           console.error("Error generating placeholders:", e);
         }
-
-        // Skip generating preset size variants to reduce storage.
-        // On-demand resizing is supported via `/api/img/:name?w=...&h=...`.
       } catch (error) {
         console.error("Error processing image:", error);
       }
@@ -166,19 +154,22 @@ export class FileStorageService {
     return result;
   }
 
-  async deleteFile(filename: string, applicationId: string): Promise<void> {
-    const appDir = path.join(this.baseUploadDir, applicationId);
-    const filePath = path.join(appDir, filename);
-
-    try {
-      await fs.unlink(filePath);
-    } catch (error) {
-      console.error("Error deleting file:", error);
-    }
+  async deleteFile(filename: string, tenantKey: string): Promise<void> {
+    await this.storage.delete(objectKey(tenantKey, filename));
   }
 
-  getFileUrl(filename: string, applicationId: string): string {
-    // Public serving is handled by the image route; application scoping is internal
+  async putRaw(
+    tenantKey: string,
+    filename: string,
+    buffer: Buffer,
+    contentType?: string,
+  ): Promise<void> {
+    await this.storage.put(objectKey(tenantKey, filename), buffer, {
+      contentType,
+    });
+  }
+
+  getFileUrl(filename: string, _tenantKey: string): string {
     return `/api/img/${filename}`;
   }
 }

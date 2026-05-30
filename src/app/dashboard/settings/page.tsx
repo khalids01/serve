@@ -226,19 +226,19 @@ export default function SettingsPage() {
                   <Separator />
 
                   <div>
-                    <h4 className="font-medium mb-2">Environment Variables</h4>
+                    <h4 className="font-medium mb-2">SMTP Configuration</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>SMTP_HOST:</span>
-                        <span className="font-mono">{process.env.SMTP_HOST || 'Not set'}</span>
+                        <span className="font-mono">{emailConfig.smtp?.host || 'Not set'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>SMTP_PORT:</span>
-                        <span className="font-mono">{process.env.SMTP_PORT || '465'}</span>
+                        <span className="font-mono">{emailConfig.smtp?.port ?? '465'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>EMAIL:</span>
-                        <span className="font-mono">{process.env.EMAIL ? '***@***.***' : 'Not set'}</span>
+                        <span className="font-mono">{emailConfig.smtp?.emailConfigured ? '***@***.***' : 'Not set'}</span>
                       </div>
                     </div>
                   </div>

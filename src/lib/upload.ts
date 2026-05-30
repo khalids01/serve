@@ -1,6 +1,7 @@
 import path from 'path'
 import { prisma } from './prisma'
 import { FileStorageService } from './file-storage'
+import { maxFileSizeBytes } from '@/config'
 import type { Image, ImageVariant } from '@/lib/prisma-types'
 
 export async function uploadImage(file: File, applicationId: string, tags: string[] = []) {
@@ -9,9 +10,7 @@ export async function uploadImage(file: File, applicationId: string, tags: strin
     throw new Error('Invalid file type. Only images are allowed.')
   }
 
-  // Check file size (env-configurable, defaults to 10MB)
-  const maxMb = Number(process.env.MAX_FILE_SIZE ?? '10')
-  const maxSize = (Number.isFinite(maxMb) && maxMb > 0 ? maxMb : 10) * 1024 * 1024
+  const maxSize = maxFileSizeBytes()
   if (file.size > maxSize) {
     throw new Error(`File too large. Maximum size is ${Math.floor(maxSize / (1024 * 1024))}MB.`)
   }

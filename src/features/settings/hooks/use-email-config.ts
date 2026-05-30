@@ -4,7 +4,15 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 
-export type EmailConfig = { configured: boolean; error: string | null }
+export type EmailConfig = {
+  configured: boolean
+  error: string | null
+  smtp?: {
+    host: string | null
+    port: number
+    emailConfigured: boolean
+  }
+}
 
 export function useEmailConfig() {
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({ configured: false, error: null })
@@ -15,7 +23,11 @@ export function useEmailConfig() {
     ;(async () => {
       try {
         const { data } = await api.get<EmailConfig>('/api/admin/email/test')
-        setEmailConfig({ configured: data.configured, error: data.error })
+        setEmailConfig({
+          configured: data.configured,
+          error: data.error,
+          smtp: data.smtp,
+        })
       } catch (e) {
         // silent
       }
