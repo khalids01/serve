@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-server";
-import { PublicHeader } from "@/components/core/public-header";
+import { DashboardShell } from "@/features/dashboard/components/dashboard-shell";
 
 export default async function DashboardLayout({
   children,
@@ -12,10 +12,5 @@ export default async function DashboardLayout({
     redirect("/auth/sign-in");
   }
 
-  return (
-    <div className="min-h-screen">
-      <PublicHeader />
-      {children}
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }

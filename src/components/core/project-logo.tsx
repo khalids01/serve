@@ -4,9 +4,13 @@ import { motion } from "framer-motion";
 import { Server, Cloud } from "lucide-react";
 import Link from "next/link";
 
-export function ProjectLogo() {
+type ProjectLogoProps = {
+  href?: string;
+};
+
+export function ProjectLogo({ href = "/" }: ProjectLogoProps) {
   return (
-    <Link href="/" className="contents">
+    <Link href={href} className="contents">
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
