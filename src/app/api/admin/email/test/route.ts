@@ -17,15 +17,16 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await testEmailConfiguration()
-    const { host, port, email } = config.secrets.smtp
+    const { host, port } = config.email
+    const { email } = config.secrets
 
     return NextResponse.json({
       configured: result.success,
       error: result.error || null,
       timestamp: new Date().toISOString(),
       smtp: {
-        host: host || null,
-        port: port || 465,
+        host,
+        port,
         emailConfigured: Boolean(email),
       },
     })

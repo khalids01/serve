@@ -2,12 +2,21 @@ import path from "path";
 
 export type StorageProvider = "local" | "s3";
 
+function normalizeS3Endpoint(endpoint?: string): string | undefined {
+  if (!endpoint?.trim()) return undefined;
+  const trimmed = endpoint.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 export const config = {
   storage: {
     /** Switch between local filesystem and S3-compatible object storage. */
-    provider: "local" as StorageProvider,
+    provider: "s3" as StorageProvider,
     local: {
-      uploadDir: process.env.UPLOAD_DIR ?? "uploads",
+      uploadDir: "uploads" as string,
     },
     s3: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID,
@@ -15,8 +24,8 @@ export const config = {
       bucket: process.env.S3_BUCKET,
       /** AWS region (e.g. "us-east-1") or "auto" for Cloudflare R2. */
       region: process.env.S3_REGION ?? "auto",
-      /** Custom endpoint for R2/MinIO/etc. Omit for native AWS S3. */
-      endpoint: process.env.S3_ENDPOINT,
+      /** Custom endpoint for R2/MinIO/iDrive e2/etc. Omit for native AWS S3. */
+      endpoint: normalizeS3Endpoint(process.env.S3_ENDPOINT),
       /** true for R2/MinIO; false for native AWS S3. */
       forcePathStyle: true,
     },
@@ -36,7 +45,13 @@ export const config = {
   },
 
   auth: {
-    enableSignup: true,
+    enableSignup: process.env.ENABLE_SIGNUP === "true",
+  },
+
+  email: {
+    host: "smtp.gmail.com",
+    port: 465,
+    from: "Serve File Storage",
   },
 
   app: {
@@ -48,13 +63,8 @@ export const config = {
   secrets: {
     databaseUrl: process.env.DATABASE_URL,
     betterAuthSecret: process.env.BETTER_AUTH_SECRET,
-    smtp: {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "465", 10),
-      email: process.env.EMAIL,
-      password: process.env.EMAIL_PASSWORD,
-      from: process.env.EMAIL_FROM ?? "Serve File Server",
-    },
+    email: process.env.EMAIL,
+    emailPassword: process.env.EMAIL_PASSWORD,
   },
 } as const;
 

@@ -30,11 +30,12 @@ Copy `.env.example` to `.env` and set values:
 | `NEXT_PUBLIC_APP_URL` | Public app URL |
 | `NEXT_PUBLIC_BASE_URL` | Optional API base for client |
 | `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
-| `UPLOAD_DIR` | Local upload root (local storage only) |
-| `SMTP_*`, `EMAIL`, `EMAIL_PASSWORD`, `EMAIL_FROM` | Email for magic links |
-| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET` | S3-compatible storage credentials |
-| `S3_REGION` | Region (`auto` for R2, e.g. `us-east-1` for AWS) |
+| `EMAIL`, `EMAIL_PASSWORD` | SMTP credentials (secrets) |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET` | S3 storage credentials (when using S3) |
+| `S3_REGION` | Optional region (`auto` for R2, e.g. `us-east-1` for AWS) |
 | `S3_ENDPOINT` | Custom endpoint (R2/MinIO); omit for native AWS S3 |
+
+SMTP host/port/from, `UPLOAD_DIR`, upload limits, and image settings are in [`src/config.ts`](../src/config.ts).
 
 ## File Storage
 

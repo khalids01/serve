@@ -23,11 +23,10 @@ interface EmailResult {
 
 // Email configuration validation
 function validateEmailConfig(): void {
-  const { host, email, password } = config.secrets.smtp
+  const { email, emailPassword } = config.secrets
   const missing: string[] = []
-  if (!host) missing.push('SMTP_HOST')
   if (!email) missing.push('EMAIL')
-  if (!password) missing.push('EMAIL_PASSWORD')
+  if (!emailPassword) missing.push('EMAIL_PASSWORD')
 
   if (missing.length > 0) {
     throw new Error(`Missing email configuration: ${missing.join(', ')}`)
@@ -39,7 +38,8 @@ function createEmailTransporter(): Transporter | null {
   try {
     validateEmailConfig()
     
-    const { host, port, email, password } = config.secrets.smtp
+    const { host, port } = config.email
+    const { email, emailPassword } = config.secrets
     const secure = port === 465
 
     return nodemailer.createTransport({
@@ -48,7 +48,7 @@ function createEmailTransporter(): Transporter | null {
       secure,
       auth: {
         user: email,
-        pass: password,
+        pass: emailPassword,
       },
       // Add connection timeout and retry options
       connectionTimeout: 10000, // 10 seconds
@@ -72,7 +72,7 @@ export async function sendMagicLinkEmail(email: string, magicLinkUrl: string): P
   }
 
   const mailOptions = {
-    from: `"${config.secrets.smtp.from}" <${config.secrets.smtp.email}>`,
+    from: `"${config.email.from}" <${config.secrets.email}>`,
     to: email,
     subject: 'Sign in to Serve - File Storage Server',
     html: `
@@ -171,14 +171,14 @@ export async function sendTestEmail(email: string): Promise<{ success: boolean; 
   }
 
   const mailOptions = {
-    from: `"${config.secrets.smtp.from}" <${config.secrets.smtp.email}>`,
+    from: `"${config.email.from}" <${config.secrets.email}>`,
     to: email,
     subject: 'Serve Email Configuration Test',
     html: `
       <h2>Email Configuration Test</h2>
       <p>If you received this email, your Serve email configuration is working correctly!</p>
-      <p><strong>Server:</strong> ${config.secrets.smtp.host}</p>
-      <p><strong>Port:</strong> ${config.secrets.smtp.port}</p>
+      <p><strong>Server:</strong> ${config.email.host}</p>
+      <p><strong>Port:</strong> ${config.email.port}</p>
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
     `,
     text: `
@@ -186,8 +186,8 @@ export async function sendTestEmail(email: string): Promise<{ success: boolean; 
       
       If you received this email, your Serve email configuration is working correctly!
       
-      Server: ${config.secrets.smtp.host}
-      Port: ${config.secrets.smtp.port}
+      Server: ${config.email.host}
+      Port: ${config.email.port}
       Time: ${new Date().toISOString()}
     `
   }
