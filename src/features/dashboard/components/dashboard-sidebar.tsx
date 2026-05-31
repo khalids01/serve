@@ -10,6 +10,7 @@ import {
   Settings,
   Server,
   Cloud,
+  Database,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,6 +49,12 @@ const navItems = [
     href: "/dashboard/upload",
     icon: Upload,
     isActive: (pathname: string) => pathname.startsWith("/dashboard/upload"),
+  },
+  {
+    title: "Cache",
+    href: "/dashboard/cache",
+    icon: Database,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/cache"),
   },
   {
     title: "Settings",

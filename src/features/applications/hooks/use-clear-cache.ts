@@ -12,6 +12,7 @@ export function useClearCacheMutation(applicationId: string) {
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['application-cache', applicationId] })
+      await qc.invalidateQueries({ queryKey: ['cache-overview'] })
     },
   })
 }

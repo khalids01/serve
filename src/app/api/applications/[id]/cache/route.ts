@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { protect } from '@/features/auth/guard'
 import { prisma } from '@/lib/prisma'
-import { listTenantCache, clearTenantCache } from '@/lib/storage/read'
+import {
+  clearApplicationCache,
+  getApplicationImageHashes,
+  listApplicationCache,
+} from '@/lib/storage/cache-admin'
 import { uniqueTenantKeys } from '@/lib/storage/keys'
 import { getStorage } from '@/lib/storage/factory'
 
@@ -22,10 +26,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const tenantKeys = uniqueTenantKeys(app.slug, app.id)
-    const items = await listTenantCache(getStorage(), tenantKeys)
-    const totalBytes = items.reduce((acc, it) => acc + (it.sizeBytes || 0), 0)
+    const hashes = await getApplicationImageHashes(app.id)
+    const summary = await listApplicationCache(getStorage(), tenantKeys, hashes)
 
-    return NextResponse.json({ items, totalBytes })
+    return NextResponse.json(summary)
   } catch (error) {
     console.error('Cache list error:', error)
     if (error instanceof Error && error.message === 'Authentication required') {
@@ -52,9 +56,10 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     }
 
     const tenantKeys = uniqueTenantKeys(app.slug, app.id)
-    const totalBytes = await clearTenantCache(getStorage(), tenantKeys)
+    const hashes = await getApplicationImageHashes(app.id)
+    const clearedBytes = await clearApplicationCache(getStorage(), tenantKeys, hashes)
 
-    return NextResponse.json({ success: true, clearedBytes: totalBytes })
+    return NextResponse.json({ success: true, clearedBytes })
   } catch (error) {
     console.error('Cache clear error:', error)
     if (error instanceof Error && error.message === 'Authentication required') {
