@@ -16,6 +16,8 @@ export interface ImageFileDTO {
     width?: number;
     height?: number;
     createdAt: string;
+    applicationId?: string;
+    applicationName?: string;
     variants: Array<{
         id: string;
         label: string;

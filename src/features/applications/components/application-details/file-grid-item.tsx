@@ -21,9 +21,11 @@ interface Props {
   onPreview: (img: ImageFileDTO) => void;
   onDelete: (img: ImageFileDTO) => void;
   copyToClipboard: (text: string) => void;
+  applicationName?: string;
+  showSelection?: boolean;
 }
 
-export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard }: Props) {
+export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard, applicationName, showSelection = true }: Props) {
   const url = `/api/img/${img.filename}`;
   const isImage = img.contentType.startsWith("image/");
 
@@ -32,11 +34,13 @@ export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDe
       className={`border rounded-lg overflow-hidden group relative ${selected ? 'ring-2 ring-primary border-primary' : ''}`}
     >
       <div className="absolute top-2 left-2 z-10">
-        <Checkbox
-          checked={selected}
-          onCheckedChange={() => onToggleSelection(img.id)}
-          className="bg-white/90 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground backdrop-blur-sm border-2"
-        />
+        {showSelection && (
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelection(img.id)}
+            className="bg-white/90 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground backdrop-blur-sm border-2"
+          />
+        )}
       </div>
       <div className="aspect-video bg-muted relative">
         {isPdf(img.contentType) ? (
@@ -110,6 +114,11 @@ export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDe
               </>
             )}
           </div>
+          {(applicationName ?? img.applicationName) && (
+            <div className="text-xs text-muted-foreground mt-1 truncate">
+              {applicationName ?? img.applicationName}
+            </div>
+          )}
         </div>
         <Button
           variant="ghost"

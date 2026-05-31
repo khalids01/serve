@@ -23,9 +23,11 @@ interface Props {
   onPreview: (img: ImageFileDTO) => void;
   onDelete: (img: ImageFileDTO) => void;
   copyToClipboard: (text: string) => void;
+  applicationName?: string;
+  showSelection?: boolean;
 }
 
-export function FileListItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard }: Props) {
+export function FileListItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard, applicationName, showSelection = true }: Props) {
   const url = `/api/img/${img.filename}`;
   // For SVG we use raw URL to avoid potential resize params being added elsewhere if misused,
   // but here we just render img for preview. 
@@ -39,11 +41,13 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
     <div
       className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors ${selected ? 'bg-muted/50 border-primary' : ''}`}
     >
-      <Checkbox
-        checked={selected}
-        onCheckedChange={() => onToggleSelection(img.id)}
-        className="flex-shrink-0"
-      />
+      {showSelection && (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelection(img.id)}
+          className="flex-shrink-0"
+        />
+      )}
 
       <div className="flex-1 flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 bg-muted rounded-md overflow-hidden flex-shrink-0 flex items-center justify-center border relative">
@@ -65,6 +69,9 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
           </h3>
           <p className="text-xs text-muted-foreground truncate">
             {formatFileSize(img.sizeBytes)} • {img.contentType}
+            {(applicationName ?? img.applicationName) && (
+              <> • {applicationName ?? img.applicationName}</>
+            )}
           </p>
         </div>
       </div>

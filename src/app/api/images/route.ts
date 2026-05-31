@@ -14,25 +14,15 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const search = searchParams.get('search')
-    const tags = searchParams.get('tags')
     const contentType = searchParams.get('contentType')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    // Get application ID from authenticated context (determined by protect guard)
     const authenticatedApplicationId = application?.id
+    const isSessionAuth = auth.authType === 'session'
 
-    // Use authenticated application ID if available, otherwise require it in query
-    const applicationId = authenticatedApplicationId || queryApplicationId
+    let applicationId = authenticatedApplicationId || queryApplicationId || undefined
 
-    if (!applicationId) {
-      return NextResponse.json({
-        error: 'Application ID required. Provide either a valid API key or applicationId query parameter.',
-        details: 'When using API key authentication, the application ID is automatically determined from your key.'
-      }, { status: 400 })
-    }
-
-    // If both are provided, ensure they match for security
     if (authenticatedApplicationId && queryApplicationId && authenticatedApplicationId !== queryApplicationId) {
       return NextResponse.json({
         error: 'Application ID mismatch',
@@ -40,12 +30,27 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
+    if (!isSessionAuth && !applicationId) {
+      return NextResponse.json({
+        error: 'Application ID required. Provide either a valid API key or applicationId query parameter.',
+        details: 'When using API key authentication, the application ID is automatically determined from your key.'
+      }, { status: 400 })
+    }
+
+    if (isSessionAuth && applicationId) {
+      const ownedApp = await prisma.application.findFirst({
+        where: { id: applicationId, ownerId: user.id },
+        select: { id: true },
+      })
+      if (!ownedApp) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      }
+    }
+
     const skip = (page - 1) * limit
 
-    // Build advanced search conditions
     const searchConditions: Prisma.ImageWhereInput[] = []
 
-    // Text search across multiple fields
     if (search) {
       searchConditions.push({
         OR: [
@@ -56,21 +61,21 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Tag filtering - TODO: Implement proper JSON array search
-    // For now, tag filtering is disabled due to SQLite JSON limitations
-    // This will be enhanced in a future update with raw SQL queries
-
-    // Content type filtering
     if (contentType) {
       searchConditions.push({
         contentType: { contains: contentType }
       })
     }
 
-    const where: Prisma.ImageWhereInput = {
-      applicationId,
-      ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
-    }
+    const where: Prisma.ImageWhereInput = isSessionAuth && !applicationId
+      ? {
+          application: { ownerId: user.id },
+          ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
+        }
+      : {
+          applicationId: applicationId!,
+          ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
+        }
 
     // Dynamic sorting
     const orderBy: Prisma.ImageOrderByWithRelationInput = {}
@@ -88,7 +93,10 @@ export async function GET(request: NextRequest) {
       prisma.image.findMany({
         where,
         include: {
-          variants: true
+          variants: true,
+          application: {
+            select: { id: true, name: true, slug: true },
+          },
         },
         orderBy,
         skip,

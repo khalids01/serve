@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderOpen,
+  Image,
   Upload,
   Settings,
   Server,
@@ -35,6 +36,12 @@ const navItems = [
     icon: FolderOpen,
     isActive: (pathname: string) =>
       pathname.startsWith("/dashboard/applications"),
+  },
+  {
+    title: "Images",
+    href: "/dashboard/images",
+    icon: Image,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/images"),
   },
   {
     title: "Upload",
