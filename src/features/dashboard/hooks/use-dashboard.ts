@@ -3,14 +3,6 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 
-export type DashboardApplication = {
-  id: string
-  name: string
-  slug: string
-  createdAt: string
-  _count: { images: number; apiKeys: number }
-}
-
 export type DashboardStats = {
   totalFiles: number
   totalApplications: number
@@ -32,14 +24,6 @@ function formatBytes(bytes: number) {
 }
 
 export function useDashboardData() {
-  const query = useQuery<{ applications: DashboardApplication[] }>({
-    queryKey: ['applications', 'dashboard'],
-    queryFn: async () => {
-      const { data } = await api.get('/api/applications')
-      return data
-    },
-  })
-
   const statsQuery = useQuery<StatsResponse>({
     queryKey: ['stats', 'dashboard'],
     queryFn: async () => {
@@ -48,14 +32,13 @@ export function useDashboardData() {
     },
   })
 
-  const apps = query.data?.applications ?? []
+  const totals = statsQuery.data?.totals
   const stats: DashboardStats = {
-    totalFiles: apps.reduce((sum, a) => sum + a._count.images, 0),
-    totalApplications: apps.length,
-    totalApiKeys: apps.reduce((sum, a) => sum + a._count.apiKeys, 0),
+    totalFiles: totals?.files ?? 0,
+    totalApplications: totals?.applications ?? 0,
+    totalApiKeys: totals?.apiKeys ?? 0,
     storageUsed: formatBytes(statsQuery.data?.storageBytes ?? 0),
   }
 
-  const combinedLoading = query.isLoading || statsQuery.isLoading
-  return { ...query, isLoading: combinedLoading, applications: apps.slice(0, 3), stats, statsQuery }
+  return { ...statsQuery, isLoading: statsQuery.isLoading, stats, statsQuery }
 }

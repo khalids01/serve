@@ -22,7 +22,6 @@ import {
   Image as ImageIcon,
   Trash,
 } from "lucide-react";
-import Link from "next/link";
 import { ImageFileDTO } from "./types";
 import { FileListItem } from "./file-list-item";
 import { FileGridItem } from "./file-grid-item";
@@ -40,6 +39,7 @@ interface Props {
   onPreview: (img: ImageFileDTO) => void;
   onDeleteRequest: (img: ImageFileDTO) => void;
   copyToClipboard: (text: string) => void;
+  onNavigateToUpload?: () => void;
 }
 
 export function ApplicationFiles({
@@ -55,6 +55,7 @@ export function ApplicationFiles({
   onPreview,
   onDeleteRequest,
   copyToClipboard,
+  onNavigateToUpload,
 }: Props) {
   
   return (
@@ -119,11 +120,9 @@ export function ApplicationFiles({
             <p className="text-muted-foreground mb-6">
               Upload your first file to get started.
             </p>
-            <Button asChild>
-              <Link href={`/dashboard/upload?app=${applicationId}`}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Files
-              </Link>
+            <Button onClick={onNavigateToUpload}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Files
             </Button>
           </div>
         ) : (

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-server";
 import { tenantStoragePath } from "@/config";
@@ -85,11 +86,13 @@ export default async function ApplicationDetailsPage(props: {
   const cacheData: CacheResponse | null = null;
 
   return (
-    <ApplicationDetailsClient
-      application={application}
-      images={images}
-      activity={activity}
-      cacheData={cacheData}
-    />
+    <Suspense fallback={<div className="container mx-auto py-8">Loading...</div>}>
+      <ApplicationDetailsClient
+        application={application}
+        images={images}
+        activity={activity}
+        cacheData={cacheData}
+      />
+    </Suspense>
   );
 }

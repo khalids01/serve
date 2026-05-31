@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import {
+  LayoutDashboard,
+  Files,
+  Key,
+  Upload,
+  Settings,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -18,18 +26,59 @@ import { useDeleteImageMutation } from "@/features/applications/hooks/use-delete
 import { useCropImageMutation } from "@/features/applications/hooks/use-crop-image";
 import { ApplicationSettingsForm } from "./application-settings-form";
 import { ImageCropDialog } from "./image-crop-dialog";
-import { ApplicationDTO, ImageFileDTO, AuditLogItemDTO, CacheResponse } from "./application-details/types";
+import {
+  ApplicationDTO,
+  ImageFileDTO,
+  AuditLogItemDTO,
+  CacheResponse,
+} from "./application-details/types";
 import { ApplicationHeader } from "./application-details/header";
 import { ApplicationOverview } from "./application-details/overview-tab";
 import { ApplicationFiles } from "./application-details/files-tab";
+import { ApplicationApiKeys } from "./application-details/api-keys-tab";
+import { ApplicationUpload } from "./application-details/upload-tab";
 import { ImagePreviewDialog } from "./application-details/preview-dialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+const VALID_TABS = [
+  "overview",
+  "files",
+  "keys",
+  "upload",
+  "settings",
+] as const;
+type TabValue = (typeof VALID_TABS)[number];
+
+const TAB_CONFIG: {
+  value: TabValue;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { value: "overview", label: "Overview", icon: LayoutDashboard },
+  { value: "files", label: "Files", icon: Files },
+  { value: "keys", label: "API keys", icon: Key },
+  { value: "upload", label: "Upload", icon: Upload },
+  { value: "settings", label: "Settings", icon: Settings },
+];
 
 interface Props {
   application: ApplicationDTO;
   images: ImageFileDTO[];
   activity: AuditLogItemDTO[];
   cacheData: CacheResponse | null;
+}
+
+function parseTab(value: string | null): TabValue {
+  if (value && VALID_TABS.includes(value as TabValue)) {
+    return value as TabValue;
+  }
+  return "overview";
 }
 
 export default function ApplicationDetailsClient({
@@ -39,12 +88,20 @@ export default function ApplicationDetailsClient({
   cacheData,
 }: Props) {
   const applicationId = application.id;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const clearCacheMutation = useClearCacheMutation(applicationId);
   const deleteImageMutation = useDeleteImageMutation(applicationId);
   const cropImageMutation = useCropImageMutation(applicationId);
-  
-  const [activeTab, setActiveTab] = useState("overview");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
+  const tabFromUrl = parseTab(searchParams.get("tab"));
+  const viewFromUrl =
+    searchParams.get("view") === "grid" ? "grid" : "list";
+
+  const [activeTab, setActiveTab] = useState<TabValue>(tabFromUrl);
+  const [viewMode, setViewMode] = useState<"list" | "grid">(viewFromUrl);
   const [previewImage, setPreviewImage] = useState<ImageFileDTO | null>(null);
   const [cropImage, setCropImage] = useState<ImageFileDTO | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -52,42 +109,48 @@ export default function ApplicationDetailsClient({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [targetDelete, setTargetDelete] = useState<ImageFileDTO | null>(null);
 
-  // Sync state with URL hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1); // remove #
-      if (!hash) return;
-
-      if (hash === "overview" || hash === "files" || hash === "settings") {
-        setActiveTab(hash);
-        if (hash === "files" && viewMode === "grid" && !window.location.hash.includes("-grid")) {
-             // Optional: respect logic
-        }
-      } else if (hash === "files-list") {
-        setActiveTab("files");
-        setViewMode("list");
-      } else if (hash === "files-grid") {
-        setActiveTab("files");
-        setViewMode("grid");
+  const updateUrl = useCallback(
+    (tab: TabValue, view?: "list" | "grid") => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "overview") {
+        params.delete("tab");
+      } else {
+        params.set("tab", tab);
       }
-    };
+      if (tab === "files" && view === "grid") {
+        params.set("view", "grid");
+      } else {
+        params.delete("view");
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams]
+  );
 
-    // Initial check
-    handleHashChange();
-
-    // Listen for changes
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [viewMode]);
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+    if (tabFromUrl === "files") {
+      setViewMode(viewFromUrl);
+    }
+  }, [tabFromUrl, viewFromUrl]);
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    window.location.hash = value;
+    const tab = parseTab(value);
+    setActiveTab(tab);
+    updateUrl(tab, tab === "files" ? viewMode : undefined);
   };
 
   const handleViewModeChange = (mode: "list" | "grid") => {
     setViewMode(mode);
-    window.location.hash = `files-${mode}`;
+    updateUrl("files", mode);
+  };
+
+  const handleNavigateToUpload = () => {
+    setActiveTab("upload");
+    updateUrl("upload");
   };
 
   const copyToClipboard = (text: string) => {
@@ -109,14 +172,14 @@ export default function ApplicationDetailsClient({
     if (selectedIds.size === images.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(images.map(img => img.id)));
+      setSelectedIds(new Set(images.map((img) => img.id)));
     }
   };
-  
+
   const cleanDeletedIds = (deletedId: string) => {
-     const newSelected = new Set(selectedIds);
-     newSelected.delete(deletedId);
-     setSelectedIds(newSelected);
+    const newSelected = new Set(selectedIds);
+    newSelected.delete(deletedId);
+    setSelectedIds(newSelected);
   };
 
   const onDeleteRequest = (img: ImageFileDTO) => {
@@ -132,7 +195,7 @@ export default function ApplicationDetailsClient({
       setConfirmDeleteOpen(false);
       setTargetDelete(null);
       cleanDeletedIds(targetDelete.id);
-    } catch (e) {
+    } catch {
       toast.error("Failed to delete file");
     }
   };
@@ -142,37 +205,44 @@ export default function ApplicationDetailsClient({
     const idsToDelete = Array.from(selectedIds);
     setIsBulkDeleting(true);
 
-    if (!window.confirm(`Are you sure you want to delete ${idsToDelete.length} files?`)) {
-        setIsBulkDeleting(false);
-        return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${idsToDelete.length} files?`
+      )
+    ) {
+      setIsBulkDeleting(false);
+      return;
     }
 
     try {
-        let successCount = 0;
-        let failCount = 0;
-        for (const id of idsToDelete) {
-            try {
-                await deleteImageMutation.mutateAsync(id);
-                successCount++;
-            } catch (e) {
-                console.error(`Failed to delete ${id}`, e);
-                failCount++;
-            }
+      let successCount = 0;
+      let failCount = 0;
+      for (const id of idsToDelete) {
+        try {
+          await deleteImageMutation.mutateAsync(id);
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to delete ${id}`, e);
+          failCount++;
         }
-        
-        if (successCount > 0) {
-            toast.success(`Deleted ${successCount} files`);
-            setSelectedIds(new Set());
-        }
-        if (failCount > 0) {
-            toast.error(`Failed to delete ${failCount} files`);
-        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Deleted ${successCount} files`);
+        setSelectedIds(new Set());
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} files`);
+      }
     } finally {
-        setIsBulkDeleting(false);
+      setIsBulkDeleting(false);
     }
   };
 
-  const handleSaveCrop = async (croppedBlob: Blob, saveMode: "new" | "replace") => {
+  const handleSaveCrop = async (
+    croppedBlob: Blob,
+    saveMode: "new" | "replace"
+  ) => {
     if (!cropImage) return;
     try {
       await cropImageMutation.mutateAsync({
@@ -185,8 +255,10 @@ export default function ApplicationDetailsClient({
       } else {
         toast.success("Cropped image saved as new file");
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save cropped image");
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error ? e.message : "Failed to save cropped image";
+      toast.error(message);
       setCropImage(null);
     }
   };
@@ -196,62 +268,86 @@ export default function ApplicationDetailsClient({
       <main className="container mx-auto py-8">
         <ApplicationHeader application={application} />
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-6"
+        >
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+            {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                aria-label={label}
+                title={label}
+                className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 py-2 px-1 sm:px-3"
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-xs sm:text-sm">
+                  {label}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="overview">
-             <ApplicationOverview 
-                application={application} 
-                images={images} 
-                activity={activity} 
-                cacheData={cacheData} 
-             />
+            <ApplicationOverview
+              application={application}
+              images={images}
+              activity={activity}
+              cacheData={cacheData}
+            />
           </TabsContent>
 
           <TabsContent value="files">
-             <ApplicationFiles
-                applicationId={application.id}
-                images={images}
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                selectedIds={selectedIds}
-                onToggleSelection={toggleSelection}
-                onSelectAll={toggleSelectAll}
-                onBulkDelete={handleBulkDelete}
-                isBulkDeleting={isBulkDeleting}
-                onPreview={setPreviewImage}
-                onDeleteRequest={onDeleteRequest}
-                copyToClipboard={copyToClipboard}
-             />
+            <ApplicationFiles
+              applicationId={application.id}
+              images={images}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              selectedIds={selectedIds}
+              onToggleSelection={toggleSelection}
+              onSelectAll={toggleSelectAll}
+              onBulkDelete={handleBulkDelete}
+              isBulkDeleting={isBulkDeleting}
+              onPreview={setPreviewImage}
+              onDeleteRequest={onDeleteRequest}
+              copyToClipboard={copyToClipboard}
+              onNavigateToUpload={handleNavigateToUpload}
+            />
+          </TabsContent>
+
+          <TabsContent value="keys">
+            <ApplicationApiKeys applicationId={applicationId} />
+          </TabsContent>
+
+          <TabsContent value="upload">
+            <ApplicationUpload applicationId={applicationId} />
           </TabsContent>
 
           <TabsContent value="settings">
-             <Card>
-               <CardHeader>
-                 <CardTitle>Application Settings</CardTitle>
-                 <CardDescription>
-                   Update your application configuration
-                 </CardDescription>
-               </CardHeader>
-               <CardContent>
-                 <ApplicationSettingsForm application={application} />
-               </CardContent>
-             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Application Settings</CardTitle>
+                <CardDescription>
+                  Update your application configuration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ApplicationSettingsForm application={application} />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
         <ImagePreviewDialog
-           previewImage={previewImage}
-           onClose={() => setPreviewImage(null)}
-           onCrop={(img) => {
-             setCropImage(img);
-             setPreviewImage(null);
-           }}
-           copyToClipboard={copyToClipboard}
+          previewImage={previewImage}
+          onClose={() => setPreviewImage(null)}
+          onCrop={(img) => {
+            setCropImage(img);
+            setPreviewImage(null);
+          }}
+          copyToClipboard={copyToClipboard}
         />
 
         <ImageCropDialog
@@ -285,7 +381,6 @@ export default function ApplicationDetailsClient({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        
       </main>
     </div>
   );

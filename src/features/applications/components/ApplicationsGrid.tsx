@@ -35,12 +35,12 @@ export function ApplicationsGrid({ applications }: { applications: Application[]
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/dashboard/applications/${app.id}/keys`}>
+                <Link href={`/dashboard/applications/${app.id}?tab=keys`}>
                   <Key className="h-4 w-4" />
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/dashboard/upload?app=${app.id}`}>
+                <Link href={`/dashboard/applications/${app.id}?tab=upload`}>
                   <Upload className="h-4 w-4" />
                 </Link>
               </Button>

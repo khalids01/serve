@@ -1,12 +1,11 @@
 'use client'
 
-import { ApplicationsSummary } from "@/features/dashboard/components/ApplicationsSummary"
 import { QuickActions } from "@/features/dashboard/components/QuickActions"
 import { StatsGrid } from "@/features/dashboard/components/StatsGrid"
 import { useDashboardData } from "@/features/dashboard/hooks/use-dashboard"
 
 export default function DashboardPage() {
-  const { applications, stats, isLoading } = useDashboardData()
+  const { stats, isLoading } = useDashboardData()
   return (
     <div className="min-h-screen">
       
@@ -21,8 +20,6 @@ export default function DashboardPage() {
         <StatsGrid stats={stats} loading={isLoading} />
 
         <QuickActions />
-
-        <ApplicationsSummary applications={applications} loading={isLoading} />
       </main>
     </div>
   )
