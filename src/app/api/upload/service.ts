@@ -1,9 +1,8 @@
 import { NextResponse, } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { FileStorageService } from "@/lib/file-storage";
 import { ApiKeyService } from "@/lib/api-keys";
 import { maxFileSizeBytes, config } from "@/config";
-import { withImageUrls } from "@/lib/image-urls";
+import { processImageUpload } from "@/lib/image-upload";
 
 interface FileWithTags {
   file: File;
@@ -15,7 +14,6 @@ async function processFile({
   tags,
   applicationId,
   userId,
-  application,
   userAgent,
   ip,
 }: {
@@ -23,7 +21,6 @@ async function processFile({
   tags: string[] | null;
   applicationId: string;
   userId: string;
-  application: any;
   userAgent?: string | null;
   ip?: string | null;
 }) {
@@ -34,50 +31,21 @@ async function processFile({
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const fileStorage = new FileStorageService();
-
-  const uploadResult = await fileStorage.saveFile(
+  const result = await processImageUpload(
     buffer,
     file.name,
-    application.slug, // use human-readable dir
     file.type,
+    applicationId,
+    tags,
   );
 
-  // Save to database
-  const image = await prisma.image.create({
-    data: {
-      applicationId,
-      filename: uploadResult.filename,
-      originalName: uploadResult.originalName,
-      contentType: uploadResult.contentType,
-      sizeBytes: uploadResult.sizeBytes,
-      width: uploadResult.width,
-      height: uploadResult.height,
-      hash: uploadResult.id, // Store content hash here
-      tags: tags ?? undefined,
-      variants: {
-        create: uploadResult.variants.map((variant) => ({
-          label: variant.label,
-          filename: variant.filename,
-          width: variant.width,
-          height: variant.height,
-          sizeBytes: variant.sizeBytes,
-        })),
-      },
-    },
-    include: {
-      variants: true,
-    },
-  });
-
-  // Create audit log
   try {
     await prisma.auditLog.create({
       data: {
         userId: userId || null,
         applicationId,
         action: "UPLOAD",
-        targetId: image.id,
+        targetId: result.id,
         ip: ip || undefined,
         userAgent: userAgent || undefined,
         metadata: {
@@ -91,7 +59,7 @@ async function processFile({
     console.error("Audit log (UPLOAD) error:", e);
   }
 
-  return withImageUrls(image, image.id);
+  return result;
 }
 
 type UploadContext = {
@@ -216,7 +184,6 @@ export async function handleUpload({
             tags: config.tags || null,
             applicationId,
             userId,
-            application,
             userAgent: headers.userAgent,
             ip: headers.ip,
           }
@@ -260,14 +227,13 @@ export async function handleUpload({
       tags: parsedTags,
       applicationId,
       userId,
-      application,
       userAgent: headers.userAgent,
       ip: headers.ip,
     });
 
     return NextResponse.json({
       success: true,
-      image: withImageUrls(result, result.id),
+      image: result,
     });
   } catch (error) {
     console.error("Upload error:", error);

@@ -49,7 +49,7 @@ export function ApplicationOverview({ application, images, activity, cacheData }
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {application._count.images}
+              {application._count.imageApplications}
             </div>
             <p className="text-xs text-muted-foreground">
               Uploaded files

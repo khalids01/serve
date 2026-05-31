@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/lib/prisma-types'
 import { protect } from '@/features/auth/guard'
+import { formatImageResponse } from '@/lib/image-response'
+import { imageInclude } from '@/lib/image-upload'
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,80 +51,106 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    const searchConditions: Prisma.ImageWhereInput[] = []
-
+    const imageSearchConditions: Prisma.ImageWhereInput[] = []
     if (search) {
-      searchConditions.push({
+      imageSearchConditions.push({
         OR: [
-          { originalName: { contains: search } },
           { filename: { contains: search } },
           { contentType: { contains: search } },
+          {
+            applications: {
+              some: { originalName: { contains: search } },
+            },
+          },
         ],
       })
     }
-
     if (contentType) {
-      searchConditions.push({
-        contentType: { contains: contentType }
+      imageSearchConditions.push({ contentType: { contains: contentType } })
+    }
+
+    if (applicationId) {
+      const linkWhere: Prisma.ImageApplicationWhereInput = {
+        applicationId,
+        ...(imageSearchConditions.length > 0
+          ? { image: { AND: imageSearchConditions } }
+          : {}),
+      }
+
+      const linkOrderBy: Prisma.ImageApplicationOrderByWithRelationInput =
+        sortBy === 'name'
+          ? { originalName: sortOrder as 'asc' | 'desc' }
+          : sortBy === 'size'
+            ? { image: { sizeBytes: sortOrder as 'asc' | 'desc' } }
+            : sortBy === 'type'
+              ? { image: { contentType: sortOrder as 'asc' | 'desc' } }
+              : { updatedAt: sortOrder as 'asc' | 'desc' }
+
+      const [links, total] = await Promise.all([
+        prisma.imageApplication.findMany({
+          where: linkWhere,
+          include: {
+            image: { include: imageInclude },
+          },
+          orderBy: linkOrderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.imageApplication.count({ where: linkWhere }),
+      ])
+
+      return NextResponse.json({
+        images: links.map((link) => formatImageResponse(link.image, applicationId)),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasNext: page < Math.ceil(total / limit),
+          hasPrev: page > 1,
+        },
       })
     }
 
-    const where: Prisma.ImageWhereInput = isSessionAuth && !applicationId
-      ? {
-          application: { ownerId: user.id },
-          ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
-        }
-      : {
-          applicationId: applicationId!,
-          ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
-        }
-
-    // Dynamic sorting
-    const orderBy: Prisma.ImageOrderByWithRelationInput = {}
-    if (sortBy === 'name') {
-      orderBy.originalName = sortOrder as 'asc' | 'desc'
-    } else if (sortBy === 'size') {
-      orderBy.sizeBytes = sortOrder as 'asc' | 'desc'
-    } else if (sortBy === 'type') {
-      orderBy.contentType = sortOrder as 'asc' | 'desc'
-    } else {
-      orderBy.createdAt = sortOrder as 'asc' | 'desc'
+    const where: Prisma.ImageWhereInput = {
+      applications: { some: { application: { ownerId: user.id } } },
+      ...(imageSearchConditions.length > 0 ? { AND: imageSearchConditions } : {}),
     }
+
+    const orderBy: Prisma.ImageOrderByWithRelationInput =
+      sortBy === 'size'
+        ? { sizeBytes: sortOrder as 'asc' | 'desc' }
+        : sortBy === 'type'
+          ? { contentType: sortOrder as 'asc' | 'desc' }
+          : { updatedAt: sortOrder as 'asc' | 'desc' }
 
     const [images, total] = await Promise.all([
       prisma.image.findMany({
         where,
-        include: {
-          variants: true,
-          application: {
-            select: { id: true, name: true, slug: true },
-          },
-        },
+        include: imageInclude,
         orderBy,
         skip,
-        take: limit
+        take: limit,
       }),
-      prisma.image.count({ where })
+      prisma.image.count({ where }),
     ])
 
     return NextResponse.json({
-      images,
+      images: images.map((image) => formatImageResponse(image)),
       pagination: {
         page,
         limit,
         total,
         pages: Math.ceil(total / limit),
         hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     })
 
   } catch (error) {
     console.error('List images error:', error)
 
-    // Provide more specific error messages
     if (error instanceof Error) {
-      // Check for common database errors
       if (error.message.includes('Invalid `prisma.image.findMany()` invocation')) {
         return NextResponse.json(
           {

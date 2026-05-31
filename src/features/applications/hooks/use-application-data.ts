@@ -10,7 +10,7 @@ export interface Application {
   slug: string;
   createdAt: string;
   storageDir: string;
-  _count: { images: number; apiKeys: number };
+  _count: { imageApplications: number; apiKeys: number };
 }
 
 export interface ImageFile {

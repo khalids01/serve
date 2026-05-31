@@ -23,7 +23,7 @@ export function ApplicationsGrid({ applications }: { applications: Application[]
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-              <span>{app._count.images} files</span>
+              <span>{app._count.imageApplications} files</span>
               <span>{app._count.apiKeys} API keys</span>
             </div>
 

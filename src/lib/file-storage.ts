@@ -1,7 +1,7 @@
 import path from "path";
 import { config } from "@/config";
 import { contentHash16 } from "@/lib/storage/hash";
-import { objectKey } from "@/lib/storage/keys";
+import { blobKey } from "@/lib/storage/keys";
 import { getStorage } from "@/lib/storage/factory";
 import {
   readMetadata,
@@ -20,14 +20,13 @@ export class FileStorageService {
   async saveFile(
     buffer: Buffer,
     originalName: string,
-    tenantKey: string,
     contentType: string,
   ): Promise<FileUploadResult> {
     const fileId = contentHash16(buffer);
     const ext = path.extname(originalName);
     const filename = `${fileId}${ext}`;
 
-    await this.storage.put(objectKey(tenantKey, filename), buffer, {
+    await this.storage.put(blobKey(filename), buffer, {
       contentType,
     });
 
@@ -57,7 +56,7 @@ export class FileStorageService {
           buffer,
           config.image.originalMaxDim,
         );
-        let processedBuffer = downscaled.buffer;
+        const processedBuffer = downscaled.buffer;
         result.width = downscaled.width ?? result.width;
         result.height = downscaled.height ?? result.height;
 
@@ -67,7 +66,7 @@ export class FileStorageService {
             processedBuffer,
             format,
           );
-          await this.storage.put(objectKey(tenantKey, filename), optimizedBuffer, {
+          await this.storage.put(blobKey(filename), optimizedBuffer, {
             contentType,
           });
           result.sizeBytes = optimizedBuffer.length;
@@ -75,11 +74,9 @@ export class FileStorageService {
           if (format !== "webp") {
             const webpBuffer = await toWebp(processedBuffer, 80);
             const webpFilename = `${fileId}.webp`;
-            await this.storage.put(
-              objectKey(tenantKey, webpFilename),
-              webpBuffer,
-              { contentType: "image/webp" },
-            );
+            await this.storage.put(blobKey(webpFilename), webpBuffer, {
+              contentType: "image/webp",
+            });
 
             const webpMeta = await readMetadata(webpBuffer);
             result.variants.push({
@@ -105,11 +102,9 @@ export class FileStorageService {
             );
 
             const placeholderFilename = `${fileId}-placeholder.${normalizedOrigExt}`;
-            await this.storage.put(
-              objectKey(tenantKey, placeholderFilename),
-              placeholderBuf,
-              { contentType: `image/${normalizedOrigExt === "jpg" ? "jpeg" : normalizedOrigExt}` },
-            );
+            await this.storage.put(blobKey(placeholderFilename), placeholderBuf, {
+              contentType: `image/${normalizedOrigExt === "jpg" ? "jpeg" : normalizedOrigExt}`,
+            });
 
             const phMeta = await readMetadata(placeholderBuf);
             result.variants.push({
@@ -128,7 +123,7 @@ export class FileStorageService {
               );
               const placeholderWebpFilename = `${fileId}-placeholder.webp`;
               await this.storage.put(
-                objectKey(tenantKey, placeholderWebpFilename),
+                blobKey(placeholderWebpFilename),
                 placeholderWebpBuf,
                 { contentType: "image/webp" },
               );
@@ -154,22 +149,21 @@ export class FileStorageService {
     return result;
   }
 
-  async deleteFile(filename: string, tenantKey: string): Promise<void> {
-    await this.storage.delete(objectKey(tenantKey, filename));
+  async deleteBlobFile(filename: string): Promise<void> {
+    await this.storage.delete(blobKey(filename));
   }
 
   async putRaw(
-    tenantKey: string,
     filename: string,
     buffer: Buffer,
     contentType?: string,
   ): Promise<void> {
-    await this.storage.put(objectKey(tenantKey, filename), buffer, {
+    await this.storage.put(blobKey(filename), buffer, {
       contentType,
     });
   }
 
-  getFileUrl(filename: string, _tenantKey: string): string {
+  getFileUrl(filename: string): string {
     return `/api/img/${filename}`;
   }
 }

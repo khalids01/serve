@@ -21,6 +21,7 @@ interface ImageCropDialogProps {
   onOpenChange: (open: boolean) => void;
   imageUrl: string;
   imageName: string;
+  linkedApplications?: Array<{ id: string; name: string }>;
   onSave: (croppedBlob: Blob, saveMode: "new" | "replace") => Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export function ImageCropDialog({
   onOpenChange,
   imageUrl,
   imageName,
+  linkedApplications,
   onSave,
 }: ImageCropDialogProps) {
   const [crop, setCrop] = useState<Crop>({
@@ -183,6 +185,15 @@ export function ImageCropDialog({
                 </Label>
               </div>
             </RadioGroup>
+            {saveMode === "replace" &&
+              linkedApplications &&
+              linkedApplications.length > 1 && (
+                <p className="text-sm text-amber-600 dark:text-amber-500">
+                  This image is shared with{" "}
+                  {linkedApplications.map((app) => app.name).join(", ")}. Replacing
+                  it will update the file for all linked applications.
+                </p>
+              )}
           </div>
 
           <DialogFooter>

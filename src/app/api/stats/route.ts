@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
     if (auth instanceof NextResponse) return auth
     const { user } = auth
 
-    // Find all application IDs owned by this user
     const apps = await prisma.application.findMany({
       where: { ownerId: user.id },
       select: { id: true },
@@ -23,25 +22,30 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const [imageAgg, variantAgg, fileCount, apiKeyCount] = await Promise.all([
-      prisma.image.aggregate({
-        where: { applicationId: { in: appIds } },
-        _sum: { sizeBytes: true },
-      }),
-      prisma.imageVariant.aggregate({
-        where: { image: { applicationId: { in: appIds } } },
-        _sum: { sizeBytes: true },
-      }),
-      prisma.image.count({ where: { applicationId: { in: appIds } } }),
+    const linkedImages = await prisma.image.findMany({
+      where: {
+        applications: { some: { applicationId: { in: appIds } } },
+      },
+      select: {
+        id: true,
+        sizeBytes: true,
+        variants: { select: { sizeBytes: true } },
+      },
+    })
+
+    const storageBytes = linkedImages.reduce((total, image) => {
+      const variantBytes = image.variants.reduce((sum, v) => sum + v.sizeBytes, 0)
+      return total + image.sizeBytes + variantBytes
+    }, 0)
+
+    const [apiKeyCount] = await Promise.all([
       prisma.apiKey.count({ where: { applicationId: { in: appIds }, revoked: false } }),
     ])
-
-    const storageBytes = (imageAgg._sum.sizeBytes || 0) + (variantAgg._sum.sizeBytes || 0)
 
     return NextResponse.json({
       storageBytes,
       totals: {
-        files: fileCount,
+        files: linkedImages.length,
         applications: appIds.length,
         apiKeys: apiKeyCount,
       },

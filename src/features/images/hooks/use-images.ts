@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ImageFileDTO } from "@/features/applications/components/application-details/types";
 
 type ApiImage = ImageFileDTO & {
-  applicationId: string;
+  applicationId?: string;
   application?: { id: string; name: string; slug: string };
 };
 
@@ -35,7 +35,8 @@ function mapImage(img: ApiImage): ImageFileDTO {
         ? img.createdAt
         : new Date(img.createdAt).toISOString(),
     applicationId: img.applicationId ?? img.application?.id,
-    applicationName: img.application?.name,
+    applicationName: img.applicationName ?? img.application?.name,
+    linkedApplications: img.linkedApplications,
     variants: img.variants ?? [],
   };
 }

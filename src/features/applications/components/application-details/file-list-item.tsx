@@ -5,6 +5,7 @@ import { ImageFileDTO } from "./types";
 import { PdfViewer } from "../pdf-viewer";
 import { ProgressiveImage } from "@/components/progressive-image";
 import { toImageServeUrl, toPlaceholderUrl } from "@/lib/image-urls";
+import { LinkedAppBadges } from "./linked-app-badges";
 
 // Helper functions (could be moved to utils)
 const isPdf = (contentType: string) => contentType === "application/pdf";
@@ -70,10 +71,11 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
           </h3>
           <p className="text-xs text-muted-foreground truncate">
             {formatFileSize(img.sizeBytes)} • {img.contentType}
-            {(applicationName ?? img.applicationName) && (
+            {(applicationName ?? img.applicationName) && !img.linkedApplications?.length && (
               <> • {applicationName ?? img.applicationName}</>
             )}
           </p>
+          <LinkedAppBadges applications={img.linkedApplications} className="mt-1" />
         </div>
       </div>
 

@@ -1,33 +1,45 @@
 model Application {
-    id         String     @id @default(cuid())
-    name       String
-    slug       String     @unique
-    ownerId    String
-    createdAt  DateTime   @default(now())
-    updatedAt  DateTime   @updatedAt
-    storageDir String // e.g., "uploads/<appId>"
-    images     Image[]
-    apiKeys    ApiKey[]
-    members    User[]     @relation("UserApplications")
-    auditLogs  AuditLog[]
+    id                 String             @id @default(cuid())
+    name               String
+    slug               String             @unique
+    ownerId            String
+    createdAt          DateTime           @default(now())
+    updatedAt          DateTime           @updatedAt
+    storageDir         String // e.g., "uploads/<appId>"
+    imageApplications  ImageApplication[]
+    apiKeys            ApiKey[]
+    members            User[]             @relation("UserApplications")
+    auditLogs          AuditLog[]
 }
 
 model Image {
-    id            String         @id @default(cuid())
-    applicationId String
-    filename      String
-    originalName  String
-    contentType   String
-    sizeBytes     Int
-    width         Int?
-    height        Int?
-    hash          String? // perceptual hash (optional)
-    tags          Json? // simple tags as JSON array
-    variants      ImageVariant[]
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
+    id           String             @id @default(cuid())
+    filename     String
+    contentType  String
+    sizeBytes    Int
+    width        Int?
+    height       Int?
+    hash         String             @unique
+    variants     ImageVariant[]
+    applications ImageApplication[]
+    createdAt    DateTime           @default(now())
+    updatedAt    DateTime           @updatedAt
+}
 
-    application Application @relation(fields: [applicationId], references: [id])
+model ImageApplication {
+    id            String   @id @default(cuid())
+    imageId       String
+    applicationId String
+    originalName  String
+    tags          Json?
+    linkedAt      DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    image       Image       @relation(fields: [imageId], references: [id], onDelete: Cascade)
+    application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+    @@unique([imageId, applicationId])
+    @@index([applicationId, updatedAt(sort: Desc)])
 }
 
 model ImageVariant {

@@ -1,4 +1,17 @@
+const BLOB_PREFIX = "_blobs";
 const CACHE_DIR = "_cache";
+
+export function blobKey(filename: string): string {
+  return `${BLOB_PREFIX}/${filename}`;
+}
+
+export function blobCacheKey(cacheName: string): string {
+  return `${BLOB_PREFIX}/${CACHE_DIR}/${cacheName}`;
+}
+
+export function blobCachePrefix(): string {
+  return `${BLOB_PREFIX}/${CACHE_DIR}/`;
+}
 
 export function objectKey(tenantKey: string, filename: string): string {
   return `${tenantKey}/${filename}`;

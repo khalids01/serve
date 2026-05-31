@@ -1,5 +1,8 @@
 import type { StorageBackend } from "./backend";
 import {
+  blobKey,
+  blobCacheKey,
+  blobCachePrefix,
   objectKey,
   cacheKey,
   cachePrefix,
@@ -8,6 +11,65 @@ import {
 import { getStorage } from "./factory";
 
 export { uniqueTenantKeys };
+
+export async function readBlobFile(
+  storage: StorageBackend,
+  filename: string,
+): Promise<Buffer | null> {
+  return storage.get(blobKey(filename));
+}
+
+export async function readBlobCache(
+  storage: StorageBackend,
+  cacheName: string,
+): Promise<Buffer | null> {
+  return storage.get(blobCacheKey(cacheName));
+}
+
+export async function readBlobFileWithLegacy(
+  storage: StorageBackend,
+  filename: string,
+  legacyTenantKeys: string[] = [],
+): Promise<Buffer | null> {
+  const blob = await readBlobFile(storage, filename);
+  if (blob) return blob;
+  return readTenantFile(storage, legacyTenantKeys, filename);
+}
+
+export async function readBlobCacheWithLegacy(
+  storage: StorageBackend,
+  cacheName: string,
+  legacyTenantKeys: string[] = [],
+): Promise<Buffer | null> {
+  const cached = await readBlobCache(storage, cacheName);
+  if (cached) return cached;
+  return readTenantCache(storage, legacyTenantKeys, cacheName);
+}
+
+export async function writeBlobCache(
+  storage: StorageBackend,
+  cacheName: string,
+  data: Buffer,
+  contentType?: string,
+): Promise<void> {
+  await storage.put(blobCacheKey(cacheName), data, { contentType });
+}
+
+export async function deleteBlobCacheByBase(
+  storage: StorageBackend,
+  baseName: string,
+): Promise<void> {
+  const prefix = blobCachePrefix();
+  const items = await storage.list(prefix);
+  await Promise.all(
+    items
+      .filter((item) => {
+        const name = item.key.slice(prefix.length);
+        return name.startsWith(baseName);
+      })
+      .map((item) => storage.delete(item.key)),
+  );
+}
 
 export async function readTenantFile(
   storage: StorageBackend,
@@ -62,6 +124,15 @@ export async function deleteTenantCacheByBase(
   }
 }
 
+export async function deleteBlobAndLegacyCacheByBase(
+  storage: StorageBackend,
+  baseName: string,
+  legacyTenantKeys: string[] = [],
+): Promise<void> {
+  await deleteBlobCacheByBase(storage, baseName);
+  await deleteTenantCacheByBase(storage, legacyTenantKeys, baseName);
+}
+
 export async function listTenantCache(
   storage: StorageBackend,
   tenantKeys: string[],
@@ -106,10 +177,11 @@ export function storageHelpers() {
   const storage = getStorage();
   return {
     storage,
-    readTenantFile: (
-      tenantKeys: string[],
-      filename: string,
-    ) => readTenantFile(storage, tenantKeys, filename),
+    readBlobFile: (filename: string) => readBlobFile(storage, filename),
+    readBlobFileWithLegacy: (filename: string, legacyTenantKeys: string[]) =>
+      readBlobFileWithLegacy(storage, filename, legacyTenantKeys),
+    readTenantFile: (tenantKeys: string[], filename: string) =>
+      readTenantFile(storage, tenantKeys, filename),
     readTenantCache: (tenantKeys: string[], cacheName: string) =>
       readTenantCache(storage, tenantKeys, cacheName),
     writeTenantCache: (

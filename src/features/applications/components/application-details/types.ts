@@ -4,7 +4,13 @@ export interface ApplicationDTO {
     slug: string;
     createdAt: string;
     storageDir: string;
-    _count: { images: number; apiKeys: number };
+    _count: { imageApplications: number; apiKeys: number };
+}
+
+export interface LinkedApplicationDTO {
+    id: string;
+    name: string;
+    slug: string;
 }
 
 export interface ImageFileDTO {
@@ -18,6 +24,7 @@ export interface ImageFileDTO {
     createdAt: string;
     applicationId?: string;
     applicationName?: string;
+    linkedApplications?: LinkedApplicationDTO[];
     variants: Array<{
         id: string;
         label: string;

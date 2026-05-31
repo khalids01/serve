@@ -4,6 +4,7 @@ import { Copy, Download, Eye, ExternalLink, Trash2 } from "lucide-react";
 import { ImageFileDTO } from "./types";
 import { ProgressiveImage } from "@/components/progressive-image";
 import { toImageServeUrl, toPlaceholderUrl } from "@/lib/image-urls";
+import { LinkedAppBadges } from "./linked-app-badges";
 
 const isPdf = (contentType: string) => contentType === "application/pdf";
 const isSvg = (contentType: string) => contentType === "image/svg+xml";
@@ -121,11 +122,15 @@ export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDe
               </>
             )}
           </div>
-          {(applicationName ?? img.applicationName) && (
+          {(applicationName ?? img.applicationName) && !img.linkedApplications?.length && (
             <div className="text-xs text-muted-foreground mt-1 truncate">
               {applicationName ?? img.applicationName}
             </div>
           )}
+          <LinkedAppBadges
+            applications={img.linkedApplications}
+            className="mt-1"
+          />
         </div>
         <Button
           variant="ghost"

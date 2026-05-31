@@ -43,7 +43,7 @@ Response:
 ```
 
 Notes:
-- storageBytes sums sizes of original images (Image.sizeBytes) and their variants (ImageVariant.sizeBytes).
+- `storageBytes` counts each unique image blob once (including variants), even when linked to multiple applications.
 
 ## Upload
 
@@ -59,6 +59,32 @@ Multipart form fields:
 
 Note: When using API key authentication, the application ID is automatically determined from your key. No need to specify applicationId.
 
+### Deduplication
+
+Uploads are deduplicated globally by file content (SHA-256 hash):
+
+- Uploading the same bytes again returns the **same `id`**, URLs, and variant metadata.
+- The file is stored once in object storage under `_blobs/{hash}.{ext}`.
+- Re-uploading links the existing blob to the requesting application (or refreshes that link's metadata).
+- Per-application `originalName` and `tags` are stored on the app link, not on the shared blob.
+
+Example response fields:
+
+```json
+{
+  "success": true,
+  "image": {
+    "id": "clx123",
+    "filename": "a1b2c3d4e5f67890.jpg",
+    "url": "/api/img/clx123.jpg",
+    "linkedApplications": [
+      { "id": "app_a", "name": "Blog", "slug": "blog" },
+      { "id": "app_b", "name": "Shop", "slug": "shop" }
+    ]
+  }
+}
+```
+
 ## Images
 
 List images for an application with advanced search and sorting:
@@ -73,10 +99,10 @@ Query parameters:
 - `limit`: items per page (default: 20, max: 100)
 - `search`: search in filename, original name, content type
 - `contentType`: filter by MIME type (e.g., "image/jpeg")
-- `sortBy`: sort field (createdAt, name, size, type)
-- `sortOrder`: sort direction (asc, desc)
+- `sortBy`: sort field (`updatedAt` when filtered by app, otherwise `createdAt`, plus `name`, `size`, `type`)
+- `sortOrder`: sort direction (`asc`, `desc`)
 
-Response includes pagination metadata and image variants.
+Response includes pagination metadata, image variants, and `linkedApplications` (all apps using that blob).
 
 Get original content (served by filename):
 
@@ -112,6 +138,8 @@ Delete an image:
 ```
 DELETE /api/images/:id
 ```
+
+Permanently deletes the blob from storage and removes all application links. If the image is linked to multiple applications, it is removed from all of them.
 
 ## Audit Logs
 

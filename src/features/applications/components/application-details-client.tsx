@@ -26,6 +26,7 @@ import { useDeleteImageMutation } from "@/features/applications/hooks/use-delete
 import { useCropImageMutation } from "@/features/applications/hooks/use-crop-image";
 import { ApplicationSettingsForm } from "./application-settings-form";
 import { ImageCropDialog } from "./image-crop-dialog";
+import { DeleteImageConfirmDescription } from "./application-details/linked-app-badges";
 import {
   ApplicationDTO,
   ImageFileDTO,
@@ -355,6 +356,7 @@ export default function ApplicationDetailsClient({
           onOpenChange={(open) => !open && setCropImage(null)}
           imageUrl={cropImage ? `/api/img/${cropImage.filename}` : ""}
           imageName={cropImage?.originalName || ""}
+          linkedApplications={cropImage?.linkedApplications}
           onSave={handleSaveCrop}
         />
 
@@ -365,9 +367,8 @@ export default function ApplicationDetailsClient({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete this file?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the file and its variants from
-                storage and the database.
+              <AlertDialogDescription asChild>
+                <DeleteImageConfirmDescription image={targetDelete} />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

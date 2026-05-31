@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
 import { protect } from '@/features/auth/guard'
-import { withImageUrls } from '@/lib/image-urls'
 import path from 'path'
-import { deleteTenantCacheByBase } from '@/lib/storage/read'
-import { uniqueTenantKeys } from '@/lib/storage/keys'
+import { deleteBlobAndLegacyCacheByBase } from '@/lib/storage/read'
+import { objectKey } from '@/lib/storage/keys'
 import { getStorage } from '@/lib/storage/factory'
+import {
+  appIsLinkedToImage,
+  formatImageResponse,
+  getLegacyTenantKeys,
+  getLinkedApplications,
+  userOwnsLinkedImage,
+} from '@/lib/image-response'
+import { imageInclude } from '@/lib/image-upload'
 
 export async function GET(
   request: NextRequest,
@@ -20,24 +27,26 @@ export async function GET(
     const { id } = await context.params
     const image = await prisma.image.findUnique({
       where: { id },
-      include: {
-        variants: true,
-        application: true
-      }
+      include: imageInclude,
     })
 
     if (!image) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    if (authApp && image.applicationId !== authApp.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-    if (!authApp && image.application.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    if (authApp) {
+      const linked = await appIsLinkedToImage(id, authApp.id)
+      if (!linked) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    } else {
+      const owns = await userOwnsLinkedImage(id, user.id)
+      if (!owns) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
     }
 
-    return NextResponse.json(withImageUrls(image, image.id))
+    return NextResponse.json(formatImageResponse(image, authApp?.id))
 
   } catch (error) {
     console.error('Get image error:', error)
@@ -60,37 +69,44 @@ export async function DELETE(
     const { id } = await context.params
     const image = await prisma.image.findUnique({
       where: { id },
-      include: {
-        variants: true,
-        application: true
-      }
+      include: imageInclude,
     })
 
     if (!image) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    if (authApp && image.applicationId !== authApp.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-    if (!authApp && image.application.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    if (authApp) {
+      const linked = await appIsLinkedToImage(id, authApp.id)
+      if (!linked) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    } else {
+      const owns = await userOwnsLinkedImage(id, user.id)
+      if (!owns) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
     }
 
+    const linkedApplications = getLinkedApplications(image)
+    const legacyTenantKeys = getLegacyTenantKeys(image)
     const fileStorage = new FileStorageService()
-    const dirKey = image.application?.slug || image.applicationId
-    const tenantKeys = uniqueTenantKeys(image.application?.slug, image.applicationId)
+    const storage = getStorage()
 
-    await fileStorage.deleteFile(image.filename, dirKey)
-    await fileStorage.deleteFile(image.filename, image.applicationId)
+    await fileStorage.deleteBlobFile(image.filename)
+    for (const tenantKey of legacyTenantKeys) {
+      await storage.delete(objectKey(tenantKey, image.filename))
+    }
 
     for (const variant of image.variants) {
-      await fileStorage.deleteFile(variant.filename, dirKey)
-      await fileStorage.deleteFile(variant.filename, image.applicationId)
+      await fileStorage.deleteBlobFile(variant.filename)
+      for (const tenantKey of legacyTenantKeys) {
+        await storage.delete(objectKey(tenantKey, variant.filename))
+      }
     }
 
     const base = path.parse(image.filename).name
-    await deleteTenantCacheByBase(getStorage(), tenantKeys, base)
+    await deleteBlobAndLegacyCacheByBase(storage, base, legacyTenantKeys)
 
     await prisma.image.delete({
       where: { id }
@@ -104,14 +120,14 @@ export async function DELETE(
       await prisma.auditLog.create({
         data: {
           userId: user.id || null,
-          applicationId: image.applicationId,
+          applicationId: authApp?.id ?? image.applications[0]?.applicationId ?? null,
           action: 'DELETE',
           targetId: image.id,
           ip: ip || undefined,
           userAgent: userAgent || undefined,
           metadata: {
             filename: image.filename,
-            originalName: image.originalName,
+            linkedApplications,
             variants: image.variants?.length || 0
           } as any
         }
@@ -120,7 +136,10 @@ export async function DELETE(
       console.error('Audit log (DELETE) error:', e)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      linkedApplications,
+    })
 
   } catch (error) {
     console.error('Delete image error:', error)

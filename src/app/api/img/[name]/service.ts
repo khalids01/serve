@@ -3,12 +3,13 @@ import path from "path";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import {
-  readTenantFile,
-  readTenantCache,
-  writeTenantCache,
+  readBlobFileWithLegacy,
+  readBlobCacheWithLegacy,
+  writeBlobCache,
 } from "@/lib/storage/read";
-import { uniqueTenantKeys } from "@/lib/storage/keys";
 import { getStorage } from "@/lib/storage/factory";
+import { imageInclude } from "@/lib/image-upload";
+import { getLegacyTenantKeys } from "@/lib/image-response";
 
 const MAX_DIMENSION = 4096;
 
@@ -94,7 +95,6 @@ export async function serveImage(request: NextRequest, rawName: string) {
       requestedExt = imagePathName.slice(dot + 1).toLowerCase();
     }
 
-    // Legacy pattern: {hash}-placeholder.{ext}
     if (!isPlaceholder && baseName.endsWith(PLACEHOLDER_SUFFIX)) {
       isPlaceholder = true;
     }
@@ -107,38 +107,20 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     let image = await prisma.image.findUnique({
       where: { id: lookupId },
-      select: {
-        id: true,
-        filename: true,
-        applicationId: true,
-        contentType: true,
-        application: { select: { slug: true } },
-      },
+      include: imageInclude,
     });
 
     if (!image) {
-      image = await prisma.image.findFirst({
+      image = await prisma.image.findUnique({
         where: { hash: lookupId },
-        select: {
-          id: true,
-          filename: true,
-          applicationId: true,
-          contentType: true,
-          application: { select: { slug: true } },
-        },
+        include: imageInclude,
       });
     }
 
     if (!image) {
       image = await prisma.image.findFirst({
         where: { filename: rawName },
-        select: {
-          id: true,
-          filename: true,
-          applicationId: true,
-          contentType: true,
-          application: { select: { slug: true } },
-        },
+        include: imageInclude,
       });
     }
 
@@ -146,11 +128,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
-    const tenantKeys = uniqueTenantKeys(
-      image.application?.slug,
-      image.applicationId,
-    );
-    const primaryTenantKey = tenantKeys[0] ?? image.applicationId;
+    const legacyTenantKeys = getLegacyTenantKeys(image);
 
     const origExt = path.extname(image.filename).replace(".", "").toLowerCase();
 
@@ -196,7 +174,11 @@ export async function serveImage(request: NextRequest, rawName: string) {
         );
       }
       const placeholderFilename = `${base}-placeholder.${targetExt}`;
-      const buf = await readTenantFile(storage, tenantKeys, placeholderFilename);
+      const buf = await readBlobFileWithLegacy(
+        storage,
+        placeholderFilename,
+        legacyTenantKeys,
+      );
       if (!buf) {
         return NextResponse.json({ error: "Variant not found" }, { status: 404 });
       }
@@ -204,7 +186,11 @@ export async function serveImage(request: NextRequest, rawName: string) {
     }
 
     if (!width && !height && targetExt === normalizedOrigExt) {
-      const buf = await readTenantFile(storage, tenantKeys, image.filename);
+      const buf = await readBlobFileWithLegacy(
+        storage,
+        image.filename,
+        legacyTenantKeys,
+      );
       if (!buf) {
         return NextResponse.json(
           { error: "Original file not found" },
@@ -216,7 +202,11 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     if (!width && !height && targetExt !== normalizedOrigExt) {
       const variantFilename = `${base}.${targetExt}`;
-      const buf = await readTenantFile(storage, tenantKeys, variantFilename);
+      const buf = await readBlobFileWithLegacy(
+        storage,
+        variantFilename,
+        legacyTenantKeys,
+      );
       if (!buf) {
         return NextResponse.json({ error: "Variant not found" }, { status: 404 });
       }
@@ -225,12 +215,20 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""}${quality ? `_q${quality}` : ""}.${targetExt}`;
 
-    const cached = await readTenantCache(storage, tenantKeys, cacheName);
+    const cached = await readBlobCacheWithLegacy(
+      storage,
+      cacheName,
+      legacyTenantKeys,
+    );
     if (cached) {
       return bufferResponse(cached, getContentTypeByExt(targetExt));
     }
 
-    const original = await readTenantFile(storage, tenantKeys, image.filename);
+    const original = await readBlobFileWithLegacy(
+      storage,
+      image.filename,
+      legacyTenantKeys,
+    );
     if (!original) {
       return NextResponse.json(
         { error: "Original file not found" },
@@ -258,9 +256,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
     else pipeline = pipeline.jpeg({ quality: quality ?? 85, mozjpeg: true });
 
     const out = await pipeline.toBuffer();
-    await writeTenantCache(
+    await writeBlobCache(
       storage,
-      primaryTenantKey,
       cacheName,
       out,
       getContentTypeByExt(targetExt),

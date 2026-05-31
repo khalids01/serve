@@ -30,6 +30,7 @@ export function useCropImageMutation(applicationId: string) {
       const formData = new FormData();
       formData.append("file", croppedBlob, "cropped.jpg");
       formData.append("saveMode", saveMode);
+      formData.append("applicationId", applicationId);
 
       const res = await fetch(`/api/images/${imageId}/crop`, {
         method: "POST",

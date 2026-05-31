@@ -10,6 +10,8 @@ import  {
   type AuditLogItemDTO,
   type CacheResponse,
 } from "@/features/applications/components/application-details/types";
+import { formatImageResponse } from "@/lib/image-response";
+import { imageInclude } from "@/lib/image-upload";
 
 export default async function ApplicationDetailsPage(props: {
   params: Promise<{ id: string }>;
@@ -23,7 +25,7 @@ export default async function ApplicationDetailsPage(props: {
   const app = await prisma.application.findFirst({
     where: { id: params.id, ownerId: user.id },
     include: {
-      _count: { select: { images: true, apiKeys: true } },
+      _count: { select: { imageApplications: true, apiKeys: true } },
     },
   });
 
@@ -31,10 +33,12 @@ export default async function ApplicationDetailsPage(props: {
 
   const storageDir = tenantStoragePath(app.slug);
 
-  const imagesRaw = await prisma.image.findMany({
+  const links = await prisma.imageApplication.findMany({
     where: { applicationId: app.id },
-    orderBy: { createdAt: "desc" },
-    include: { variants: true },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      image: { include: imageInclude },
+    },
   });
 
   const activityRaw = await prisma.auditLog.findMany({
@@ -49,27 +53,36 @@ export default async function ApplicationDetailsPage(props: {
     slug: app.slug,
     createdAt: app.createdAt.toISOString(),
     storageDir,
-    _count: app._count as any,
+    _count: {
+      imageApplications: app._count.imageApplications,
+      apiKeys: app._count.apiKeys,
+    },
   };
 
-  const images: ImageFileDTO[] = imagesRaw.map((img) => ({
-    id: img.id,
-    filename: img.filename,
-    originalName: img.originalName,
-    contentType: img.contentType,
-    sizeBytes: img.sizeBytes,
-    width: img.width ?? undefined,
-    height: img.height ?? undefined,
-    createdAt: img.createdAt.toISOString(),
-    variants: img.variants.map((v) => ({
-      id: v.id,
-      label: v.label,
-      filename: v.filename,
-      width: v.width ?? undefined,
-      height: v.height ?? undefined,
-      sizeBytes: v.sizeBytes,
-    })),
-  }));
+  const images: ImageFileDTO[] = links.map((link) => {
+    const formatted = formatImageResponse(link.image, app.id);
+    return {
+      id: formatted.id,
+      filename: formatted.filename,
+      originalName: formatted.originalName,
+      contentType: formatted.contentType,
+      sizeBytes: formatted.sizeBytes,
+      width: formatted.width ?? undefined,
+      height: formatted.height ?? undefined,
+      createdAt: link.linkedAt.toISOString(),
+      applicationId: app.id,
+      applicationName: app.name,
+      linkedApplications: formatted.linkedApplications,
+      variants: formatted.variants.map((v) => ({
+        id: v.id,
+        label: v.label,
+        filename: v.filename,
+        width: v.width ?? undefined,
+        height: v.height ?? undefined,
+        sizeBytes: v.sizeBytes,
+      })),
+    };
+  });
 
   const activity: AuditLogItemDTO[] = activityRaw.map((a) => ({
     id: a.id,

@@ -21,7 +21,7 @@ export async function GET(
       include: {
         _count: {
           select: {
-            images: true,
+            imageApplications: true,
             apiKeys: true
           }
         }
@@ -97,7 +97,7 @@ export async function PATCH(
       include: {
         _count: {
           select: {
-            images: true,
+            imageApplications: true,
             apiKeys: true
           }
         }

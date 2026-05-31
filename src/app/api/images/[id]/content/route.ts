@@ -3,12 +3,13 @@ import path from 'path'
 import sharp from 'sharp'
 import { prisma } from '@/lib/prisma'
 import {
-  readTenantFile,
-  readTenantCache,
-  writeTenantCache,
+  readBlobFileWithLegacy,
+  readBlobCacheWithLegacy,
+  writeBlobCache,
 } from '@/lib/storage/read'
-import { uniqueTenantKeys } from '@/lib/storage/keys'
 import { getStorage } from '@/lib/storage/factory'
+import { imageInclude } from '@/lib/image-upload'
+import { getLegacyTenantKeys } from '@/lib/image-response'
 
 const MAX_DIMENSION = 4096
 
@@ -75,27 +76,20 @@ export async function GET(
 
     const image = await prisma.image.findUnique({
       where: { id },
-      select: {
-        id: true,
-        filename: true,
-        applicationId: true,
-        contentType: true,
-        application: { select: { slug: true } }
-      }
+      include: imageInclude,
     })
 
     if (!image) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
 
-    const tenantKeys = uniqueTenantKeys(image.application?.slug, image.applicationId)
-    const primaryTenantKey = tenantKeys[0] ?? image.applicationId
+    const legacyTenantKeys = getLegacyTenantKeys(image)
 
     const targetExt = getTargetExt((fmtParam || idExt) || undefined)
     const origExt = path.extname(image.filename).replace('.', '').toLowerCase()
 
     if (!width && !height && (!idExt || targetExt === origExt) && !fmtParam) {
-      const buf = await readTenantFile(storage, tenantKeys, image.filename)
+      const buf = await readBlobFileWithLegacy(storage, image.filename, legacyTenantKeys)
       if (!buf) {
         return NextResponse.json({ error: 'Original file not found' }, { status: 404 })
       }
@@ -104,7 +98,7 @@ export async function GET(
 
     if (!width && !height && targetExt === 'webp') {
       const webpName = `${path.parse(image.filename).name}.webp`
-      const buf = await readTenantFile(storage, tenantKeys, webpName)
+      const buf = await readBlobFileWithLegacy(storage, webpName, legacyTenantKeys)
       if (buf) {
         return bufferResponse(buf, 'image/webp')
       }
@@ -113,12 +107,12 @@ export async function GET(
     const base = path.parse(image.filename).name
     const cacheName = `${base}${width ? `_w${width}` : ''}${height ? `_h${height}` : ''}.${targetExt}`
 
-    const cached = await readTenantCache(storage, tenantKeys, cacheName)
+    const cached = await readBlobCacheWithLegacy(storage, cacheName, legacyTenantKeys)
     if (cached) {
       return bufferResponse(cached, getContentTypeByExt(targetExt))
     }
 
-    const original = await readTenantFile(storage, tenantKeys, image.filename)
+    const original = await readBlobFileWithLegacy(storage, image.filename, legacyTenantKeys)
     if (!original) {
       return NextResponse.json({ error: 'Original file not found' }, { status: 404 })
     }
@@ -135,7 +129,7 @@ export async function GET(
     else pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true })
 
     const out = await pipeline.toBuffer()
-    await writeTenantCache(storage, primaryTenantKey, cacheName, out, getContentTypeByExt(targetExt))
+    await writeBlobCache(storage, cacheName, out, getContentTypeByExt(targetExt))
 
     return bufferResponse(out, getContentTypeByExt(targetExt))
   } catch (error) {

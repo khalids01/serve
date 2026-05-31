@@ -36,6 +36,7 @@ import { FileGridItem } from "@/features/applications/components/application-det
 import { FileListItem } from "@/features/applications/components/application-details/file-list-item";
 import { ImagePreviewDialog } from "@/features/applications/components/application-details/preview-dialog";
 import type { ImageFileDTO } from "@/features/applications/components/application-details/types";
+import { DeleteImageConfirmDescription } from "@/features/applications/components/application-details/linked-app-badges";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const ALL_APPLICATIONS = "all";
@@ -62,17 +63,23 @@ export function ImagesPageClient() {
     mutationFn: async (imageId: string) => {
       const res = await fetch(`/api/images/${imageId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete image");
-      return res.json();
+      return res.json() as Promise<{
+        success: boolean;
+        linkedApplications?: Array<{ id: string }>;
+      }>;
     },
-    onSuccess: async (_data, imageId) => {
-      const deleted = images.find((img) => img.id === imageId);
+    onSuccess: async (data) => {
+      const appIds = new Set<string>();
+      for (const app of data.linkedApplications ?? []) {
+        appIds.add(app.id);
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["all-images"] }),
-        deleted?.applicationId
-          ? queryClient.invalidateQueries({
-              queryKey: ["application-images", deleted.applicationId],
-            })
-          : Promise.resolve(),
+        ...[...appIds].map((id) =>
+          queryClient.invalidateQueries({
+            queryKey: ["application-images", id],
+          }),
+        ),
       ]);
     },
   });
@@ -228,9 +235,8 @@ export function ImagesPageClient() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete this file?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the file and its variants from
-                storage and the database.
+              <AlertDialogDescription asChild>
+                <DeleteImageConfirmDescription image={targetDelete} />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
