@@ -10,6 +10,7 @@ import {
 import { getStorage } from "@/lib/storage/factory";
 import { imageInclude } from "@/lib/image-upload";
 import { getLegacyTenantKeys } from "@/lib/image-response";
+import { isSharpResizable } from "@/lib/storage/image";
 
 const MAX_DIMENSION = 4096;
 
@@ -141,20 +142,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     const normalizedOrigExt = origExt === "jpeg" ? "jpg" : origExt;
 
-    const isTransformableTarget = VALID_TARGETS.includes(targetExt);
-    const isTransformableSource = [
-      "jpg",
-      "jpeg",
-      "png",
-      "webp",
-      "avif",
-      "tiff",
-      "gif",
-      "svg",
-    ].includes(normalizedOrigExt);
-
     if (
-      !isTransformableSource &&
+      !isSharpResizable(image.contentType, image.filename) &&
       targetExt !== normalizedOrigExt &&
       !isPlaceholder
     ) {
@@ -211,6 +200,25 @@ export async function serveImage(request: NextRequest, rawName: string) {
         return NextResponse.json({ error: "Variant not found" }, { status: 404 });
       }
       return bufferResponse(buf, getContentTypeByExt(targetExt));
+    }
+
+    const needsTransform =
+      !!width ||
+      !!height ||
+      !!quality ||
+      targetExt !== normalizedOrigExt;
+
+    if (
+      needsTransform &&
+      !isSharpResizable(image.contentType, image.filename)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Resize and format conversion are only supported for raster image files",
+        },
+        { status: 400 },
+      );
     }
 
     const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""}${quality ? `_q${quality}` : ""}.${targetExt}`;

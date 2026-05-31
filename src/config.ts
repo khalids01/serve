@@ -30,7 +30,7 @@ export const config = {
       forcePathStyle: true,
     },
     /** Store on-demand resize cache under {tenant}/_cache/ in the active backend. */
-    cacheInStorage: true,
+    cacheInStorage: false,
   },
 
   upload: {

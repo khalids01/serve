@@ -14,6 +14,7 @@ import {
   getLegacyTenantKeys,
   userOwnsLinkedImage,
 } from '@/lib/image-response'
+import { isSharpResizable } from '@/lib/storage/image'
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,15 @@ export async function POST(
 
     if (!applicationId) {
       return NextResponse.json({ error: "Application context required" }, { status: 400 });
+    }
+
+    if (
+      !isSharpResizable(originalImage.contentType, originalImage.filename)
+    ) {
+      return NextResponse.json(
+        { error: "Crop is only supported for raster image files" },
+        { status: 400 },
+      );
     }
 
     const junction = getJunctionForApp(originalImage, applicationId);

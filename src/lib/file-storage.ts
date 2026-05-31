@@ -11,6 +11,7 @@ import {
   normalizeRasterFormat,
   placeholder,
   placeholderWebp,
+  UPLOAD_OPTIMIZABLE_MIME_TYPES,
 } from "@/lib/storage/image";
 import type { FileUploadResult } from "@/lib/storage/types";
 
@@ -39,14 +40,11 @@ export class FileStorageService {
       variants: [],
     };
 
-    const OPTIMIZABLE_MIME_TYPES = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/webp",
-    ];
-
-    if (OPTIMIZABLE_MIME_TYPES.includes(contentType)) {
+    if (
+      UPLOAD_OPTIMIZABLE_MIME_TYPES.includes(
+        contentType as (typeof UPLOAD_OPTIMIZABLE_MIME_TYPES)[number],
+      )
+    ) {
       try {
         const metadata = await readMetadata(buffer);
         result.width = metadata.width;

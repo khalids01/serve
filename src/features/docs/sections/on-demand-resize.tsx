@@ -70,7 +70,13 @@ curl -i \
             </li>
             <li>
               <strong>Caching</strong>: resized outputs stored under{" "}
-              <code>_cache</code> for fast subsequent responses
+              <code>_cache</code> for fast subsequent responses (when{" "}
+              <code>storage.cacheInStorage</code> is enabled)
+            </li>
+            <li>
+              <strong>Raster images only</strong>: resize and format conversion
+              apply to JPEG, PNG, WebP, AVIF, GIF, and TIFF; other file types
+              are served as uploaded
             </li>
             <li>
               <strong>Headers</strong>: immutable cache with 1‑year max‑age

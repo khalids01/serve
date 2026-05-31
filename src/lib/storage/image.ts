@@ -1,7 +1,56 @@
+import path from "path";
 import sharp, { Metadata } from "sharp";
 import { config } from "@/config";
 
 export type NormalizedRasterExt = "jpg" | "png" | "webp" | null;
+
+export const UPLOAD_OPTIMIZABLE_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+] as const;
+
+export const SHARP_RESIZABLE_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+  "image/tiff",
+] as const;
+
+const SHARP_RESIZABLE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "avif",
+  "gif",
+  "tiff",
+  "tif",
+]);
+
+export function isSharpResizable(
+  contentType: string,
+  filename?: string,
+): boolean {
+  const mime = (contentType || "").toLowerCase();
+  if (
+    SHARP_RESIZABLE_MIME_TYPES.includes(
+      mime as (typeof SHARP_RESIZABLE_MIME_TYPES)[number],
+    )
+  ) {
+    return true;
+  }
+  if (mime && mime !== "application/octet-stream") {
+    return false;
+  }
+  if (!filename) return false;
+  const ext = path.extname(filename).replace(".", "").toLowerCase();
+  return SHARP_RESIZABLE_EXTENSIONS.has(ext);
+}
 
 export async function readMetadata(buffer: Buffer): Promise<Metadata> {
   return sharp(buffer).metadata();

@@ -11,6 +11,7 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 | Setting | Default | Description |
 | --- | --- | --- |
 | `storage.provider` | `"local"` | `"local"` or `"s3"` |
+| `storage.cacheInStorage` | `true` | Store on-demand resize outputs under `{tenant}/_cache/` |
 | `upload.maxFileSizeMb` | `50` | Server-side upload limit |
 | `upload.publicMaxFileSizeMb` | `50` | Documented client limit (sync with `NEXT_PUBLIC_MAX_FILE_SIZE`) |
 | `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
@@ -114,9 +115,10 @@ npm run db:push
 
 ## Image Processing
 
-- Original images are optimized; same-dimension WebP copies and blurred placeholders are generated on upload
-- On-demand resizing via `/api/img/:name?w=...&h=...` with optional `format` and `quality`
-- Resize cache stored under `{tenant}/_cache/` in the active storage backend
+- Original **raster images** (JPEG, PNG, WebP) are optimized on upload; same-dimension WebP copies and blurred placeholders are generated
+- PDFs, videos, audio, and other non-image files are stored as uploaded with no Sharp processing
+- On-demand resizing via `/api/img/:name?w=...&h=...` with optional `format` and `quality` — **raster images only**; other file types are served as uploaded and return `400` if resize/format params are requested
+- Resize cache stored under `{tenant}/_cache/` when `storage.cacheInStorage` is `true` in `src/config.ts`; set to `false` to skip cache read/write (resize still works, but re-processes on every request)
 
 ## Audit Logging
 

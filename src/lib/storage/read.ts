@@ -1,3 +1,4 @@
+import { config } from "@/config";
 import type { StorageBackend } from "./backend";
 import {
   blobKey,
@@ -41,6 +42,7 @@ export async function readBlobCacheWithLegacy(
   cacheName: string,
   legacyTenantKeys: string[] = [],
 ): Promise<Buffer | null> {
+  if (!config.storage.cacheInStorage) return null;
   const cached = await readBlobCache(storage, cacheName);
   if (cached) return cached;
   return readTenantCache(storage, legacyTenantKeys, cacheName);
@@ -52,6 +54,7 @@ export async function writeBlobCache(
   data: Buffer,
   contentType?: string,
 ): Promise<void> {
+  if (!config.storage.cacheInStorage) return;
   await storage.put(blobCacheKey(cacheName), data, { contentType });
 }
 

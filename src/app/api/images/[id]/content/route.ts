@@ -10,6 +10,7 @@ import {
 import { getStorage } from '@/lib/storage/factory'
 import { imageInclude } from '@/lib/image-upload'
 import { getLegacyTenantKeys } from '@/lib/image-response'
+import { isSharpResizable } from '@/lib/storage/image'
 
 const MAX_DIMENSION = 4096
 
@@ -102,6 +103,26 @@ export async function GET(
       if (buf) {
         return bufferResponse(buf, 'image/webp')
       }
+    }
+
+    const normalizedOrigExt = origExt === 'jpeg' ? 'jpg' : origExt
+    const needsTransform =
+      !!width ||
+      !!height ||
+      !!fmtParam ||
+      (!!idExt && targetExt !== normalizedOrigExt)
+
+    if (
+      needsTransform &&
+      !isSharpResizable(image.contentType, image.filename)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Resize and format conversion are only supported for raster image files',
+        },
+        { status: 400 },
+      )
     }
 
     const base = path.parse(image.filename).name
