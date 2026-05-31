@@ -3,6 +3,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Copy, Download, Eye, Trash2 } from "lucide-react";
 import { ImageFileDTO } from "./types";
 import { PdfViewer } from "../pdf-viewer";
+import { ProgressiveImage } from "@/components/progressive-image";
+import { toImageServeUrl, toPlaceholderUrl } from "@/lib/image-urls";
 
 // Helper functions (could be moved to utils)
 const isPdf = (contentType: string) => contentType === "application/pdf";
@@ -28,14 +30,12 @@ interface Props {
 }
 
 export function FileListItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard, applicationName, showSelection = true }: Props) {
-  const url = `/api/img/${img.filename}`;
-  // For SVG we use raw URL to avoid potential resize params being added elsewhere if misused,
-  // but here we just render img for preview. 
-  // IMPORTANT: For list view, we want a small thumbnail. 
-  // The 'w-10 h-10' class on container sets the size.
-  // We Ensure image fits inside.
-
+  const url = toImageServeUrl(img.filename);
   const isImage = img.contentType.startsWith("image/");
+  const thumbnailSrc = toImageServeUrl(img.filename, {
+    width: isSvg(img.contentType) ? undefined : 80,
+  });
+  const placeholderSrc = toPlaceholderUrl(img.filename, { variants: img.variants });
 
   return (
     <div
@@ -54,10 +54,11 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
           {isPdf(img.contentType) ? (
             <span className="text-[10px] font-bold text-muted-foreground">PDF</span>
           ) : isImage ? (
-            <img
-              src={`${url}${isSvg(img.contentType) ? '' : '?w=80'}`}
+            <ProgressiveImage
+              src={thumbnailSrc}
+              placeholderSrc={placeholderSrc}
               alt={img.originalName}
-              className="w-full h-full object-cover" 
+              className="w-full h-full object-cover"
             />
           ) : (
              <span className="text-[10px] font-bold text-muted-foreground uppercase">{img.filename.split('.').pop()}</span>

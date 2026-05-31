@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Copy, Download, Eye, ExternalLink, Trash2 } from "lucide-react";
 import { ImageFileDTO } from "./types";
+import { ProgressiveImage } from "@/components/progressive-image";
+import { toImageServeUrl, toPlaceholderUrl } from "@/lib/image-urls";
 
 const isPdf = (contentType: string) => contentType === "application/pdf";
 const isSvg = (contentType: string) => contentType === "image/svg+xml";
@@ -26,8 +28,12 @@ interface Props {
 }
 
 export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard, applicationName, showSelection = true }: Props) {
-  const url = `/api/img/${img.filename}`;
+  const url = toImageServeUrl(img.filename);
   const isImage = img.contentType.startsWith("image/");
+  const thumbnailSrc = toImageServeUrl(img.filename, {
+    width: isSvg(img.contentType) ? undefined : 640,
+  });
+  const placeholderSrc = toPlaceholderUrl(img.filename, { variants: img.variants });
 
   return (
     <div
@@ -48,8 +54,9 @@ export function FileGridItem({ img, selected, onToggleSelection, onPreview, onDe
             <span className="text-sm font-medium">PDF</span>
           </div>
         ) : isImage ? (
-          <img
-            src={`${url}${isSvg(img.contentType) ? '' : '?w=640'}`}
+          <ProgressiveImage
+            src={thumbnailSrc}
+            placeholderSrc={placeholderSrc}
             alt={img.originalName}
             className="w-full h-full object-cover"
           />

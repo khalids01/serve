@@ -1,10 +1,9 @@
 import { NextResponse, } from "next/server";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
 import { ApiKeyService } from "@/lib/api-keys";
 import { maxFileSizeBytes, config } from "@/config";
-import type { ImageVariant } from "@/lib/prisma-types";
+import { withImageUrls } from "@/lib/image-urls";
 
 interface FileWithTags {
   file: File;
@@ -92,18 +91,7 @@ async function processFile({
     console.error("Audit log (UPLOAD) error:", e);
   }
 
-  const ext = path.extname(image.filename);
-  return {
-    ...image,
-    url: `/api/img/${image.id}${ext}`,
-    variants: image.variants.map((variant: ImageVariant) => ({
-      ...variant,
-      url: `/api/img/${image.id}${ext}${variant.width || variant.height ? `?${[
-        variant.width ? `w=${variant.width}` : '',
-        variant.height ? `h=${variant.height}` : ''
-      ].filter(Boolean).join('&')}` : ''}`,
-    })),
-  };
+  return withImageUrls(image, image.id);
 }
 
 type UploadContext = {
@@ -277,13 +265,9 @@ export async function handleUpload({
       ip: headers.ip,
     });
 
-    const ext = path.extname(result.filename);
     return NextResponse.json({
       success: true,
-      image: {
-        ...result,
-        url: `/api/img/${result.id}${ext}`,
-      },
+      image: withImageUrls(result, result.id),
     });
   } catch (error) {
     console.error("Upload error:", error);

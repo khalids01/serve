@@ -80,17 +80,29 @@ export async function serveImage(request: NextRequest, rawName: string) {
     const height = clamp(hParam ? parseInt(hParam, 10) : null);
     const quality = clampQuality(qParam ? parseInt(qParam, 10) : null);
 
-    let requestedExt: string | null = null;
-    let baseName = rawName;
-    if (rawName.includes(".")) {
-      const dot = rawName.lastIndexOf(".");
-      baseName = rawName.slice(0, dot);
-      requestedExt = rawName.slice(dot + 1).toLowerCase();
-    }
     const PLACEHOLDER_SUFFIX = "-placeholder";
-    const isPlaceholder = baseName.endsWith(PLACEHOLDER_SUFFIX);
+    let isPlaceholder = rawName.endsWith(PLACEHOLDER_SUFFIX);
+    let imagePathName = isPlaceholder
+      ? rawName.slice(0, -PLACEHOLDER_SUFFIX.length)
+      : rawName;
+
+    let requestedExt: string | null = null;
+    let baseName = imagePathName;
+    if (imagePathName.includes(".")) {
+      const dot = imagePathName.lastIndexOf(".");
+      baseName = imagePathName.slice(0, dot);
+      requestedExt = imagePathName.slice(dot + 1).toLowerCase();
+    }
+
+    // Legacy pattern: {hash}-placeholder.{ext}
+    if (!isPlaceholder && baseName.endsWith(PLACEHOLDER_SUFFIX)) {
+      isPlaceholder = true;
+    }
+
     const lookupId = isPlaceholder
-      ? baseName.slice(0, -PLACEHOLDER_SUFFIX.length)
+      ? baseName.endsWith(PLACEHOLDER_SUFFIX)
+        ? baseName.slice(0, -PLACEHOLDER_SUFFIX.length)
+        : baseName
       : baseName;
 
     let image = await prisma.image.findUnique({

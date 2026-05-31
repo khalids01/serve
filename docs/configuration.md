@@ -62,6 +62,8 @@ uploads/
       abc123_w800_h600.webp
 ```
 
+Public placeholder URLs use `/api/img/{hash}.{ext}-placeholder` (e.g. `/api/img/abc123.webp-placeholder`); on-disk files keep the `{hash}-placeholder.{ext}` naming.
+
 ### S3-compatible storage (AWS S3, Cloudflare R2, MinIO, etc.)
 
 All S3-compatible providers use the same API. Set `storage.provider` to `"s3"` in `src/config.ts` and configure credentials in `.env`.

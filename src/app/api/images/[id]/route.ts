@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { FileStorageService } from '@/lib/file-storage'
 import { protect } from '@/features/auth/guard'
+import { withImageUrls } from '@/lib/image-urls'
 import path from 'path'
 import { deleteTenantCacheByBase } from '@/lib/storage/read'
 import { uniqueTenantKeys } from '@/lib/storage/keys'
@@ -36,18 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    const ext = path.extname(image.filename);
-    return NextResponse.json({
-      ...image,
-      url: `/api/img/${image.id}${ext}`,
-      variants: image.variants.map(variant => ({
-        ...variant,
-        url: `/api/img/${image.id}${ext}${variant.width || variant.height ? `?${[
-          variant.width ? `w=${variant.width}` : '',
-          variant.height ? `h=${variant.height}` : ''
-        ].filter(Boolean).join('&')}` : ''}`
-      }))
-    })
+    return NextResponse.json(withImageUrls(image, image.id))
 
   } catch (error) {
     console.error('Get image error:', error)

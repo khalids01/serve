@@ -9,6 +9,11 @@ import { Crop, ExternalLink, Copy } from "lucide-react";
 import { ImageFileDTO } from "./types";
 import { PdfViewer } from "../pdf-viewer";
 import { useState } from "react";
+import {
+  isPlaceholderLabel,
+  toImageServeUrl,
+  variantToServeUrl,
+} from "@/lib/image-urls";
 
 // Helper functions
 const isPdf = (contentType: string) => contentType === "application/pdf";
@@ -30,9 +35,15 @@ export function ImagePreviewDialog({ previewImage, onClose, onCrop, copyToClipbo
       ? previewImage.variants.find((v) => v.id === activeVariant) || previewImage
       : previewImage;
 
+  const previewServeUrl = activeVariant && "label" in activeItem
+    ? variantToServeUrl(activeItem, previewImage.filename)
+    : toImageServeUrl(previewImage.filename, {
+        width: isSvg(previewImage.contentType) ? undefined : 1280,
+      });
+
   const previewAbsoluteUrl = typeof window !== "undefined"
-      ? new URL(`/api/img/${activeItem.filename}`, window.location.origin).toString()
-      : `/api/img/${activeItem.filename}`;
+      ? new URL(previewServeUrl, window.location.origin).toString()
+      : previewServeUrl;
 
   const isImage = previewImage.contentType.startsWith("image/");
   
@@ -98,7 +109,7 @@ export function ImagePreviewDialog({ previewImage, onClose, onCrop, copyToClipbo
                </div>
             ) : isImage ? (
               <img
-                src={`/api/img/${activeItem.filename}${!activeVariant && isSvg(previewImage.contentType) ? '' : '?w=1280'}`}
+                src={previewServeUrl}
                 alt={previewImage.originalName}
                 className="max-h-full max-w-full object-contain shadow-sm"
               />
@@ -123,7 +134,7 @@ export function ImagePreviewDialog({ previewImage, onClose, onCrop, copyToClipbo
                     onClick={() => handleVariantClick(null)}
                   >
                      <img
-                       src={`/api/img/${previewImage.filename}?w=160`}
+                       src={toImageServeUrl(previewImage.filename, { width: 160 })}
                        className="w-full h-full object-cover"
                        alt="Main"
                      />
@@ -141,7 +152,11 @@ export function ImagePreviewDialog({ previewImage, onClose, onCrop, copyToClipbo
                       title={`View ${v.label}`}
                     >
                       <img
-                        src={`/api/img/${v.filename}?w=160`}
+                        src={
+                          isPlaceholderLabel(v.label)
+                            ? variantToServeUrl(v, previewImage.filename)
+                            : toImageServeUrl(v.filename, { width: 160 })
+                        }
                         className="w-full h-full object-cover"
                         alt={v.label}
                       />
