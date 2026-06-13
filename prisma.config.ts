@@ -1,10 +1,20 @@
 import "dotenv/config";
 import path from "node:path";
-import type { PrismaConfig } from "prisma";
+import { defineConfig, env } from "prisma/config";
+import dotenv from "dotenv";
 
-export default {
+dotenv.config({
+  path: "../../apps/server/.env",
+});
+
+export default defineConfig({
+  engine: "classic",
   schema: path.join("prisma", "schema"),
   migrations: {
     path: path.join("prisma", "migrations"),
+    // seed: "bun run prisma/seed/index.ts",
   },
-} satisfies PrismaConfig;
+  datasource: {
+    url: env("DATABASE_URL"),
+  },
+});
