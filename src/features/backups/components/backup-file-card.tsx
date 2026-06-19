@@ -1,15 +1,9 @@
 "use client";
 
-import { RefreshCw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { BackupFileActionsMenu } from "@/features/backups/components/backup-file-actions-menu";
 import {
   type BackupRecord,
   formatBackupSize,
@@ -39,8 +33,6 @@ export function BackupFileCard({
   onRestore,
   onDelete,
 }: BackupFileCardProps) {
-  const canRestore = backup.type === "json" && backup.status === "success";
-
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
@@ -57,6 +49,12 @@ export function BackupFileCard({
               {backup.storageKey ?? backup.errorMessage ?? "No storage key"}
             </div>
           </div>
+          <BackupFileActionsMenu
+            backup={backup}
+            disabled={disabled}
+            onRestore={onRestore}
+            onDelete={onDelete}
+          />
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -74,41 +72,6 @@ export function BackupFileCard({
             <p className="text-xs text-muted-foreground">Completed</p>
             <p className="truncate">{formatDateTime(backup.completedAt)}</p>
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {canRestore && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={disabled}
-                  onClick={onRestore}
-                >
-                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                  Restore
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Restore metadata from this backup
-              </TooltipContent>
-            </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={disabled}
-                onClick={onDelete}
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                Delete
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Delete backup</TooltipContent>
-          </Tooltip>
         </div>
       </CardContent>
     </Card>

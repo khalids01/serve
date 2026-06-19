@@ -227,6 +227,31 @@ export function useCleanupOldBackupsMutation() {
   });
 }
 
+export type ScanStorageBackupsResult = {
+  success: boolean;
+  importedCount: number;
+  skippedCount: number;
+  alreadyTrackedCount: number;
+  errors: string[];
+};
+
+export function useScanStorageBackupsMutation() {
+  const qc = useQueryClient();
+  return useMutation<ScanStorageBackupsResult, Error, void>({
+    mutationFn: async () => {
+      const { data } = await api.post("/api/admin/backups/scan");
+      return data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["backups"] });
+    },
+  });
+}
+
+export function getBackupDownloadUrl(id: string) {
+  return `/api/admin/backups/${id}/download`;
+}
+
 export function useBulkDeleteBackupsMutation() {
   const qc = useQueryClient();
   return useMutation<

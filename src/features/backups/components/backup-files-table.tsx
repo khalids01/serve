@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, RefreshCw, Trash2 } from "lucide-react";
+import { Archive, FolderSync, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -47,12 +47,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { BackupDateInput } from "@/features/backups/components/backup-date-input";
+import { BackupFileActionsMenu } from "@/features/backups/components/backup-file-actions-menu";
 import { BackupFileCard } from "@/features/backups/components/backup-file-card";
 import {
   DEFAULT_BACKUP_LIST_PARAMS,
@@ -64,6 +60,7 @@ import {
   useBulkDeleteBackupsMutation,
   useBulkSyncBackupsMutation,
   useDeleteBackupMutation,
+  useScanStorageBackupsMutation,
   useSyncBackupMutation,
 } from "@/features/backups/hooks/use-backups";
 
@@ -110,6 +107,7 @@ export function BackupFilesTable({
   const syncBackup = useSyncBackupMutation();
   const bulkDelete = useBulkDeleteBackupsMutation();
   const bulkSync = useBulkSyncBackupsMutation();
+  const scanStorage = useScanStorageBackupsMutation();
 
   const pageIds = useMemo(() => backups.map((b) => b.id), [backups]);
   const allPageSelected =
@@ -127,7 +125,28 @@ export function BackupFilesTable({
     deleteBackup.isPending ||
     syncBackup.isPending ||
     bulkDelete.isPending ||
-    bulkSync.isPending;
+    bulkSync.isPending ||
+    scanStorage.isPending;
+
+  async function handleScanStorage() {
+    try {
+      const result = await scanStorage.mutateAsync();
+      const parts = [
+        `Imported ${result.importedCount}`,
+        `${result.alreadyTrackedCount} already tracked`,
+        `${result.skippedCount} skipped`,
+      ];
+      if (result.errors.length > 0) {
+        toast.warning(`${parts.join(", ")}. ${result.errors.length} error(s).`);
+      } else {
+        toast.success(parts.join(", "));
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to scan storage",
+      );
+    }
+  }
 
   function updateParams(
     patch: Partial<BackupListParams>,
@@ -229,14 +248,25 @@ export function BackupFilesTable({
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Archive className="h-5 w-5" />
-            Backup Files
-          </CardTitle>
-          <CardDescription>
-            Filter, paginate, and manage backup snapshots.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5" />
+              Backup Files
+            </CardTitle>
+            <CardDescription>
+              Filter, paginate, and manage backup snapshots.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={isBusy || isLoading}
+            onClick={() => void handleScanStorage()}
+          >
+            <FolderSync className="mr-2 h-4 w-4" />
+            {scanStorage.isPending ? "Scanning..." : "Scan storage"}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
@@ -505,49 +535,22 @@ export function BackupFilesTable({
                           {formatDateTime(backup.completedAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {backup.type === "json" &&
-                              backup.status === "success" && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={isBusy}
-                                      onClick={() =>
-                                        setConfirmAction({
-                                          type: "sync-one",
-                                          backup,
-                                        })
-                                      }
-                                    >
-                                      <RefreshCw className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Restore metadata from this backup
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  disabled={isBusy}
-                                  onClick={() =>
-                                    setConfirmAction({
-                                      type: "delete-one",
-                                      backup,
-                                    })
-                                  }
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete backup</TooltipContent>
-                            </Tooltip>
-                          </div>
+                          <BackupFileActionsMenu
+                            backup={backup}
+                            disabled={isBusy}
+                            onRestore={() =>
+                              setConfirmAction({
+                                type: "sync-one",
+                                backup,
+                              })
+                            }
+                            onDelete={() =>
+                              setConfirmAction({
+                                type: "delete-one",
+                                backup,
+                              })
+                            }
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

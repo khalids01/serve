@@ -653,6 +653,190 @@ export async function deleteBackupRecord(recordId: string) {
   return { deleted: true };
 }
 
+const BACKUP_PERIODS: BackupPeriod[] = ["daily", "weekly", "monthly"];
+const BACKUP_TYPES: BackupType[] = ["json", "sql"];
+
+function parseBackupStorageKey(
+  key: string,
+  basePrefix: string,
+): { period: BackupPeriod; type: BackupType; filename: string } | null {
+  const prefix = `${cleanPrefix(basePrefix)}/`;
+  if (!key.startsWith(prefix)) return null;
+
+  const relative = key.slice(prefix.length);
+  const parts = relative.split("/");
+  if (parts.length !== 3) return null;
+
+  const [period, type, filename] = parts;
+  if (
+    !BACKUP_PERIODS.includes(period as BackupPeriod) ||
+    !BACKUP_TYPES.includes(type as BackupType) ||
+    !filename
+  ) {
+    return null;
+  }
+
+  return {
+    period: period as BackupPeriod,
+    type: type as BackupType,
+    filename,
+  };
+}
+
+export async function scanStorageBackups() {
+  const backupConfig = await ensureBackupConfig();
+  const basePrefix = cleanPrefix(backupConfig.basePrefix);
+  const storage = getStorage();
+
+  const existingRecords = await prisma.backupRecord.findMany({
+    where: { storageKey: { not: null } },
+    select: { storageKey: true },
+  });
+  const trackedKeys = new Set(
+    existingRecords
+      .map((record) => record.storageKey)
+      .filter((key): key is string => Boolean(key)),
+  );
+
+  const result = {
+    importedCount: 0,
+    skippedCount: 0,
+    alreadyTrackedCount: 0,
+    errors: [] as string[],
+  };
+
+  let latestJsonAt: Date | null = null;
+  let latestSqlAt: Date | null = null;
+
+  for (const period of BACKUP_PERIODS) {
+    for (const type of BACKUP_TYPES) {
+      const listPrefix = `${basePrefix}/${period}/${type}/`;
+      let objects: Awaited<ReturnType<typeof storage.list>>;
+      try {
+        objects = await storage.list(listPrefix);
+      } catch (error) {
+        result.errors.push(
+          `Failed to list ${listPrefix}: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        );
+        continue;
+      }
+
+      for (const object of objects) {
+        if (object.sizeBytes <= 0) {
+          result.skippedCount += 1;
+          continue;
+        }
+
+        if (trackedKeys.has(object.key)) {
+          result.alreadyTrackedCount += 1;
+          continue;
+        }
+
+        const parsed = parseBackupStorageKey(object.key, basePrefix);
+        if (!parsed) {
+          result.skippedCount += 1;
+          continue;
+        }
+
+        const completedAt = object.mtimeMs
+          ? new Date(object.mtimeMs)
+          : new Date();
+
+        try {
+          await prisma.backupRecord.create({
+            data: {
+              type: parsed.type,
+              period: parsed.period,
+              status: "success",
+              trigger: "manual",
+              storageKey: object.key,
+              filename: parsed.filename,
+              sizeBytes: object.sizeBytes,
+              startedAt: completedAt,
+              completedAt,
+            },
+          });
+          trackedKeys.add(object.key);
+          result.importedCount += 1;
+
+          if (parsed.type === "json") {
+            if (!latestJsonAt || completedAt > latestJsonAt) {
+              latestJsonAt = completedAt;
+            }
+          } else if (!latestSqlAt || completedAt > latestSqlAt) {
+            latestSqlAt = completedAt;
+          }
+        } catch (error) {
+          result.errors.push(
+            `Failed to import ${object.key}: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+        }
+      }
+    }
+  }
+
+  if (latestJsonAt || latestSqlAt) {
+    const configUpdate: {
+      lastJsonBackupAt?: Date;
+      lastSqlBackupAt?: Date;
+    } = {};
+
+    if (
+      latestJsonAt &&
+      (!backupConfig.lastJsonBackupAt ||
+        latestJsonAt > backupConfig.lastJsonBackupAt)
+    ) {
+      configUpdate.lastJsonBackupAt = latestJsonAt;
+    }
+    if (
+      latestSqlAt &&
+      (!backupConfig.lastSqlBackupAt ||
+        latestSqlAt > backupConfig.lastSqlBackupAt)
+    ) {
+      configUpdate.lastSqlBackupAt = latestSqlAt;
+    }
+
+    if (Object.keys(configUpdate).length > 0) {
+      await prisma.backupConfig.update({
+        where: { id: CONFIG_ID },
+        data: configUpdate,
+      });
+    }
+  }
+
+  return result;
+}
+
+export async function getBackupFileForDownload(recordId: string) {
+  const record = await prisma.backupRecord.findUnique({
+    where: { id: recordId },
+  });
+  if (!record?.storageKey) {
+    throw new Error("Backup file is not available for download");
+  }
+  if (record.status === "running") {
+    throw new Error("Backup is still running");
+  }
+
+  const buffer = await getStorage().get(record.storageKey);
+  if (!buffer) {
+    throw new Error("Backup file was not found in storage");
+  }
+
+  const contentType =
+    record.type === "json" ? "application/json" : "application/sql";
+
+  return {
+    buffer,
+    filename: record.filename,
+    contentType,
+  };
+}
+
 export async function runDueBackups() {
   const backupConfig = await ensureBackupConfig();
   if (!backupConfig.enabled) return { ran: false, reason: "disabled" };
