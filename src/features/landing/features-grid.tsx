@@ -53,8 +53,8 @@ const items = [
     accent: "text-sky-500",
   },
   {
-    title: "Real-time analytics",
-    desc: "Track usage, health and performance metrics.",
+    title: "Data backup & restore",
+    desc: "Scheduled JSON/SQL backups with scan-from-storage disaster recovery.",
     Icon: ServerCog,
     accent: "text-orange-500",
   },

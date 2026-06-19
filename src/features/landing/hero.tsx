@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { getLandingData } from "./data"
-import { Github, Star, GitFork, Users, HardDrive, Files, Activity } from "lucide-react"
+import { Github, Star, GitFork, HardDrive, Files, Layers3 } from "lucide-react"
 import Link from "next/link"
 
 export async function Hero() {
@@ -13,7 +13,7 @@ export async function Hero() {
       <div className="max-w-4xl mx-auto text-center space-y-8">
         <div className="space-y-4">
           <Badge variant="outline" className="mx-auto">
-            🚀 Open Source File Storage
+            Open Source File Storage
           </Badge>
           
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
@@ -25,7 +25,6 @@ export async function Hero() {
           </p>
         </div>
 
-        {/* Features */}
         <div className="flex flex-wrap justify-center gap-2">
           {data.features.map((feature) => (
             <Badge key={feature} variant="secondary">
@@ -34,12 +33,11 @@ export async function Hero() {
           ))}
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
           <Card>
             <CardContent className="p-4 text-center">
               <HardDrive className="h-5 w-5 mx-auto mb-2 text-blue-500" />
-              <div className="text-2xl font-bold">{data.stats.storageCapacity}</div>
+              <div className="text-2xl font-bold">{data.stats.storageLabel}</div>
               <div className="text-xs text-muted-foreground">Storage</div>
             </CardContent>
           </Card>
@@ -54,22 +52,25 @@ export async function Hero() {
           
           <Card>
             <CardContent className="p-4 text-center">
-              <Activity className="h-5 w-5 mx-auto mb-2 text-orange-500" />
-              <div className="text-2xl font-bold">{data.stats.activeConnections}</div>
-              <div className="text-xs text-muted-foreground">Active</div>
+              <Layers3 className="h-5 w-5 mx-auto mb-2 text-indigo-500" />
+              <div className="text-2xl font-bold">{data.stats.applications.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">Applications</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4 text-center">
               <Star className="h-5 w-5 mx-auto mb-2 text-yellow-500" />
-              <div className="text-2xl font-bold">{data.stats.githubStats.stars}</div>
-              <div className="text-xs text-muted-foreground">Stars</div>
+              <div className="text-2xl font-bold">{data.stats.githubStats.stars.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">GitHub Stars</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* CTA Buttons */}
+        <p className="text-xs text-muted-foreground">
+          Storage, files, and applications reflect this running instance.
+        </p>
+
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Button size="lg" asChild>
             <Link href="/dashboard">
@@ -78,7 +79,7 @@ export async function Hero() {
           </Button>
           
           <Button variant="outline" size="lg" asChild>
-            <Link href="https://github.com/your-username/serve" target="_blank" rel="noopener noreferrer">
+            <Link href="https://github.com/khalids01/serve" target="_blank" rel="noopener noreferrer">
               <Github className="mr-2 h-4 w-4" />
               View on GitHub
             </Link>
@@ -91,21 +92,18 @@ export async function Hero() {
           </Button>
         </div>
 
-        {/* GitHub Stats */}
-        <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4" />
-            {data.stats.githubStats.stars} stars
+        {(data.stats.githubStats.forks > 0 || data.stats.githubStats.stars > 0) && (
+          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4" />
+              {data.stats.githubStats.stars.toLocaleString()} stars
+            </div>
+            <div className="flex items-center gap-1">
+              <GitFork className="h-4 w-4" />
+              {data.stats.githubStats.forks.toLocaleString()} forks
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <GitFork className="h-4 w-4" />
-            {data.stats.githubStats.forks} forks
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="h-4 w-4" />
-            {data.stats.githubStats.contributors} contributors
-          </div>
-        </div>
+        )}
       </div>
     </section>
   )

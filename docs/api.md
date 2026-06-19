@@ -1,6 +1,14 @@
 # Serve API Reference
 
-This document covers the most common endpoints and authentication for server-to-server usage. For an interactive overview, see the in-app docs at /docs.
+This document covers the most common endpoints and authentication for server-to-server usage. For an interactive overview with live testing, see the in-app docs at `/docs`.
+
+## Quick actions
+
+1. Create an application in the dashboard and generate an API key.
+2. Send the key as `Authorization: Bearer <key>` or `x-api-key: <key>`.
+3. Upload a file with `POST /api/upload`.
+4. List files with `GET /api/images` and serve them via `GET /api/img/:name`.
+5. Use **Dashboard → Data Backup** and **Cache** for admin tasks (session auth only).
 
 ## Authentication
 
@@ -44,6 +52,7 @@ Response:
 
 Notes:
 - `storageBytes` counts each unique image blob once (including variants), even when linked to multiple applications.
+- Requires session authentication (dashboard).
 
 ## Upload
 
@@ -187,6 +196,37 @@ Notes:
 - Logs track UPLOAD and DELETE actions
 - Requires session authentication (dashboard) or API key for the application
 - Metadata includes original filename and processed filename
+
+## Dashboard admin (session auth)
+
+These endpoints require a signed-in dashboard session. They are **not** available with API keys.
+
+### Backups
+
+```
+GET    /api/admin/backups              List backups (paginated, filterable)
+PATCH  /api/admin/backups/config       Update backup schedule and retention
+POST   /api/admin/backups/json         Take JSON metadata backup now
+POST   /api/admin/backups/sql          Take SQL database backup now
+POST   /api/admin/backups/scan         Scan storage and import missing backup files
+POST   /api/admin/backups/cleanup      Remove backups past retention
+GET    /api/admin/backups/{id}/download Download a backup file
+POST   /api/admin/backups/{id}/sync    Restore metadata from JSON backup
+DELETE /api/admin/backups/{id}         Delete a backup file and record
+POST   /api/admin/backups/bulk-delete  Delete multiple backups
+POST   /api/admin/backups/bulk-sync    Restore metadata from multiple JSON backups
+```
+
+See [configuration.md](configuration.md#data-backup) for storage layout and disaster recovery.
+
+### Cache
+
+```
+GET    /api/cache                      List cache entries (all apps or filtered)
+DELETE /api/cache                      Clear cache (all or by application)
+```
+
+Manage cache from **Dashboard → Cache** (`/dashboard/cache`).
 
 ## API Keys
 

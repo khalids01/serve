@@ -19,7 +19,9 @@
 - **🏢 Multi-Tenant Architecture** - Organize files by applications and projects
 - **🔒 Secure by Default** - Built-in security best practices
 - **🚀 High Performance** - Optimized for speed and scalability
-- **📊 Real-time Analytics** - Track usage and performance metrics
+- **📊 Usage stats** - Storage and file counts in dashboard settings
+- **💾 Data backup & restore** - Scheduled JSON/SQL backups with scan-from-storage recovery
+- **🗄️ Cache management** - View and clear on-demand resize cache from the dashboard
 - **🎯 API-First Design** - RESTful APIs for easy integration
 - **🔧 Self-Hosted** - Complete control over your data
 - **🌐 Modern UI** - Beautiful, responsive interface built with Tailwind CSS
@@ -36,7 +38,7 @@
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Database**: SQLite (configurable for PostgreSQL/MySQL)
 - **Authentication**: Better-Auth with Magic Link
-- **File Storage**: Local filesystem (S3 compatible coming soon)
+- **File Storage**: Local filesystem or S3-compatible storage (R2, MinIO, AWS S3)
 - **UI Components**: Radix UI, Lucide Icons
 - **Deployment**: Vercel, Docker, or self-hosted
 
