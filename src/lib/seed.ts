@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url'
 import { prisma } from './prisma'
 
 export async function seedDatabase() {
@@ -48,4 +49,20 @@ export async function seedDatabase() {
     console.error('Error seeding database:', error)
     return { success: false, error }
   }
+}
+
+const isDirectRun = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false
+
+if (isDirectRun) {
+  seedDatabase()
+    .then((result) => {
+      if (!result.success) {
+        process.exitCode = 1
+      }
+    })
+    .finally(async () => {
+      await prisma.$disconnect()
+    })
 }
