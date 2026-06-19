@@ -1,17 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  FolderOpen,
-  Image,
-  Upload,
-  Settings,
-  Server,
+  Archive,
   Cloud,
   Database,
+  FolderOpen,
+  Image,
+  LayoutDashboard,
+  Server,
+  Settings,
+  Upload,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useSession } from "@/lib/auth-client";
 
 const navItems = [
   {
@@ -57,6 +59,13 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/dashboard/cache"),
   },
   {
+    title: "Backups",
+    href: "/dashboard/backups",
+    icon: Archive,
+    adminOnly: true,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/backups"),
+  },
+  {
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
@@ -83,6 +92,10 @@ function DashboardSidebarLogo() {
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const visibleNavItems = navItems.filter(
+    (item) => !("adminOnly" in item) || session?.user?.role === "admin",
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -93,7 +106,7 @@ export function DashboardSidebar() {
         <SidebarGroup className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:items-center">
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem
                   key={item.href}
                   className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"

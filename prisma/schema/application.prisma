@@ -87,3 +87,70 @@ model AuditLog {
     application Application? @relation(fields: [applicationId], references: [id])
     apiKey      ApiKey?      @relation(fields: [apiKeyId], references: [id])
 }
+
+enum BackupType {
+    json
+    sql
+}
+
+enum BackupPeriod {
+    daily
+    weekly
+    monthly
+}
+
+enum BackupStatus {
+    running
+    success
+    failed
+}
+
+enum BackupTrigger {
+    manual
+    scheduled
+}
+
+model BackupConfig {
+    id                       String   @id @default("default")
+    enabled                  Boolean
+    basePrefix               String
+    jsonIntervalMinutes      Int
+    sqlIntervalMinutes       Int
+    schedulerIntervalMinutes Int
+    dailyRetentionDays       Int
+    weeklyRetentionWeeks     Int
+    monthlyRetentionMonths   Int
+    lastJsonBackupAt         DateTime?
+    lastSqlBackupAt          DateTime?
+    createdAt                DateTime @default(now())
+    updatedAt                DateTime @updatedAt
+}
+
+model BackupRecord {
+    id              String        @id @default(cuid())
+    type            BackupType
+    period          BackupPeriod
+    status          BackupStatus
+    trigger         BackupTrigger
+    storageKey      String?
+    filename        String
+    sizeBytes       Int?
+    errorMessage    String?
+    createdByUserId String?
+    startedAt       DateTime      @default(now())
+    completedAt     DateTime?
+    metadata        Json?
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    @@index([type, status, completedAt])
+    @@index([period, completedAt])
+}
+
+model BackupLock {
+    name        String   @id
+    owner       String
+    lockedUntil DateTime
+    lockedAt    DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}

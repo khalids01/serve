@@ -44,6 +44,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
   openssl \
   libssl3 \
+  postgresql-client \
   ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 

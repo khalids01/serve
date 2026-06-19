@@ -44,6 +44,25 @@ export const config = {
     placeholderWidth: 360,
   },
 
+  backup: {
+    enabled: process.env.BACKUP_ENABLED !== "false",
+    basePrefix: process.env.BACKUP_BASE_PREFIX ?? "data-backup",
+    jsonIntervalMinutes: Number(
+      process.env.BACKUP_JSON_INTERVAL_MINUTES ?? 12 * 60,
+    ),
+    sqlIntervalMinutes: Number(
+      process.env.BACKUP_SQL_INTERVAL_MINUTES ?? 12 * 60,
+    ),
+    schedulerIntervalMinutes: Number(
+      process.env.BACKUP_SCHEDULER_INTERVAL_MINUTES ?? 5,
+    ),
+    retention: {
+      dailyDays: Number(process.env.BACKUP_DAILY_RETENTION_DAYS ?? 3),
+      weeklyWeeks: Number(process.env.BACKUP_WEEKLY_RETENTION_WEEKS ?? 3),
+      monthlyMonths: Number(process.env.BACKUP_MONTHLY_RETENTION_MONTHS ?? 3),
+    },
+  },
+
   auth: {
     enableSignup: process.env.ENABLE_SIGNUP === "true",
   },
