@@ -24,11 +24,13 @@ import { useCreateBackupMutation } from "@/features/backups/hooks/use-backups";
 type TakeBackupDialogProps = {
   enabled?: boolean;
   disabled?: boolean;
+  className?: string;
 };
 
 export function TakeBackupDialog({
   enabled = true,
   disabled,
+  className,
 }: TakeBackupDialogProps) {
   const [open, setOpen] = useState(false);
   const [backupType, setBackupType] = useState<"json" | "sql">("sql");
@@ -52,7 +54,11 @@ export function TakeBackupDialog({
 
   return (
     <>
-      <Button disabled={disabled || !enabled} onClick={() => setOpen(true)}>
+      <Button
+        disabled={disabled || !enabled}
+        className={className}
+        onClick={() => setOpen(true)}
+      >
         Take backup
       </Button>
 
@@ -66,7 +72,7 @@ export function TakeBackupDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
+          <div className="w-full space-y-2">
             <Label htmlFor="backup-type">Backup type</Label>
             <Select
               value={backupType}
@@ -74,7 +80,7 @@ export function TakeBackupDialog({
                 setBackupType(value as "json" | "sql")
               }
             >
-              <SelectTrigger id="backup-type">
+              <SelectTrigger id="backup-type" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

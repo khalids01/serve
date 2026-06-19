@@ -52,7 +52,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BackupDateInput } from "@/features/backups/components/backup-date-input";
+import { BackupFileCard } from "@/features/backups/components/backup-file-card";
 import {
+  DEFAULT_BACKUP_LIST_PARAMS,
   type BackupListParams,
   type BackupPagination,
   type BackupRecord,
@@ -153,6 +156,12 @@ export function BackupFilesTable({
     });
   }
 
+  function clearFilters() {
+    setSizeMinKb("");
+    setSizeMaxKb("");
+    onListParamsChange({ ...DEFAULT_BACKUP_LIST_PARAMS });
+  }
+
   function toggleAllPage(checked: boolean) {
     if (checked) {
       setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
@@ -230,142 +239,158 @@ export function BackupFilesTable({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <Label>Type</Label>
-              <Select
-                value={listParams.type || "all"}
-                onValueChange={(value) =>
-                  updateParams({
-                    type: value === "all" ? "" : (value as "json" | "sql"),
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="sql">Database (SQL)</SelectItem>
-                  <SelectItem value="json">Image metadata (JSON)</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Type</Label>
+                <Select
+                  value={listParams.type || "all"}
+                  onValueChange={(value) =>
+                    updateParams({
+                      type: value === "all" ? "" : (value as "json" | "sql"),
+                    })
+                  }
+                >
+                  <SelectTrigger className="mt-1 h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    <SelectItem value="sql">Database (SQL)</SelectItem>
+                    <SelectItem value="json">Image metadata (JSON)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Period</Label>
+                <Select
+                  value={listParams.period || "all"}
+                  onValueChange={(value) =>
+                    updateParams({
+                      period:
+                        value === "all"
+                          ? ""
+                          : (value as "daily" | "weekly" | "monthly"),
+                    })
+                  }
+                >
+                  <SelectTrigger className="mt-1 h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All periods</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select
+                  value={listParams.status || "all"}
+                  onValueChange={(value) =>
+                    updateParams({
+                      status:
+                        value === "all"
+                          ? ""
+                          : (value as "success" | "failed" | "running"),
+                    })
+                  }
+                >
+                  <SelectTrigger className="mt-1 h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="running">Running</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Rows per page
+                </Label>
+                <Select
+                  value={String(listParams.limit ?? 20)}
+                  onValueChange={(value) =>
+                    updateParams({ limit: Number(value) })
+                  }
+                >
+                  <SelectTrigger className="mt-1 h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 10, 20, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Period</Label>
-              <Select
-                value={listParams.period || "all"}
-                onValueChange={(value) =>
-                  updateParams({
-                    period:
-                      value === "all"
-                        ? ""
-                        : (value as "daily" | "weekly" | "monthly"),
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All periods</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={listParams.status || "all"}
-                onValueChange={(value) =>
-                  updateParams({
-                    status:
-                      value === "all"
-                        ? ""
-                        : (value as "success" | "failed" | "running"),
-                  })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="running">Running</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Rows per page</Label>
-              <Select
-                value={String(listParams.limit ?? 20)}
-                onValueChange={(value) =>
-                  updateParams({ limit: Number(value) })
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[5, 10, 20, 50, 100].map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="completedFrom">Completed from</Label>
-              <Input
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <BackupDateInput
                 id="completedFrom"
-                type="date"
-                className="mt-1"
-                value={listParams.completedFrom ?? ""}
-                onChange={(e) =>
-                  updateParams({ completedFrom: e.target.value || undefined })
+                label="Completed from"
+                value={listParams.completedFrom}
+                onChange={(completedFrom) =>
+                  updateParams({ completedFrom })
                 }
               />
-            </div>
-            <div>
-              <Label htmlFor="completedTo">Completed to</Label>
-              <Input
+              <BackupDateInput
                 id="completedTo"
-                type="date"
-                className="mt-1"
-                value={listParams.completedTo ?? ""}
-                onChange={(e) =>
-                  updateParams({ completedTo: e.target.value || undefined })
-                }
+                label="Completed to"
+                value={listParams.completedTo}
+                onChange={(completedTo) => updateParams({ completedTo })}
               />
             </div>
-            <div>
-              <Label htmlFor="sizeMinKb">Min size (KB)</Label>
-              <Input
-                id="sizeMinKb"
-                type="number"
-                min={0}
-                className="mt-1"
-                value={sizeMinKb}
-                onChange={(e) => setSizeMinKb(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="sizeMaxKb">Max size (KB)</Label>
-              <div className="mt-1 flex gap-2">
-                <Input
-                  id="sizeMaxKb"
-                  type="number"
-                  min={0}
-                  value={sizeMaxKb}
-                  onChange={(e) => setSizeMaxKb(e.target.value)}
-                />
-                <Button variant="outline" onClick={applySizeFilter}>
-                  Apply
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <Label
+                    htmlFor="sizeMinKb"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Min size (KB)
+                  </Label>
+                  <Input
+                    id="sizeMinKb"
+                    type="number"
+                    min={0}
+                    className="mt-1 h-9"
+                    value={sizeMinKb}
+                    onChange={(e) => setSizeMinKb(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor="sizeMaxKb"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Max size (KB)
+                  </Label>
+                  <Input
+                    id="sizeMaxKb"
+                    type="number"
+                    min={0}
+                    className="mt-1 h-9"
+                    value={sizeMaxKb}
+                    onChange={(e) => setSizeMaxKb(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="h-9" onClick={applySizeFilter}>
+                  Apply sizes
+                </Button>
+                <Button variant="ghost" className="h-9" onClick={clearFilters}>
+                  Clear filters
                 </Button>
               </div>
             </div>
@@ -416,114 +441,142 @@ export function BackupFilesTable({
               No backups match your filters.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={allPageSelected}
-                      onCheckedChange={(checked) =>
-                        toggleAllPage(checked === true)
-                      }
-                      aria-label="Select all on page"
-                      {...(somePageSelected ? { "data-state": "indeterminate" } : {})}
-                    />
-                  </TableHead>
-                  <TableHead>File</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Completed</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {backups.map((backup) => (
-                  <TableRow key={backup.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.includes(backup.id)}
-                        onCheckedChange={(checked) =>
-                          toggleRow(backup.id, checked === true)
-                        }
-                        aria-label={`Select ${backup.filename}`}
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-[320px]">
-                      <div className="truncate font-medium">
-                        {backup.filename}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {backup.storageKey ??
-                          backup.errorMessage ??
-                          "No storage key"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{backup.type}</Badge>
-                    </TableCell>
-                    <TableCell>{backup.period}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[backup.status]}>
-                        {backup.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatBackupSize(backup.sizeBytes)}</TableCell>
-                    <TableCell>{formatDateTime(backup.completedAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {backup.type === "json" &&
-                          backup.status === "success" && (
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allPageSelected}
+                          onCheckedChange={(checked) =>
+                            toggleAllPage(checked === true)
+                          }
+                          aria-label="Select all on page"
+                          {...(somePageSelected
+                            ? { "data-state": "indeterminate" }
+                            : {})}
+                        />
+                      </TableHead>
+                      <TableHead>File</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Completed</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {backups.map((backup) => (
+                      <TableRow key={backup.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.includes(backup.id)}
+                            onCheckedChange={(checked) =>
+                              toggleRow(backup.id, checked === true)
+                            }
+                            aria-label={`Select ${backup.filename}`}
+                          />
+                        </TableCell>
+                        <TableCell className="max-w-[320px]">
+                          <div className="truncate font-medium">
+                            {backup.filename}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {backup.storageKey ??
+                              backup.errorMessage ??
+                              "No storage key"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{backup.type}</Badge>
+                        </TableCell>
+                        <TableCell>{backup.period}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant[backup.status]}>
+                            {backup.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {formatBackupSize(backup.sizeBytes)}
+                        </TableCell>
+                        <TableCell>
+                          {formatDateTime(backup.completedAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {backup.type === "json" &&
+                              backup.status === "success" && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        setConfirmAction({
+                                          type: "sync-one",
+                                          backup,
+                                        })
+                                      }
+                                    >
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Restore metadata from this backup
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="outline"
+                                  variant="destructive"
                                   size="sm"
                                   disabled={isBusy}
                                   onClick={() =>
                                     setConfirmAction({
-                                      type: "sync-one",
+                                      type: "delete-one",
                                       backup,
                                     })
                                   }
                                 >
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Restore metadata from this backup
-                              </TooltipContent>
+                              <TooltipContent>Delete backup</TooltipContent>
                             </Tooltip>
-                          )}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={isBusy}
-                              onClick={() =>
-                                setConfirmAction({
-                                  type: "delete-one",
-                                  backup,
-                                })
-                              }
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete backup</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="space-y-3 md:hidden">
+                {backups.map((backup) => (
+                  <BackupFileCard
+                    key={backup.id}
+                    backup={backup}
+                    selected={selectedIds.includes(backup.id)}
+                    disabled={isBusy}
+                    onToggle={(checked) => toggleRow(backup.id, checked)}
+                    onRestore={() =>
+                      setConfirmAction({ type: "sync-one", backup })
+                    }
+                    onDelete={() =>
+                      setConfirmAction({ type: "delete-one", backup })
+                    }
+                  />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
 
           {pagination.total > 0 && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
                 Showing {showingFrom}–{showingTo} of {pagination.total}
               </p>

@@ -46,6 +46,56 @@ export type BackupListParams = {
   completedTo?: string;
 };
 
+export const DEFAULT_BACKUP_LIST_PARAMS: BackupListParams = {
+  page: 1,
+  limit: 20,
+  type: "json",
+};
+
+const MINUTES_PER_DAY = 24 * 60;
+
+export function minutesToDays(minutes: number): number {
+  return Math.max(1, Math.round(minutes / MINUTES_PER_DAY));
+}
+
+export function daysToMinutes(days: number): number {
+  return Math.max(1, Math.floor(days)) * MINUTES_PER_DAY;
+}
+
+export function formatTimeAgo(value?: string | null): string {
+  if (!value) return "Never";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "Never";
+
+  const diffSeconds = Math.round((then - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+  if (absSeconds < 60) return rtf.format(diffSeconds, "second");
+  const diffMinutes = Math.round(diffSeconds / 60);
+  if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, "minute");
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) return rtf.format(diffHours, "hour");
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 30) return rtf.format(diffDays, "day");
+  const diffMonths = Math.round(diffDays / 30);
+  if (Math.abs(diffMonths) < 12) return rtf.format(diffMonths, "month");
+  return rtf.format(Math.round(diffMonths / 12), "year");
+}
+
+export function settingsFormToConfigPayload(form: BackupSettingsFormState) {
+  return {
+    enabled: form.enabled,
+    basePrefix: form.basePrefix,
+    jsonIntervalMinutes: daysToMinutes(form.jsonIntervalDays),
+    sqlIntervalMinutes: daysToMinutes(form.sqlIntervalDays),
+    schedulerIntervalMinutes: form.schedulerIntervalMinutes,
+    dailyRetentionDays: form.dailyRetentionDays,
+    weeklyRetentionWeeks: form.weeklyRetentionWeeks,
+    monthlyRetentionMonths: form.monthlyRetentionMonths,
+  };
+}
+
 export type BackupPagination = {
   page: number;
   limit: number;
@@ -213,8 +263,8 @@ export function useBulkSyncBackupsMutation() {
 export type BackupSettingsFormState = {
   enabled: boolean;
   basePrefix: string;
-  jsonIntervalMinutes: number;
-  sqlIntervalMinutes: number;
+  jsonIntervalDays: number;
+  sqlIntervalDays: number;
   schedulerIntervalMinutes: number;
   dailyRetentionDays: number;
   weeklyRetentionWeeks: number;
@@ -227,8 +277,8 @@ export function toBackupSettingsForm(
   return {
     enabled: config?.enabled ?? true,
     basePrefix: config?.basePrefix ?? "data-backup",
-    jsonIntervalMinutes: config?.jsonIntervalMinutes ?? 720,
-    sqlIntervalMinutes: config?.sqlIntervalMinutes ?? 720,
+    jsonIntervalDays: minutesToDays(config?.jsonIntervalMinutes ?? 720),
+    sqlIntervalDays: minutesToDays(config?.sqlIntervalMinutes ?? 720),
     schedulerIntervalMinutes: config?.schedulerIntervalMinutes ?? 5,
     dailyRetentionDays: config?.dailyRetentionDays ?? 3,
     weeklyRetentionWeeks: config?.weeklyRetentionWeeks ?? 3,

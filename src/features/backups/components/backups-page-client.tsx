@@ -6,25 +6,20 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BackupFilesTable } from "@/features/backups/components/backup-files-table";
+import { BackupHeaderActions } from "@/features/backups/components/backup-header-actions";
 import { BackupSettingsForm } from "@/features/backups/components/backup-settings-form";
 import { BackupSummaryHeader } from "@/features/backups/components/backup-summary-header";
-import { TakeBackupDialog } from "@/features/backups/components/take-backup-dialog";
 import {
-  type BackupListParams,
+  DEFAULT_BACKUP_LIST_PARAMS,
+  settingsFormToConfigPayload,
   toBackupSettingsForm,
   useBackups,
   useCreateBackupMutation,
   useUpdateBackupConfigMutation,
 } from "@/features/backups/hooks/use-backups";
 
-const defaultListParams: BackupListParams = {
-  page: 1,
-  limit: 20,
-};
-
 export function BackupsPageClient() {
-  const [listParams, setListParams] =
-    useState<BackupListParams>(defaultListParams);
+  const [listParams, setListParams] = useState(DEFAULT_BACKUP_LIST_PARAMS);
   const { data, isLoading, isError, error, refetch } = useBackups(listParams);
   const updateConfig = useUpdateBackupConfigMutation();
   const createBackup = useCreateBackupMutation();
@@ -43,7 +38,7 @@ export function BackupsPageClient() {
 
   async function saveConfig() {
     try {
-      await updateConfig.mutateAsync(form);
+      await updateConfig.mutateAsync(settingsFormToConfigPayload(form));
       toast.success("Backup settings saved");
     } catch {
       toast.error("Failed to save backup settings");
@@ -61,16 +56,16 @@ export function BackupsPageClient() {
 
   return (
     <div className="min-h-screen">
-      <main className="container mx-auto py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <main className="container mx-auto py-6 sm:py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Data Backup</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">Data Backup</h1>
             <p className="text-muted-foreground mt-2">
               Schedule and manage database dumps and image/file metadata
               snapshots
             </p>
           </div>
-          <TakeBackupDialog
+          <BackupHeaderActions
             enabled={data?.config?.enabled}
             disabled={isBusy || isLoading}
           />
@@ -99,7 +94,6 @@ export function BackupsPageClient() {
         <BackupSummaryHeader
           totalBytes={data?.totalBytes ?? 0}
           totalFiles={pagination.total}
-          disabled={isBusy || isLoading}
         />
 
         <BackupSettingsForm
