@@ -9,6 +9,7 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 3. Choose a storage provider in [`src/config.ts`](../src/config.ts) (`local` or `s3`).
 4. Configure backups (optional) via env vars or **Dashboard → Data Backup**.
 5. Sign in, create an application, and generate an API key.
+6. Integrate your app using [integration-guide.md](integration-guide.md).
 
 ## Configuration Split
 

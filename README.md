@@ -359,6 +359,7 @@ Be respectful, inclusive, and helpful. We follow the [Contributor Covenant](http
 ## 📚 Documentation
 
 - [API Documentation](docs/api.md) - Complete API reference
+- [Integration Guide](docs/integration-guide.md) - Step-by-step guide for backends and AI agents
 - [Deployment Guide](docs/deployment.md) - How to deploy Serve
 - [Configuration](docs/configuration.md) - Environment and setup options
 - [Contributing Guide](CONTRIBUTING.md) - Detailed contribution guidelines

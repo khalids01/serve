@@ -1,6 +1,6 @@
 # Serve API Reference
 
-This document covers the most common endpoints and authentication for server-to-server usage. For an interactive overview with live testing, see the in-app docs at `/docs`.
+This document covers the most common endpoints and authentication for server-to-server usage. For an interactive overview with live testing, see the in-app docs at `/docs`. For a full integration walkthrough (aimed at developers and AI agents), see [integration-guide.md](integration-guide.md).
 
 ## Quick actions
 
