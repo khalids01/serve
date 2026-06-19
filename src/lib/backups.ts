@@ -6,6 +6,7 @@ import type {
   BackupPeriod,
   BackupTrigger,
   BackupType,
+  Prisma,
 } from "@/lib/prisma-types";
 import { getStorage } from "@/lib/storage/factory";
 
@@ -460,6 +461,8 @@ export async function cleanupOldBackups() {
   const backupConfig = await ensureBackupConfig();
   const storage = getStorage();
   const periods: BackupPeriod[] = ["daily", "weekly", "monthly"];
+  let deletedCount = 0;
+  let freedBytes = 0;
 
   for (const period of periods) {
     const oldRecords = await prisma.backupRecord.findMany({
@@ -473,9 +476,13 @@ export async function cleanupOldBackups() {
       if (record.storageKey) {
         await storage.delete(record.storageKey);
       }
+      freedBytes += record.sizeBytes ?? 0;
+      deletedCount += 1;
       await prisma.backupRecord.delete({ where: { id: record.id } });
     }
   }
+
+  return { deletedCount, freedBytes };
 }
 
 function parseDate(value: string) {
@@ -685,20 +692,154 @@ export async function runDueBackups() {
   return { ran: jobs.length > 0, results };
 }
 
-export async function listBackups() {
-  const [backupConfig, backups] = await Promise.all([
+export async function deleteBackupRecords(ids: string[]) {
+  if (ids.length === 0) {
+    return { deletedCount: 0, freedBytes: 0 };
+  }
+
+  const storage = getStorage();
+  const records = await prisma.backupRecord.findMany({
+    where: { id: { in: ids } },
+  });
+
+  let deletedCount = 0;
+  let freedBytes = 0;
+
+  for (const record of records) {
+    if (record.storageKey) {
+      await storage.delete(record.storageKey);
+    }
+    freedBytes += record.sizeBytes ?? 0;
+    deletedCount += 1;
+    await prisma.backupRecord.delete({ where: { id: record.id } });
+  }
+
+  return { deletedCount, freedBytes };
+}
+
+export async function syncBackupRecords(ids: string[]) {
+  const result = {
+    syncedCount: 0,
+    skippedCount: 0,
+    applications: 0,
+    images: 0,
+    imageVariants: 0,
+    imageApplications: 0,
+    errors: [] as string[],
+  };
+
+  for (const id of ids) {
+    try {
+      const syncResult = await syncImageMetadataFromBackup(id);
+      result.syncedCount += 1;
+      result.applications += syncResult.applications;
+      result.images += syncResult.images;
+      result.imageVariants += syncResult.imageVariants;
+      result.imageApplications += syncResult.imageApplications;
+    } catch (error) {
+      result.skippedCount += 1;
+      result.errors.push(
+        error instanceof Error ? error.message : `Failed to sync ${id}`,
+      );
+    }
+  }
+
+  return result;
+}
+
+export type BackupListParams = {
+  page?: number;
+  limit?: number;
+  type?: BackupType;
+  period?: BackupPeriod;
+  status?: "success" | "failed" | "running";
+  sizeMin?: number;
+  sizeMax?: number;
+  completedFrom?: string;
+  completedTo?: string;
+};
+
+function serializeBackupRecord(
+  backup: Awaited<ReturnType<typeof prisma.backupRecord.findMany>>[number],
+) {
+  return {
+    ...backup,
+    startedAt: backup.startedAt.toISOString(),
+    completedAt: toIso(backup.completedAt),
+    createdAt: backup.createdAt.toISOString(),
+    updatedAt: backup.updatedAt.toISOString(),
+  };
+}
+
+function buildBackupListWhere(
+  params: BackupListParams,
+): Prisma.BackupRecordWhereInput {
+  const where: Prisma.BackupRecordWhereInput = {};
+
+  if (params.type) where.type = params.type;
+  if (params.period) where.period = params.period;
+  if (params.status) where.status = params.status;
+
+  const sizeFilter: Prisma.IntNullableFilter = {};
+  if (params.sizeMin != null) sizeFilter.gte = params.sizeMin;
+  if (params.sizeMax != null) sizeFilter.lte = params.sizeMax;
+  if (Object.keys(sizeFilter).length > 0) {
+    where.sizeBytes = sizeFilter;
+  }
+
+  if (params.completedFrom || params.completedTo) {
+    const completedAt: Prisma.DateTimeNullableFilter = {};
+    if (params.completedFrom) {
+      const from = new Date(params.completedFrom);
+      from.setHours(0, 0, 0, 0);
+      completedAt.gte = from;
+    }
+    if (params.completedTo) {
+      const to = new Date(params.completedTo);
+      to.setHours(23, 59, 59, 999);
+      completedAt.lte = to;
+    }
+    where.completedAt = completedAt;
+  }
+
+  return where;
+}
+
+export async function listBackupsPaginated(params: BackupListParams = {}) {
+  const page = Math.max(1, params.page ?? 1);
+  const limit = Math.min(100, Math.max(5, params.limit ?? 20));
+  const skip = (page - 1) * limit;
+  const where = buildBackupListWhere(params);
+
+  const [backupConfig, backups, total, sizeAggregate] = await Promise.all([
     ensureBackupConfig(),
-    prisma.backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.backupRecord.findMany({
+      where,
+      orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+      skip,
+      take: limit,
+    }),
+    prisma.backupRecord.count({ where }),
+    prisma.backupRecord.aggregate({ _sum: { sizeBytes: true } }),
   ]);
+
+  const pages = Math.max(1, Math.ceil(total / limit));
 
   return {
     config: serializeBackupConfig(backupConfig),
-    backups: backups.map((backup) => ({
-      ...backup,
-      startedAt: backup.startedAt.toISOString(),
-      completedAt: toIso(backup.completedAt),
-      createdAt: backup.createdAt.toISOString(),
-      updatedAt: backup.updatedAt.toISOString(),
-    })),
+    backups: backups.map(serializeBackupRecord),
+    totalBytes: sizeAggregate._sum.sizeBytes ?? 0,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages,
+      hasNext: page < pages,
+      hasPrev: page > 1,
+    },
   };
+}
+
+export async function listBackups() {
+  return listBackupsPaginated({ page: 1, limit: 100 });
 }
