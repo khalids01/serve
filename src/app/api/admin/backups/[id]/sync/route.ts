@@ -2,24 +2,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { protect } from "@/features/auth/guard";
 import { syncImageMetadataFromBackup } from "@/lib/backups";
 
-async function requireAdmin(request: NextRequest) {
-  const auth = await protect(request);
-  if (auth instanceof NextResponse) return auth;
-  if (auth.user.role !== "admin") {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 },
-    );
-  }
-  return auth;
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireAdmin(request);
+    const auth = await protect(request);
     if (auth instanceof NextResponse) return auth;
     const { id } = await params;
     const result = await syncImageMetadataFromBackup(id);

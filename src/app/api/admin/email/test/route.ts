@@ -7,14 +7,6 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await protect(request)
     if (auth instanceof NextResponse) return auth
-    const { user } = auth
-
-    if (user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      )
-    }
 
     const result = await testEmailConfiguration()
     const { host, port } = config.email
@@ -51,15 +43,6 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await protect(request)
     if (auth instanceof NextResponse) return auth
-    const { user } = auth
-
-    // Only allow admin users to send test emails
-    if (user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      )
-    }
 
     const { email } = await request.json()
 

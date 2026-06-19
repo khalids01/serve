@@ -1,5 +1,5 @@
-import { BackupsPageClient } from "@/features/backups/components/backups-page-client";
+import { redirect } from "next/navigation";
 
 export default function BackupsPage() {
-  return <BackupsPageClient />;
+  redirect("/dashboard/data-backup");
 }

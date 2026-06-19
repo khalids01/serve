@@ -160,9 +160,9 @@ export function BackupsPageClient() {
       <main className="container mx-auto py-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Backups</h1>
+            <h1 className="text-3xl font-bold">Data Backup</h1>
             <p className="text-muted-foreground mt-2">
-              Manage image metadata snapshots and PostgreSQL dumps
+              Schedule and manage database dumps and image/file metadata snapshots
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -172,14 +172,14 @@ export function BackupsPageClient() {
               onClick={() => createBackup("json")}
             >
               <FileJson className="mr-2 h-4 w-4" />
-              JSON
+              Backup metadata (JSON)
             </Button>
             <Button
               disabled={isBusy || isLoading || !config?.enabled}
               onClick={() => createBackup("sql")}
             >
               <Database className="mr-2 h-4 w-4" />
-              SQL
+              Backup database (SQL)
             </Button>
           </div>
         </div>
@@ -268,7 +268,7 @@ export function BackupsPageClient() {
                 </div>
                 <div>
                   <Label htmlFor="jsonIntervalMinutes">
-                    JSON interval minutes
+                    Image metadata backup interval (minutes)
                   </Label>
                   <Input
                     id="jsonIntervalMinutes"
@@ -286,7 +286,7 @@ export function BackupsPageClient() {
                 </div>
                 <div>
                   <Label htmlFor="sqlIntervalMinutes">
-                    SQL interval minutes
+                    Database backup interval (minutes)
                   </Label>
                   <Input
                     id="sqlIntervalMinutes"
@@ -371,7 +371,7 @@ export function BackupsPageClient() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Last JSON Backup
+                  Last metadata backup
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -383,7 +383,7 @@ export function BackupsPageClient() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Last SQL Backup
+                  Last database backup
                 </CardTitle>
               </CardHeader>
               <CardContent>

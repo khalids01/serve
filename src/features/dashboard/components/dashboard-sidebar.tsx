@@ -10,6 +10,7 @@ import {
   Server,
   Settings,
   Upload,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,7 +25,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { useSession } from "@/lib/auth-client";
 
 const navItems = [
   {
@@ -59,11 +59,18 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/dashboard/cache"),
   },
   {
-    title: "Backups",
-    href: "/dashboard/backups",
+    title: "Data Backup",
+    href: "/dashboard/data-backup",
     icon: Archive,
-    adminOnly: true,
-    isActive: (pathname: string) => pathname.startsWith("/dashboard/backups"),
+    isActive: (pathname: string) =>
+      pathname.startsWith("/dashboard/data-backup") ||
+      pathname.startsWith("/dashboard/backups"),
+  },
+  {
+    title: "Profile",
+    href: "/dashboard/profile",
+    icon: User,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/profile"),
   },
   {
     title: "Settings",
@@ -92,10 +99,6 @@ function DashboardSidebarLogo() {
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const visibleNavItems = navItems.filter(
-    (item) => !("adminOnly" in item) || session?.user?.role === "admin",
-  );
 
   return (
     <Sidebar collapsible="icon">
@@ -106,7 +109,7 @@ export function DashboardSidebar() {
         <SidebarGroup className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:items-center">
-              {visibleNavItems.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem
                   key={item.href}
                   className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"
