@@ -1,0 +1,246 @@
+model Application {
+  id                String             @id @default(cuid())
+  name              String
+  slug              String             @unique
+  ownerId           String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  storageDir        String // e.g., "uploads/<appId>"
+  imageApplications ImageApplication[]
+  apiKeys           ApiKey[]
+  members           User[]             @relation("UserApplications")
+  auditLogs         AuditLog[]
+}
+
+model Image {
+  id           String             @id @default(cuid())
+  filename     String
+  contentType  String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+  hash         String             @unique
+  variants     ImageVariant[]
+  applications ImageApplication[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model ImageApplication {
+  id            String   @id @default(cuid())
+  imageId       String
+  applicationId String
+  originalName  String
+  tags          Json?
+  linkedAt      DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  image       Image       @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([imageId, applicationId])
+  @@index([applicationId, updatedAt(sort: Desc)])
+}
+
+model ImageVariant {
+  id        String   @id @default(cuid())
+  imageId   String
+  label     String // e.g., "thumb", "1024w", "webp"
+  filename  String
+  width     Int?
+  height    Int?
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  image Image @relation(fields: [imageId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  applicationId String
+  userId        String
+  name          String
+  // Store only a hash of the key, never the raw value
+  hash          String    @unique
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  revoked       Boolean   @default(false)
+
+  application Application @relation(fields: [applicationId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  auditLogs   AuditLog[]
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  applicationId String?
+  apiKeyId      String?
+  action        String // e.g., "UPLOAD", "DELETE", "LOGIN", "GENERATE_KEY"
+  targetId      String? // imageId or resourceId
+  ip            String?
+  userAgent     String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  user        User?        @relation(fields: [userId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
+  apiKey      ApiKey?      @relation(fields: [apiKeyId], references: [id])
+}
+
+enum BackupType {
+  json
+  sql
+}
+
+enum BackupPeriod {
+  daily
+  weekly
+  monthly
+}
+
+enum BackupStatus {
+  running
+  success
+  failed
+}
+
+enum BackupTrigger {
+  manual
+  scheduled
+}
+
+model BackupConfig {
+  id                       String    @id @default("default")
+  enabled                  Boolean
+  basePrefix               String
+  jsonIntervalMinutes      Int
+  sqlIntervalMinutes       Int
+  schedulerIntervalMinutes Int
+  dailyRetentionDays       Int
+  weeklyRetentionWeeks     Int
+  monthlyRetentionMonths   Int
+  lastJsonBackupAt         DateTime?
+  lastSqlBackupAt          DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
+
+model BackupRecord {
+  id              String        @id @default(cuid())
+  type            BackupType
+  period          BackupPeriod
+  status          BackupStatus
+  trigger         BackupTrigger
+  storageKey      String?
+  filename        String
+  sizeBytes       Int?
+  errorMessage    String?
+  createdByUserId String?
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([type, status, completedAt])
+  @@index([period, completedAt])
+}
+
+model BackupLock {
+  name        String   @id
+  owner       String
+  lockedUntil DateTime
+  lockedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  emailVerified Boolean?
+  image         String?
+  role          String?       @default("user") // Better Auth admin plugin field
+  banned        Boolean?      @default(false) // Better Auth admin plugin field
+  banReason     String? // Better Auth admin plugin field
+  banExpires    DateTime? // Better Auth admin plugin field
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  applications  Application[] @relation("UserApplications")
+  apiKeys       ApiKey[]
+  auditLogs     AuditLog[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  token          String   @unique
+  userId         String
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String? // Better Auth admin plugin field (optional)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+}
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  binaryTargets = ["debian-openssl-3.0.x"]
+  moduleFormat  = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Removed Role enum - Better Auth admin plugin handles roles as strings
