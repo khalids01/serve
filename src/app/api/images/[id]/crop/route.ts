@@ -7,11 +7,12 @@ import { deleteBlobAndLegacyCacheByBase } from '@/lib/storage/read'
 import { getStorage } from '@/lib/storage/factory'
 import sharp from 'sharp'
 import path from 'path'
-import { processImageUpload, imageInclude } from '@/lib/image-upload'
+import { processImageUpload } from '@/lib/image-upload'
 import {
   formatImageResponse,
   getJunctionForApp,
   getLegacyTenantKeys,
+  imageInclude,
   userOwnsLinkedImage,
 } from '@/lib/image-response'
 import { isSharpResizable } from '@/lib/storage/image'

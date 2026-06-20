@@ -1,17 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { FileStorageService } from "@/lib/file-storage";
 import { contentHash16 } from "@/lib/storage/hash";
-import { formatImageResponse } from "@/lib/image-response";
+import { formatImageResponse, imageInclude } from "@/lib/image-response";
 import type { Prisma } from "@/lib/prisma-types";
-
-const imageInclude = {
-  variants: true,
-  applications: {
-    include: {
-      application: { select: { id: true, name: true, slug: true } },
-    },
-  },
-} satisfies Prisma.ImageInclude;
 
 type ImageWithRelations = Prisma.ImageGetPayload<{ include: typeof imageInclude }>;
 
@@ -150,5 +141,3 @@ export async function processImageUpload(
     return formatImageResponse(image, applicationId);
   }
 }
-
-export { imageInclude };

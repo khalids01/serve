@@ -8,8 +8,7 @@ import {
   writeBlobCache,
 } from "@/lib/storage/read";
 import { getStorage } from "@/lib/storage/factory";
-import { imageInclude } from "@/lib/image-upload";
-import { getLegacyTenantKeys } from "@/lib/image-response";
+import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { isSharpResizable } from "@/lib/storage/image";
 
 const MAX_DIMENSION = 4096;

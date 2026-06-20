@@ -2,6 +2,15 @@ import { uniqueTenantKeys } from "@/lib/storage/keys";
 import { withImageUrls } from "@/lib/image-urls";
 import type { Prisma } from "@/lib/prisma-types";
 
+export const imageInclude = {
+  variants: true,
+  applications: {
+    include: {
+      application: { select: { id: true, name: true, slug: true } },
+    },
+  },
+} satisfies Prisma.ImageInclude;
+
 type LinkedApplication = {
   id: string;
   name: string;

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/lib/prisma-types'
 import { protect } from '@/features/auth/guard'
-import { formatImageResponse } from '@/lib/image-response'
-import { imageInclude } from '@/lib/image-upload'
+import { formatImageResponse, imageInclude } from '@/lib/image-response'
 
 export async function GET(request: NextRequest) {
   try {

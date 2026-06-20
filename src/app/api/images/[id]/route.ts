@@ -11,9 +11,9 @@ import {
   formatImageResponse,
   getLegacyTenantKeys,
   getLinkedApplications,
+  imageInclude,
   userOwnsLinkedImage,
 } from '@/lib/image-response'
-import { imageInclude } from '@/lib/image-upload'
 
 export async function GET(
   request: NextRequest,

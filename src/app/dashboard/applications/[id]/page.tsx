@@ -10,8 +10,7 @@ import  {
   type AuditLogItemDTO,
   type CacheResponse,
 } from "@/features/applications/components/application-details/types";
-import { formatImageResponse } from "@/lib/image-response";
-import { imageInclude } from "@/lib/image-upload";
+import { formatImageResponse, imageInclude } from "@/lib/image-response";
 
 export default async function ApplicationDetailsPage(props: {
   params: Promise<{ id: string }>;
