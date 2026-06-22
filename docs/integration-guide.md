@@ -34,6 +34,132 @@ Serve is **API-first**: your backend talks to Serve; your frontend usually loads
 
 ---
 
+## Copy-paste agent instructions: TypeScript ecommerce admin
+
+Use this section when asking an AI agent to integrate Serve into a TypeScript ecommerce starter. The goal is not only "upload a file"; the app should include a small media library, image picker dialogs, and a safe image rendering component that product/catalog pages can reuse.
+
+```text
+Implement Serve file storage integration for a TypeScript ecommerce app.
+
+Security and architecture:
+- Never expose the Serve API key to the browser.
+- Add server env vars:
+  - FILE_SERVER_URL: Serve API root or instance root, e.g. http://localhost:3002/api or https://files.example.com/api
+  - FILE_SERVER_PUBLIC_URL: public instance root/CDN root, e.g. https://files.example.com
+  - FILE_SERVER_API_KEY: sk_live_...
+- The browser must call our app backend, not Serve directly, for management actions.
+- Public image rendering may use absolute Serve URLs because GET /api/img/:name is public.
+
+Server module:
+- Create an admin images module, for example /admin/images.
+- Protect every route with the app's admin auth/session guard.
+- Require read permission for list/detail and manage permission for upload/delete.
+- Routes to expose from our backend:
+  - GET /admin/images
+  - GET /admin/images/:id
+  - DELETE /admin/images/:id
+  - POST /admin/images/upload
+- The backend forwards to Serve:
+  - GET {FILE_SERVER_URL}/images
+  - GET {FILE_SERVER_URL}/images/:id
+  - DELETE {FILE_SERVER_URL}/images/:id
+  - POST {FILE_SERVER_URL}/upload
+- Normalize FILE_SERVER_URL so both "https://files.example.com" and "https://files.example.com/api" work.
+- Normalize FILE_SERVER_PUBLIC_URL by removing any trailing /api before building public URLs.
+- For upload, proxy the multipart request body through to Serve and inject Authorization: Bearer FILE_SERVER_API_KEY plus x-api-key.
+- Do not manually set multipart Content-Type in the browser; let fetch/FormData set the boundary.
+- Remove hop-by-hop/request-specific headers such as host and content-length when proxying upload.
+- Parse upstream JSON errors and return clear errors to the frontend.
+
+Normalized image shape returned by our backend:
+- id, filename, originalName, contentType, sizeBytes
+- width, height, hash
+- publicUrl: absolute URL from Serve image.url
+- previewUrl: absolute URL for the WebP variant when available, otherwise publicUrl
+- placeholderUrl: absolute URL for the placeholder variant when available
+- variants[] with publicUrl added to each variant
+- tags, linkedApplications, createdAt, updatedAt
+
+Frontend API client:
+- Add adminImagesApi with list/detail/delete/upload methods.
+- list accepts page, limit, search, contentType, sortBy, sortOrder.
+- upload accepts File[] and comma-separated tags.
+- For multi-upload, append a "files" JSON field describing file part names:
+  [{"file":"file_0","tags":["product","banner"]}]
+  Then append each binary file as file_0, file_1, etc.
+- Use credentials/include or the app's existing authenticated client so backend admin auth works.
+- Invalidate image queries after upload/delete.
+
+Reusable image component:
+- Add a core Img component used instead of raw <img> for product and admin media.
+- Props should include src, alt, placeholderSrc, showPlaceholder, showLoadingSpinner, fallback, objectFit.
+- If src matches /api/img/:name, prefer the .webp URL and derive a placeholder URL by appending "-placeholder".
+- Fade from placeholder to the main image when loaded.
+- Show a neutral fallback with an image icon on missing src or load error.
+- Preserve lazy loading and async decoding by default.
+
+Admin media library page:
+- Add /admin/images.
+- Required controls:
+  - Upload images button
+  - Search input
+  - Content type filter: all, JPEG, PNG, WebP, SVG
+  - Sort select: newest, oldest, name A-Z/Z-A, largest, smallest
+  - Grid/list view switcher
+  - Refresh button
+  - Pagination
+- Show loading, error, empty, and syncing states.
+- Grid and table/list views should display preview image, original name, dimensions, file size, content type, tags, and created date.
+- Actions:
+  - Preview/open metadata dialog
+  - Copy public URL
+  - Open public URL in new tab
+  - Delete image, with confirmation and manage permission check
+- If the user has read permission but not manage permission, allow browsing/copying but hide upload/delete.
+
+Upload dialog:
+- Support drag-and-drop and file picker.
+- Accept image/* and multiple files.
+- Validate client-side max size as 50 MB per file unless the app config says otherwise.
+- Let users enter comma-separated tags.
+- Show skipped file errors and upload progress/pending state.
+- Close and reset only after successful upload.
+
+Image picker dialog:
+- Reusable component for product forms, variant forms, banners, rich content blocks, etc.
+- Props: open, mode single|multiple, value, title, description, onOpenChange, onSelect.
+- Include search, content type filter, sort, refresh, upload, pagination.
+- Allow selecting existing Serve images and uploading new ones without leaving the form.
+- Return selected image.publicUrl value(s), because product fields should store renderable public URLs.
+- In single mode, selecting an image should replace the draft selection. In multiple mode, toggle selected images.
+
+Ecommerce data model and forms:
+- Products should have optional coverImageUrl.
+- Product variants should support imageUrls: string[].
+- Store public Serve URLs in product/variant fields for immediate rendering.
+- Optionally also store Serve image ids in separate fields if the app needs future metadata/delete workflows.
+- Product create/edit forms should use the ImagePickerDialog instead of requiring users to paste URLs manually.
+- Shop/product/cart pages should render product.coverImageUrl and variant.imageUrls with the shared Img component.
+
+RBAC/navigation:
+- Add permissions similar to:
+  - admin.images.read
+  - admin.images.manage
+- Admin users with catalog/product management should usually get image manage permission.
+- Add an Images item in the admin navigation only when the session can read/manage images.
+
+Testing checklist:
+- Unit test URL normalization: with and without trailing /api, no double /api in output.
+- Unit test public URL building from relative Serve paths.
+- Unit test upload proxy keeps multipart body and injects API key headers.
+- Unit test read/manage permission guards.
+- UI smoke test upload, list refresh, picker select, and product form image save.
+```
+
+Use these implementation details with the endpoint reference below. The important data flow is: **browser admin UI → your app backend with session auth → Serve with API key → backend normalizes public URLs → browser stores/uses public URLs**.
+
+---
+
 ## Base URL
 
 All paths below are relative to your instance root:
