@@ -1,7 +1,24 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import axios from "axios";
+import {
+  AlertCircle,
+  CheckCircle,
+  Copy,
+  Download,
+  ExternalLink,
+  FileText,
+  Grid2X2,
+  List,
+  Upload,
+  X,
+} from "lucide-react";
 import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { ProgressiveImage } from "@/components/progressive-image";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,9 +26,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -19,12 +36,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Upload, X, CheckCircle, AlertCircle } from "lucide-react";
-import { useDropzone } from "react-dropzone";
-import type { Image, ImageVariant } from "@/lib/prisma-types";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Application } from "@/features/applications/hooks/use-application-data";
+import type { Image, ImageVariant } from "@/lib/prisma-types";
 
 type UploadSuccess = {
   success: true;
@@ -35,9 +49,12 @@ type UploadSuccess = {
 };
 
 interface UploadedFile {
+  id: string;
   file: File;
-  progress: number;
+  progress: number | null;
   status: "pending" | "uploading" | "success" | "error";
+  phase?: "uploading" | "processing";
+  previewUrl?: string;
   result?: UploadSuccess;
   error?: string;
 }
@@ -45,13 +62,51 @@ interface UploadedFile {
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? "50");
 const maxFileSizeBytes =
   (Number.isFinite(MAX_MB) && MAX_MB > 0 ? MAX_MB : 50) * 1024 * 1024;
+const MAX_PARALLEL_UPLOADS = 3;
+const PROCESSING_PROGRESS_THRESHOLD = 95;
 
 function formatFileSize(bytes: number) {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+}
+
+function createQueueId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getFileExtension(file: File) {
+  const extension = file.name.split(".").pop();
+  return extension ? extension.toUpperCase() : "FILE";
+}
+
+function getPublicUrl(path?: string) {
+  if (!path) return "";
+  return `${window.location.origin}${path}`;
+}
+
+function parseUploadError(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.error;
+    if (typeof message === "string") return message;
+    return error.message || "Upload failed";
+  }
+
+  return error instanceof Error ? error.message : "Upload failed";
+}
+
+function getStatusLabel(fileData: UploadedFile) {
+  if (fileData.status === "uploading" && fileData.phase === "processing") {
+    return "processing";
+  }
+
+  return fileData.status;
 }
 
 interface UploadPanelProps {
@@ -64,6 +119,10 @@ interface UploadPanelProps {
   onUploadSuccess?: () => void;
 }
 
+type UploadFileOptions = {
+  reserved?: boolean;
+};
+
 export function UploadPanel({
   applicationId,
   showAppSelector = false,
@@ -75,13 +134,37 @@ export function UploadPanel({
 }: UploadPanelProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [tags, setTags] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const uploadingIdsRef = useRef(new Set<string>());
+  const previewUrlsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      previewUrlsRef.current.clear();
+    };
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map((file) => ({
-      file,
-      progress: 0,
-      status: "pending" as const,
-    }));
+    const newFiles = acceptedFiles.map((file) => {
+      const previewUrl = file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : undefined;
+
+      if (previewUrl) {
+        previewUrlsRef.current.add(previewUrl);
+      }
+
+      return {
+        id: createQueueId(),
+        file,
+        progress: 0,
+        previewUrl,
+        status: "pending" as const,
+      };
+    });
     setFiles((prev) => [...prev, ...newFiles]);
   }, []);
 
@@ -97,26 +180,61 @@ export function UploadPanel({
     maxSize: maxFileSizeBytes,
   });
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = (id: string) => {
+    setFiles((prev) => {
+      const fileToRemove = prev.find((fileData) => fileData.id === id);
+      if (fileToRemove?.previewUrl) {
+        URL.revokeObjectURL(fileToRemove.previewUrl);
+        previewUrlsRef.current.delete(fileToRemove.previewUrl);
+      }
+
+      return prev.filter((fileData) => fileData.id !== id);
+    });
   };
 
-  const uploadFile = async (fileData: UploadedFile, index: number) => {
+  const copyToClipboard = async (url: string) => {
+    await navigator.clipboard.writeText(url);
+  };
+
+  const uploadFile = async (
+    fileData: UploadedFile,
+    options: UploadFileOptions = {},
+  ) => {
+    if (
+      (!options.reserved && uploadingIdsRef.current.has(fileData.id)) ||
+      fileData.status === "uploading" ||
+      fileData.status === "success"
+    ) {
+      return;
+    }
+
     if (!applicationId) {
       setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index
+        prev.map((f) =>
+          f.id === fileData.id
             ? { ...f, status: "error", error: "Please select an application" }
-            : f
-        )
+            : f,
+        ),
       );
       return;
     }
 
+    if (!uploadingIdsRef.current.has(fileData.id)) {
+      uploadingIdsRef.current.add(fileData.id);
+    }
+
     setFiles((prev) =>
-      prev.map((f, i) =>
-        i === index ? { ...f, status: "uploading", progress: 0 } : f
-      )
+      prev.map((f) =>
+        f.id === fileData.id
+          ? {
+              ...f,
+              status: "uploading",
+              phase: "uploading",
+              progress: null,
+              error: undefined,
+            }
+          : f,
+      ),
     );
 
     const formData = new FormData();
@@ -125,59 +243,331 @@ export function UploadPanel({
     if (tags) {
       formData.append(
         "tags",
-        JSON.stringify(tags.split(",").map((t) => t.trim()))
+        JSON.stringify(tags.split(",").map((t) => t.trim())),
       );
     }
 
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await axios.post<UploadSuccess>(
+        "/api/upload",
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            if (!progressEvent.total) return;
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
+            const progress = Math.min(
+              100,
+              Math.round((progressEvent.loaded / progressEvent.total) * 100),
+            );
+            const phase =
+              progress >= PROCESSING_PROGRESS_THRESHOLD
+                ? "processing"
+                : "uploading";
 
-      const result: UploadSuccess = await response.json();
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileData.id ? { ...f, phase, progress } : f,
+              ),
+            );
+          },
+        },
+      );
 
       setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index
+        prev.map((f) =>
+          f.id === fileData.id
             ? {
                 ...f,
                 status: "success",
+                phase: undefined,
                 progress: 100,
-                result,
+                result: response.data,
               }
-            : f
-        )
+            : f,
+        ),
       );
       onUploadSuccess?.();
     } catch (error) {
       setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index
+        prev.map((f) =>
+          f.id === fileData.id
             ? {
                 ...f,
                 status: "error",
+                phase: undefined,
                 progress: 0,
-                error:
-                  error instanceof Error ? error.message : "Upload failed",
+                error: parseUploadError(error),
               }
-            : f
-        )
+            : f,
+        ),
       );
+    } finally {
+      uploadingIdsRef.current.delete(fileData.id);
     }
   };
 
   const uploadAll = async () => {
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].status === "pending") {
-        await uploadFile(files[i], i);
+    if (!applicationId) return;
+
+    const pendingFiles = files.filter(
+      (fileData) =>
+        fileData.status === "pending" &&
+        !uploadingIdsRef.current.has(fileData.id),
+    );
+
+    if (pendingFiles.length === 0) return;
+
+    for (const fileData of pendingFiles) {
+      uploadingIdsRef.current.add(fileData.id);
+    }
+
+    const pendingIds = new Set(pendingFiles.map((fileData) => fileData.id));
+    setFiles((prev) =>
+      prev.map((fileData) =>
+        pendingIds.has(fileData.id)
+          ? {
+              ...fileData,
+              status: "uploading",
+              phase: "uploading",
+              progress: null,
+              error: undefined,
+            }
+          : fileData,
+      ),
+    );
+
+    let nextIndex = 0;
+
+    async function runWorker() {
+      while (nextIndex < pendingFiles.length) {
+        const fileData = pendingFiles[nextIndex];
+        nextIndex += 1;
+        await uploadFile(fileData, { reserved: true });
       }
     }
+
+    const workerCount = Math.min(MAX_PARALLEL_UPLOADS, pendingFiles.length);
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
   };
+
+  const renderPreview = (fileData: UploadedFile, size: "grid" | "list") => {
+    const imageUrl = fileData.result?.image.url
+      ? fileData.result.image.url
+      : fileData.previewUrl;
+    const isImage = fileData.file.type.startsWith("image/");
+    const isPdf = fileData.file.type === "application/pdf";
+    const classes =
+      size === "grid"
+        ? "h-full w-full object-cover"
+        : "h-full w-full object-cover";
+
+    if (isImage && imageUrl) {
+      return (
+        <ProgressiveImage
+          src={imageUrl}
+          alt={fileData.file.name}
+          className={classes}
+        />
+      );
+    }
+
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-muted/60 text-muted-foreground">
+        {isPdf ? (
+          <span className="text-sm font-semibold">PDF</span>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <FileText className={size === "grid" ? "h-8 w-8" : "h-4 w-4"} />
+            <span className="text-xs font-semibold">
+              {getFileExtension(fileData.file)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderProgress = (fileData: UploadedFile) => {
+    if (fileData.status !== "uploading") return null;
+
+    if (fileData.progress === null || fileData.phase === "processing") {
+      return (
+        <div className="space-y-1">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-primary/20">
+            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {fileData.phase === "processing"
+              ? "Finalizing upload • Processing..."
+              : "Uploading..."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        <Progress value={fileData.progress} className="h-2" />
+        <p className="text-xs text-muted-foreground">
+          {fileData.progress}% uploaded
+        </p>
+      </div>
+    );
+  };
+
+  const renderStatus = (fileData: UploadedFile) => {
+    if (fileData.status === "success" && fileData.result) {
+      return (
+        <p className="text-sm text-green-600">
+          Uploaded successfully • {fileData.result.image.variants?.length || 0}{" "}
+          variants generated
+        </p>
+      );
+    }
+
+    if (fileData.status === "error") {
+      return <p className="text-sm text-red-500">{fileData.error}</p>;
+    }
+
+    return null;
+  };
+
+  const renderResultActions = (fileData: UploadedFile) => {
+    const resultUrl = fileData.result?.image.url;
+    if (!resultUrl) return null;
+
+    const absoluteUrl = getPublicUrl(resultUrl);
+
+    return (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => copyToClipboard(absoluteUrl)}
+          title="Copy URL"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          asChild
+          title="Open in New Tab"
+        >
+          <a href={resultUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          asChild
+          title="Download"
+        >
+          <a href={resultUrl} download>
+            <Download className="h-4 w-4" />
+          </a>
+        </Button>
+      </div>
+    );
+  };
+
+  const renderFileActions = (fileData: UploadedFile) => (
+    <div className="flex items-center gap-2">
+      {fileData.status === "pending" && (
+        <Button
+          size="sm"
+          onClick={() => uploadFile(fileData)}
+          disabled={!applicationId}
+        >
+          Upload
+        </Button>
+      )}
+
+      {renderResultActions(fileData)}
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => removeFile(fileData.id)}
+        disabled={fileData.status === "uploading"}
+        title="Remove"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  const renderGridItem = (fileData: UploadedFile) => (
+    <div key={fileData.id} className="overflow-hidden rounded-lg border">
+      <div className="relative aspect-video bg-muted">
+        {renderPreview(fileData, "grid")}
+      </div>
+      <div className="space-y-3 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-medium">
+                {fileData.file.name}
+              </p>
+              {fileData.status === "success" && (
+                <CheckCircle className="h-4 w-4 shrink-0 text-green-500" />
+              )}
+              {fileData.status === "error" && (
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+              )}
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {formatFileSize(fileData.file.size)} •{" "}
+              {fileData.file.type || "Unknown type"}
+            </p>
+          </div>
+          <Badge variant="outline" className="shrink-0 text-xs capitalize">
+            {getStatusLabel(fileData)}
+          </Badge>
+        </div>
+        {renderProgress(fileData)}
+        {renderStatus(fileData)}
+        <div className="flex justify-end">{renderFileActions(fileData)}</div>
+      </div>
+    </div>
+  );
+
+  const renderListItem = (fileData: UploadedFile) => (
+    <div
+      key={fileData.id}
+      className="flex items-center gap-4 rounded-lg border p-3"
+    >
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+        {renderPreview(fileData, "list")}
+      </div>
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium">{fileData.file.name}</p>
+          <Badge variant="outline" className="shrink-0 text-xs capitalize">
+            {getStatusLabel(fileData)}
+          </Badge>
+          {fileData.status === "success" && (
+            <CheckCircle className="h-4 w-4 shrink-0 text-green-500" />
+          )}
+          {fileData.status === "error" && (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+          )}
+        </div>
+        <p className="truncate text-xs text-muted-foreground">
+          {formatFileSize(fileData.file.size)} •{" "}
+          {fileData.file.type || "Unknown type"}
+        </p>
+        {renderProgress(fileData)}
+        {renderStatus(fileData)}
+      </div>
+      {renderFileActions(fileData)}
+    </div>
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -297,86 +687,55 @@ export function UploadPanel({
 
         {files.length > 0 && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Files ({files.length})</CardTitle>
-                <CardDescription>
-                  Ready to upload{" "}
-                  {files.filter((f) => f.status === "pending").length} files
-                </CardDescription>
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Files ({files.length})</CardTitle>
+                  <CardDescription>
+                    Ready to upload{" "}
+                    {files.filter((f) => f.status === "pending").length} files
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2 sm:justify-end">
+                  <ToggleGroup
+                    type="single"
+                    value={viewMode}
+                    onValueChange={(value) =>
+                      value && setViewMode(value as "grid" | "list")
+                    }
+                  >
+                    <ToggleGroupItem value="grid" aria-label="Grid view">
+                      <Grid2X2 className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="list" aria-label="List view">
+                      <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <Button
+                    onClick={uploadAll}
+                    disabled={
+                      files.filter((f) => f.status === "pending").length ===
+                        0 || !applicationId
+                    }
+                  >
+                    Upload All
+                  </Button>
+                </div>
               </div>
-              <Button
-                onClick={uploadAll}
-                disabled={
-                  files.filter((f) => f.status === "pending").length === 0 ||
-                  !applicationId
-                }
-              >
-                Upload All
-              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {files.map((fileData, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-4 border rounded-lg"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium truncate">
-                          {fileData.file.name}
-                        </p>
-                        <Badge variant="outline" className="text-xs">
-                          {formatFileSize(fileData.file.size)}
-                        </Badge>
-                        {fileData.status === "success" && (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        )}
-                        {fileData.status === "error" && (
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-
-                      {fileData.status === "uploading" && (
-                        <Progress value={fileData.progress} className="h-2" />
-                      )}
-
-                      {fileData.status === "error" && (
-                        <p className="text-sm text-red-500">{fileData.error}</p>
-                      )}
-
-                      {fileData.status === "success" && fileData.result && (
-                        <p className="text-sm text-green-600">
-                          Uploaded successfully •{" "}
-                          {fileData.result.image.variants?.length || 0}{" "}
-                          variants generated
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {fileData.status === "pending" && (
-                        <Button
-                          size="sm"
-                          onClick={() => uploadFile(fileData, index)}
-                          disabled={!applicationId}
-                        >
-                          Upload
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        disabled={fileData.status === "uploading"}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2"
+                    : "space-y-3"
+                }
+              >
+                {files.map((fileData) =>
+                  viewMode === "grid"
+                    ? renderGridItem(fileData)
+                    : renderListItem(fileData),
+                )}
               </div>
             </CardContent>
           </Card>
