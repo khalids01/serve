@@ -1,6 +1,13 @@
-import fs from "fs/promises";
-import path from "path";
-import type { StorageBackend, StorageObjectInfo } from "./backend";
+import { createReadStream } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { Readable } from "node:stream";
+import type {
+  StorageBackend,
+  StorageByteRange,
+  StorageObjectInfo,
+  StorageReadStream,
+} from "./backend";
 import { resolveBaseUploadDir } from "./paths";
 
 export class LocalStorageBackend implements StorageBackend {
@@ -27,6 +34,36 @@ export class LocalStorageBackend implements StorageBackend {
   async get(key: string): Promise<Buffer | null> {
     try {
       return await fs.readFile(this.keyToPath(key));
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async open(
+    key: string,
+    range?: StorageByteRange,
+  ): Promise<StorageReadStream | null> {
+    const filePath = this.keyToPath(key);
+    try {
+      const stat = await fs.stat(filePath);
+      const stream = createReadStream(filePath, range);
+      const contentLength = range ? range.end - range.start + 1 : stat.size;
+
+      return {
+        body: Readable.toWeb(stream) as ReadableStream<Uint8Array>,
+        contentLength,
+        contentRange: range
+          ? `bytes ${range.start}-${range.end}/${stat.size}`
+          : undefined,
+      };
     } catch (error: unknown) {
       if (
         error &&

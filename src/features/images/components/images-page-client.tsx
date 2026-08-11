@@ -1,25 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Files, Grid2X2, List } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Grid2X2, Image as ImageIcon, List } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,19 +14,38 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useApplicationData } from "@/features/applications/hooks/use-application-data";
-import { useImages } from "@/features/images/hooks/use-images";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FileGridItem } from "@/features/applications/components/application-details/file-grid-item";
 import { FileListItem } from "@/features/applications/components/application-details/file-list-item";
+import { DeleteImageConfirmDescription } from "@/features/applications/components/application-details/linked-app-badges";
 import { ImagePreviewDialog } from "@/features/applications/components/application-details/preview-dialog";
 import type { ImageFileDTO } from "@/features/applications/components/application-details/types";
-import { DeleteImageConfirmDescription } from "@/features/applications/components/application-details/linked-app-badges";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApplicationData } from "@/features/applications/hooks/use-application-data";
+import { FileFilterControls } from "@/features/files/components/file-filter-controls";
+import { type FileKind, filterFiles } from "@/features/files/lib/file-kind";
+import { useImages } from "@/features/images/hooks/use-images";
 
 const ALL_APPLICATIONS = "all";
 
 export function ImagesPageClient() {
   const [applicationFilter, setApplicationFilter] = useState(ALL_APPLICATIONS);
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState<FileKind>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewImage, setPreviewImage] = useState<ImageFileDTO | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -58,6 +61,10 @@ export function ImagesPageClient() {
 
   const { data, isLoading } = useImages(selectedAppId);
   const images = data?.images ?? [];
+  const filteredImages = useMemo(
+    () => filterFiles(images, search, kind),
+    [images, search, kind],
+  );
 
   const deleteMutation = useMutation({
     mutationFn: async (imageId: string) => {
@@ -112,13 +119,13 @@ export function ImagesPageClient() {
     <div className="min-h-screen">
       <main className="container mx-auto py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Images</h1>
+          <h1 className="text-3xl font-bold">Files</h1>
           <p className="text-muted-foreground mt-2">
             Browse all uploaded files across your applications
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end">
           <div className="flex-1 max-w-xs">
             <Label htmlFor="application-filter" className="mb-2 block">
               Application
@@ -148,11 +155,21 @@ export function ImagesPageClient() {
             </Select>
           </div>
 
+          <div className="min-w-0 flex-1">
+            <Label className="mb-2 block">Find files</Label>
+            <FileFilterControls
+              search={search}
+              kind={kind}
+              onSearchChange={setSearch}
+              onKindChange={setKind}
+            />
+          </div>
+
           <ToggleGroup
             type="single"
             value={viewMode}
             onValueChange={(v) => v && setViewMode(v as "grid" | "list")}
-            className="sm:ml-auto"
+            className="lg:ml-auto"
           >
             <ToggleGroupItem value="grid" aria-label="Grid view">
               <Grid2X2 className="h-4 w-4" />
@@ -169,17 +186,17 @@ export function ImagesPageClient() {
             <CardDescription>
               {isLoading
                 ? "Loading..."
-                : `${images.length} file${images.length === 1 ? "" : "s"} shown`}
+                : `${filteredImages.length} of ${images.length} file${images.length === 1 ? "" : "s"} shown`}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="text-center py-12 text-muted-foreground">
-                Loading images...
+                Loading files...
               </div>
             ) : images.length === 0 ? (
               <div className="text-center py-12">
-                <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Files className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No files found</h3>
                 <p className="text-muted-foreground">
                   {applicationFilter === ALL_APPLICATIONS
@@ -187,9 +204,17 @@ export function ImagesPageClient() {
                     : "No files in this application yet."}
                 </p>
               </div>
+            ) : filteredImages.length === 0 ? (
+              <div className="py-12 text-center">
+                <Files className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+                <h3 className="text-lg font-semibold">No matching files</h3>
+                <p className="mt-1 text-muted-foreground">
+                  Try a different search or file type.
+                </p>
+              </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {images.map((img) => (
+                {filteredImages.map((img) => (
                   <FileGridItem
                     key={img.id}
                     img={img}
@@ -204,7 +229,7 @@ export function ImagesPageClient() {
               </div>
             ) : (
               <div className="space-y-3">
-                {images.map((img) => (
+                {filteredImages.map((img) => (
                   <FileListItem
                     key={img.id}
                     img={img}

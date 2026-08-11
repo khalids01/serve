@@ -1,15 +1,19 @@
 import { config } from "@/config";
-import type { StorageBackend } from "./backend";
+import type {
+  StorageBackend,
+  StorageByteRange,
+  StorageReadStream,
+} from "./backend";
+import { getStorage } from "./factory";
 import {
-  blobKey,
   blobCacheKey,
   blobCachePrefix,
-  objectKey,
+  blobKey,
   cacheKey,
   cachePrefix,
+  objectKey,
   uniqueTenantKeys,
 } from "./keys";
-import { getStorage } from "./factory";
 
 export { uniqueTenantKeys };
 
@@ -35,6 +39,23 @@ export async function readBlobFileWithLegacy(
   const blob = await readBlobFile(storage, filename);
   if (blob) return blob;
   return readTenantFile(storage, legacyTenantKeys, filename);
+}
+
+export async function openBlobFileWithLegacy(
+  storage: StorageBackend,
+  filename: string,
+  legacyTenantKeys: string[] = [],
+  range?: StorageByteRange,
+): Promise<StorageReadStream | null> {
+  const blob = await storage.open(blobKey(filename), range);
+  if (blob) return blob;
+
+  for (const tenantKey of legacyTenantKeys) {
+    const legacy = await storage.open(objectKey(tenantKey, filename), range);
+    if (legacy) return legacy;
+  }
+
+  return null;
 }
 
 export async function readBlobCacheWithLegacy(

@@ -1,11 +1,24 @@
+import {
+  Archive,
+  AudioLines,
+  Copy,
+  Download,
+  Eye,
+  FileText,
+  Play,
+  Trash2,
+} from "lucide-react";
+import { ProgressiveImage } from "@/components/progressive-image";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Copy, Download, Eye, Trash2 } from "lucide-react";
-import { ImageFileDTO } from "./types";
-import { PdfViewer } from "../pdf-viewer";
-import { ProgressiveImage } from "@/components/progressive-image";
+import {
+  getFileExtension,
+  getFileKind,
+  toFileContentUrl,
+} from "@/features/files/lib/file-kind";
 import { toImageServeUrl, toPlaceholderUrl } from "@/lib/image-urls";
 import { LinkedAppBadges } from "./linked-app-badges";
+import type { ImageFileDTO } from "./types";
 
 // Helper functions (could be moved to utils)
 const isPdf = (contentType: string) => contentType === "application/pdf";
@@ -16,7 +29,7 @@ const formatFileSize = (bytes: number) => {
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 };
 
 interface Props {
@@ -30,17 +43,31 @@ interface Props {
   showSelection?: boolean;
 }
 
-export function FileListItem({ img, selected, onToggleSelection, onPreview, onDelete, copyToClipboard, applicationName, showSelection = true }: Props) {
-  const url = toImageServeUrl(img.filename);
-  const isImage = img.contentType.startsWith("image/");
+export function FileListItem({
+  img,
+  selected,
+  onToggleSelection,
+  onPreview,
+  onDelete,
+  copyToClipboard,
+  applicationName,
+  showSelection = true,
+}: Props) {
+  const kind = getFileKind(img.contentType);
+  const isImage = kind === "image";
+  const url = isImage
+    ? toImageServeUrl(img.filename)
+    : toFileContentUrl(img.id);
   const thumbnailSrc = toImageServeUrl(img.filename, {
     width: isSvg(img.contentType) ? undefined : 80,
   });
-  const placeholderSrc = toPlaceholderUrl(img.filename, { variants: img.variants });
+  const placeholderSrc = toPlaceholderUrl(img.filename, {
+    variants: img.variants,
+  });
 
   return (
     <div
-      className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors ${selected ? 'bg-muted/50 border-primary' : ''}`}
+      className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors ${selected ? "bg-muted/50 border-primary" : ""}`}
     >
       {showSelection && (
         <Checkbox
@@ -53,7 +80,7 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
       <div className="flex-1 flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 bg-muted rounded-md overflow-hidden flex-shrink-0 flex items-center justify-center border relative">
           {isPdf(img.contentType) ? (
-            <span className="text-[10px] font-bold text-muted-foreground">PDF</span>
+            <FileText className="h-5 w-5 text-muted-foreground" />
           ) : isImage ? (
             <ProgressiveImage
               src={thumbnailSrc}
@@ -61,21 +88,33 @@ export function FileListItem({ img, selected, onToggleSelection, onPreview, onDe
               alt={img.originalName}
               className="w-full h-full object-cover"
             />
+          ) : kind === "video" ? (
+            <Play className="h-5 w-5 fill-current text-muted-foreground" />
+          ) : kind === "audio" ? (
+            <AudioLines className="h-5 w-5 text-muted-foreground" />
+          ) : kind === "archive" ? (
+            <Archive className="h-5 w-5 text-muted-foreground" />
+          ) : kind === "document" ? (
+            <FileText className="h-5 w-5 text-muted-foreground" />
           ) : (
-             <span className="text-[10px] font-bold text-muted-foreground uppercase">{img.filename.split('.').pop()}</span>
+            <span className="text-[9px] font-bold text-muted-foreground">
+              {getFileExtension(img.filename)}
+            </span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium truncate text-sm">
-            {img.originalName}
-          </h3>
+          <h3 className="font-medium truncate text-sm">{img.originalName}</h3>
           <p className="text-xs text-muted-foreground truncate">
             {formatFileSize(img.sizeBytes)} • {img.contentType}
-            {(applicationName ?? img.applicationName) && !img.linkedApplications?.length && (
-              <> • {applicationName ?? img.applicationName}</>
-            )}
+            {(applicationName ?? img.applicationName) &&
+              !img.linkedApplications?.length && (
+                <> • {applicationName ?? img.applicationName}</>
+              )}
           </p>
-          <LinkedAppBadges applications={img.linkedApplications} className="mt-1" />
+          <LinkedAppBadges
+            applications={img.linkedApplications}
+            className="mt-1"
+          />
         </div>
       </div>
 

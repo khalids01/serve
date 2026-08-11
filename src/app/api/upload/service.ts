@@ -237,9 +237,11 @@ export async function handleUpload({
     });
   } catch (error) {
     console.error("Upload error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to upload file";
     return NextResponse.json(
-      { error: "Failed to upload file" },
-      { status: 500 },
+      { error: message },
+      { status: message.startsWith("File too large") ? 413 : 500 },
     );
   }
 }

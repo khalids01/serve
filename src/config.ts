@@ -11,6 +11,16 @@ function normalizeS3Endpoint(endpoint?: string): string | undefined {
   return `https://${trimmed}`;
 }
 
+function positiveNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const uploadMaxFileSizeMb = positiveNumber(
+  process.env.MAX_FILE_SIZE_MB ?? process.env.NEXT_PUBLIC_MAX_FILE_SIZE,
+  50,
+);
+
 export const config = {
   storage: {
     /** Switch between local filesystem and S3-compatible object storage. */
@@ -34,8 +44,8 @@ export const config = {
   },
 
   upload: {
-    maxFileSizeMb: 50,
-    publicMaxFileSizeMb: 50,
+    maxFileSizeMb: uploadMaxFileSizeMb,
+    publicMaxFileSizeMb: uploadMaxFileSizeMb,
   },
 
   image: {

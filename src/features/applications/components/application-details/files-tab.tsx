@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { Grid2X2, Image as ImageIcon, List, Trash, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,34 +8,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Grid2X2,
-  List,
-  Upload,
-  Image as ImageIcon,
-  Trash,
-} from "lucide-react";
-import { ImageFileDTO } from "./types";
-import { FileListItem } from "./file-list-item";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { FileFilterControls } from "@/features/files/components/file-filter-controls";
+import { type FileKind, filterFiles } from "@/features/files/lib/file-kind";
 import { FileGridItem } from "./file-grid-item";
+import { FileListItem } from "./file-list-item";
+import type { ImageFileDTO } from "./types";
 
 interface Props {
-  applicationId: string;
   images: ImageFileDTO[];
   viewMode: "list" | "grid";
   onViewModeChange: (mode: "list" | "grid") => void;
   selectedIds: Set<string>;
   onToggleSelection: (id: string) => void;
-  onSelectAll: () => void;
+  onSelectAll: (visibleIds: string[]) => void;
   onBulkDelete: () => void;
   isBulkDeleting: boolean;
   onPreview: (img: ImageFileDTO) => void;
@@ -43,7 +38,6 @@ interface Props {
 }
 
 export function ApplicationFiles({
-  applicationId,
   images,
   viewMode,
   onViewModeChange,
@@ -57,22 +51,45 @@ export function ApplicationFiles({
   copyToClipboard,
   onNavigateToUpload,
 }: Props) {
-  
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState<FileKind>("all");
+  const filteredFiles = useMemo(
+    () => filterFiles(images, search, kind),
+    [images, search, kind],
+  );
+  const visibleIds = filteredFiles.map((file) => file.id);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Files</CardTitle>
         <CardDescription>
-          All files uploaded to this application
+          {filteredFiles.length === images.length
+            ? `${images.length} file${images.length === 1 ? "" : "s"} uploaded to this application`
+            : `${filteredFiles.length} of ${images.length} files shown`}
         </CardDescription>
+        <div className="mt-3">
+          <FileFilterControls
+            search={search}
+            kind={kind}
+            onSearchChange={setSearch}
+            onKindChange={setKind}
+          />
+        </div>
         <div className="mt-2 flex items-center gap-2">
           <div className="flex items-center gap-2 mr-2">
             <Checkbox
               id="select-all"
-              checked={images.length > 0 && selectedIds.size === images.length}
-              onCheckedChange={onSelectAll}
+              checked={allVisibleSelected}
+              disabled={visibleIds.length === 0}
+              onCheckedChange={() => onSelectAll(visibleIds)}
             />
-            <label htmlFor="select-all" className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">
+            <label
+              htmlFor="select-all"
+              className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline"
+            >
               Select All
             </label>
           </div>
@@ -100,7 +117,7 @@ export function ApplicationFiles({
           <ToggleGroup
             type="single"
             value={viewMode}
-            onValueChange={(v) => v && onViewModeChange(v as any)}
+            onValueChange={(v) => v && onViewModeChange(v as "list" | "grid")}
             className="ml-auto"
           >
             <ToggleGroupItem value="list" aria-label="List view">
@@ -125,6 +142,14 @@ export function ApplicationFiles({
               Upload Files
             </Button>
           </div>
+        ) : filteredFiles.length === 0 ? (
+          <div className="py-12 text-center">
+            <ImageIcon className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+            <h3 className="font-semibold">No matching files</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a different search or file type.
+            </p>
+          </div>
         ) : (
           <div
             className={
@@ -133,7 +158,7 @@ export function ApplicationFiles({
                 : "space-y-4"
             }
           >
-            {images?.map((img) => (
+            {filteredFiles.map((img) =>
               viewMode === "grid" ? (
                 <FileGridItem
                   key={img.id}
@@ -154,8 +179,8 @@ export function ApplicationFiles({
                   onDelete={onDeleteRequest}
                   copyToClipboard={copyToClipboard}
                 />
-              )
-            ))}
+              ),
+            )}
           </div>
         )}
       </CardContent>

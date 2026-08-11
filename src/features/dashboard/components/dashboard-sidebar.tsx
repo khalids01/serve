@@ -4,8 +4,8 @@ import {
   Archive,
   Cloud,
   Database,
+  Files,
   FolderOpen,
-  Image,
   LayoutDashboard,
   Server,
   Settings,
@@ -41,9 +41,9 @@ const navItems = [
       pathname.startsWith("/dashboard/applications"),
   },
   {
-    title: "Images",
+    title: "Files",
     href: "/dashboard/images",
-    icon: Image,
+    icon: Files,
     isActive: (pathname: string) => pathname.startsWith("/dashboard/images"),
   },
   {

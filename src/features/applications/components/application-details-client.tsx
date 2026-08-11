@@ -169,12 +169,16 @@ export default function ApplicationDetailsClient({
     setSelectedIds(newSelected);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === images.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(images.map((img) => img.id)));
+  const toggleSelectAll = (visibleIds: string[]) => {
+    const next = new Set(selectedIds);
+    const allVisibleSelected =
+      visibleIds.length > 0 && visibleIds.every((id) => next.has(id));
+
+    for (const id of visibleIds) {
+      if (allVisibleSelected) next.delete(id);
+      else next.add(id);
     }
+    setSelectedIds(next);
   };
 
   const cleanDeletedIds = (deletedId: string) => {
@@ -302,7 +306,6 @@ export default function ApplicationDetailsClient({
 
           <TabsContent value="files">
             <ApplicationFiles
-              applicationId={application.id}
               images={images}
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}

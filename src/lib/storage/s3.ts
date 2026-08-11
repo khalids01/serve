@@ -1,14 +1,19 @@
 import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
-  DeleteObjectsCommand,
+  PutObjectCommand,
+  S3Client,
 } from "@aws-sdk/client-s3";
-import type { StorageBackend, StorageObjectInfo } from "./backend";
 import { config } from "@/config";
+import type {
+  StorageBackend,
+  StorageByteRange,
+  StorageObjectInfo,
+  StorageReadStream,
+} from "./backend";
 
 function streamToBuffer(body: unknown): Promise<Buffer> {
   if (!body) return Promise.resolve(Buffer.alloc(0));
@@ -25,13 +30,72 @@ function streamToBuffer(body: unknown): Promise<Buffer> {
   })();
 }
 
+function streamToWeb(body: unknown): ReadableStream<Uint8Array> {
+  if (
+    body &&
+    typeof body === "object" &&
+    "transformToWebStream" in body &&
+    typeof body.transformToWebStream === "function"
+  ) {
+    return body.transformToWebStream() as ReadableStream<Uint8Array>;
+  }
+
+  const iterator = (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const next = await iterator.next();
+        if (next.done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(
+          next.value instanceof Uint8Array
+            ? next.value
+            : new Uint8Array(next.value),
+        );
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    async cancel() {
+      await iterator.return?.();
+    },
+  });
+}
+
+function isMissingObject(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  if (
+    "name" in error &&
+    ["NoSuchKey", "NotFound"].includes(
+      String((error as { name?: string }).name),
+    )
+  ) {
+    return true;
+  }
+  if ("$metadata" in error) {
+    return (
+      (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode === 404
+    );
+  }
+  return false;
+}
+
 export class S3StorageBackend implements StorageBackend {
   private client: S3Client;
   private bucket: string;
 
   constructor() {
-    const { accessKeyId, secretAccessKey, bucket, region, endpoint, forcePathStyle } =
-      config.storage.s3;
+    const {
+      accessKeyId,
+      secretAccessKey,
+      bucket,
+      region,
+      endpoint,
+      forcePathStyle,
+    } = config.storage.s3;
 
     if (!accessKeyId || !secretAccessKey || !bucket) {
       throw new Error(
@@ -73,14 +137,36 @@ export class S3StorageBackend implements StorageBackend {
       );
       return await streamToBuffer(response.Body);
     } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "name" in error &&
-        (error as { name?: string }).name === "NoSuchKey"
-      ) {
+      if (isMissingObject(error)) {
         return null;
       }
+      throw error;
+    }
+  }
+
+  async open(
+    key: string,
+    range?: StorageByteRange,
+  ): Promise<StorageReadStream | null> {
+    try {
+      const response = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Range: range ? `bytes=${range.start}-${range.end}` : undefined,
+        }),
+      );
+
+      if (!response.Body) return null;
+
+      return {
+        body: streamToWeb(response.Body),
+        contentLength: response.ContentLength ?? 0,
+        contentRange: response.ContentRange,
+        contentType: response.ContentType,
+      };
+    } catch (error) {
+      if (isMissingObject(error)) return null;
       throw error;
     }
   }
