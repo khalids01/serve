@@ -83,3 +83,30 @@ describe("browser token handler", () => {
     ]);
   });
 });
+
+it("accepts a preserved public host behind a proxy without allowing a foreign origin", async () => {
+  const client = createFileServer({
+    baseUrl: "https://files.example",
+    apiKey: "sk_test",
+    fetch: async () =>
+      Response.json({
+        data: {
+          token: "browser-token",
+          expiresAt: new Date(Date.now() + 300_000).toISOString(),
+        },
+      }),
+  });
+  const handler = createBrowserTokenHandler({
+    client,
+    authorize: async () => true,
+    allowedOrigins: ["https://consumer.example"],
+    scopes: ["files:read"],
+  });
+  const request = (origin: string) =>
+    new Request("https://0.0.0.0:3000/api/token", {
+      method: "POST",
+      headers: { host: "consumer.example", origin },
+    });
+  expect((await handler(request("https://consumer.example"))).status).toBe(200);
+  expect((await handler(request("https://attacker.example"))).status).toBe(403);
+});

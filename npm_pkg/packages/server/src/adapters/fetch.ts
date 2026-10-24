@@ -33,9 +33,14 @@ export function createBrowserTokenHandler(options: BrowserTokenHandlerOptions) {
       );
     }
     const origin = request.headers.get("origin");
+    const requestUrl = new URL(request.url);
+    // Framework Request URLs may contain an internal hostname behind a proxy.
+    // The host application/proxy must preserve the original public Host header.
+    const host = request.headers.get("host") ?? requestUrl.host;
+    const publicOrigin = new URL(`${requestUrl.protocol}//${host}`).origin;
     if (
       request.headers.get("sec-fetch-site") === "cross-site" ||
-      (origin && origin !== new URL(request.url).origin)
+      (origin && origin !== publicOrigin)
     ) {
       return Response.json(
         {
