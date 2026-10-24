@@ -19,14 +19,14 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `storage.provider` | `"local"` | `"local"` or `"s3"` |
-| `storage.cacheInStorage` | `true` | Store on-demand resize outputs under `{tenant}/_cache/` |
+| `storage.provider` | `"s3"` | `"local"` or `"s3"` |
+| `storage.cacheInStorage` | `false` | Store on-demand resize outputs under `{tenant}/_cache/` |
 | `upload.maxFileSizeMb` | `50` | Server-side upload limit |
 | `upload.publicMaxFileSizeMb` | `50` | Documented client limit (sync with `NEXT_PUBLIC_MAX_FILE_SIZE`) |
 | `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
 | `image.placeholderQuality` | `60` | Placeholder WebP quality |
 | `image.placeholderWidth` | `360` | Placeholder width (px) |
-| `auth.enableSignup` | `true` | Allow new magic-link signups |
+| `auth.enableSignup` | `false` | Allow new magic-link signups |
 | `backup.enabled` | `true` | Enable scheduled and manual backups |
 | `backup.basePrefix` | `"data-backup"` | Storage prefix for backup files |
 
@@ -36,10 +36,12 @@ Copy `.env.example` to `.env` and set values:
 
 | Variable | Description |
 | --- | --- |
-| `DATABASE_URL` | Prisma connection string (PostgreSQL recommended in production) |
+| `DATABASE_URL` | PostgreSQL connection string (required by the current schema) |
 | `BETTER_AUTH_SECRET` | Auth signing secret (required) |
 | `BETTER_AUTH_URL` | Optional base URL behind proxy |
-| `NEXT_PUBLIC_APP_URL` | Public app URL |
+| `NEXT_PUBLIC_APP_URL` | Public Serve origin used in returned URLs; local dev defaults to http://localhost:5000 |
+| `FILE_SERVER_BROWSER_TOKEN_SECRET` | Dedicated random secret of at least 32 characters; required for React browser management, configured only on the Serve host |
+| `ENABLE_SIGNUP` | Set true for initial account creation; default false |
 | `NEXT_PUBLIC_BASE_URL` | Optional API base for client |
 | `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
 | `EMAIL`, `EMAIL_PASSWORD` | SMTP credentials (secrets) |
@@ -68,7 +70,7 @@ SMTP host/port/from, `UPLOAD_DIR`, upload limits, and image settings are in [`sr
 
 ## File Storage
 
-### Local (default)
+### Local
 
 Set in `src/config.ts`:
 
@@ -79,11 +81,11 @@ storage: {
 }
 ```
 
-Files are stored under `{UPLOAD_DIR}/{application-slug}/`:
+New files are deduplicated globally under `{UPLOAD_DIR}/_blobs/`; legacy application directories remain readable:
 
 ```
 uploads/
-  my-app/
+  _blobs/
     abc123.jpeg
     abc123.webp
     abc123-placeholder.jpeg
@@ -121,9 +123,9 @@ S3_REGION=us-east-1
 
 In `src/config.ts`: `forcePathStyle: false`, `region: "us-east-1"` (or match `S3_REGION`).
 
-Object keys mirror the local layout: `{slug}/{filename}` and `{slug}/_cache/{cacheName}`.
+Object keys mirror the local layout: `_blobs/{filename}` and `_blobs/_cache/{cacheName}`. Legacy `{slug}/` objects remain readable.
 
-Files are **not** served directly from the bucket. The app reads objects and serves them via `/api/img/*`, so no public bucket or CORS setup is required.
+Use URLs returned by Serve. It reads objects and serves images via `/api/img/*` and range-capable files via `/api/v1/files/:id/content`. No public bucket or S3 CORS setup is required. Consumers configure only FILE_SERVER_URL and FILE_SERVER_API_KEY; they never need S3 credentials. A CDN can cache the Serve URLs without changing app integration.
 
 **Note:** Switching providers does not migrate existing files. Move objects manually or use a migration script if needed.
 

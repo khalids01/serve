@@ -1,10 +1,10 @@
 name: npm packages
 on:
   pull_request:
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/docs/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', '.github/workflows/npm-packages.yml']
   push:
     branches: [main]
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/docs/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', '.github/workflows/npm-packages.yml']
 permissions:
   contents: read
 jobs:

@@ -27,6 +27,8 @@ const url = files.images.url(asset, { width: 640, format: 'webp', quality: 80 })
 const deletion = await files.files.delete(asset.id);
 ```
 
+The consuming app needs only `FILE_SERVER_URL` (the Serve origin, without `/api`) and `FILE_SERVER_API_KEY`. Your framework loads these server env variables. For a standalone Node script, use `node --env-file=.env.local upload.mjs` (Node 20.6+). The [SDK-first integration guide](https://github.com/khalids01/serve/blob/main/docs/integration-guide.md) includes runnable examples and a connection check.
+
 Keep this client and its API key on the server. Never use public environment
 variables, browser storage, or browser imports for an API key. An API key is
 scoped to one application. Content URLs are **public**; authentication protects
@@ -84,7 +86,7 @@ export const POST = createBrowserTokenHandler({
 ```
 
 Supply your own session/RBAC implementation. There is no permissive default.
-The handler requires POST and rejects cross-origin browser requests. It ignores
+The handler requires POST and rejects cross-origin browser requests. Behind a reverse proxy, preserve the public Host header and HTTP(S) protocol; origin checks support internal framework Request hostnames. It ignores
 client-supplied scope/origin/application policy and returns `Cache-Control:
 no-store`. Origins must be exact HTTP(S) origins without paths or trailing slashes.
 Tokens default to five minutes and may live at most fifteen minutes.

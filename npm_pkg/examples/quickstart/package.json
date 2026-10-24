@@ -1,0 +1,15 @@
+{
+  "name": "file-server-quickstart",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@file-server/server": "workspace:*",
+    "@file-server/react": "workspace:*",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "server-only": "^0.0.1"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import {
   Book,
-  Key,
-  Upload,
-  List,
   ImageIcon,
+  Key,
+  List,
   Maximize2,
-  Trash2,
+  Menu,
   ScrollText,
   Sparkles,
-  Menu,
+  Trash2,
+  Upload,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { PublicHeader } from "@/components/core/public-header";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,17 +23,20 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { GettingStartedSection } from "@/features/docs/sections/getting-started";
-import { AuthenticationSection } from "@/features/docs/sections/authentication";
-import { UploadImageSection } from "@/features/docs/sections/upload-image";
-import { ListImagesSection } from "@/features/docs/sections/list-images";
-import { GetImageSection } from "@/features/docs/sections/get-image";
-import { DeleteImageSection } from "@/features/docs/sections/delete-image";
-import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
-import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
-import { AuditLogsSection } from "@/features/docs/sections/audit-logs";
-import { ApiTestProvider } from "@/features/docs/api-test-provider";
 import { ApiKeySelector } from "@/features/docs/api-key-selector";
+import { ApiTestProvider } from "@/features/docs/api-test-provider";
+import { AuditLogsSection } from "@/features/docs/sections/audit-logs";
+import { AuthenticationSection } from "@/features/docs/sections/authentication";
+import { DeleteImageSection } from "@/features/docs/sections/delete-image";
+import { GetImageSection } from "@/features/docs/sections/get-image";
+import { GettingStartedSection } from "@/features/docs/sections/getting-started";
+import { HostingSection } from "@/features/docs/sections/hosting";
+import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
+import { ListImagesSection } from "@/features/docs/sections/list-images";
+import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
+import { ReactIntegrationSection } from "@/features/docs/sections/react-integration";
+import { SdkReferenceSection } from "@/features/docs/sections/sdk-reference";
+import { UploadImageSection } from "@/features/docs/sections/upload-image";
 import { cn } from "@/lib/utils";
 import type { DocsPageData } from "./page";
 
@@ -46,11 +49,14 @@ const sectionGroups = [
     label: "Setup",
     sections: [
       { id: "getting-started", title: "Getting Started", icon: Book },
+      { id: "react-integration", title: "React / Next.js", icon: ImageIcon },
+      { id: "hosting", title: "Hosting & checks", icon: Key },
+      { id: "sdk-reference", title: "SDK / API v1", icon: Book },
       { id: "authentication", title: "Authentication", icon: Key },
     ],
   },
   {
-    label: "Endpoints",
+    label: "Legacy REST testers",
     sections: [
       { id: "upload", title: "Upload Image", icon: Upload },
       { id: "optimization", title: "Image Optimization", icon: Sparkles },
@@ -86,6 +92,9 @@ function DocsNav({
                 <button
                   key={section.id}
                   type="button"
+                  aria-current={
+                    activeSection === section.id ? "page" : undefined
+                  }
                   onClick={() => onSectionChange(section.id)}
                   className={cn(
                     "flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -115,9 +124,13 @@ function DocsContent({
 }) {
   switch (activeSection) {
     case "getting-started":
-      return (
-        <GettingStartedSection onSectionChange={onSectionChange} />
-      );
+      return <GettingStartedSection onSectionChange={onSectionChange} />;
+    case "react-integration":
+      return <ReactIntegrationSection />;
+    case "hosting":
+      return <HostingSection />;
+    case "sdk-reference":
+      return <SdkReferenceSection />;
     case "authentication":
       return <AuthenticationSection />;
     case "upload":
@@ -135,9 +148,7 @@ function DocsContent({
     case "delete":
       return <DeleteImageSection />;
     default:
-      return (
-        <GettingStartedSection onSectionChange={onSectionChange} />
-      );
+      return <GettingStartedSection onSectionChange={onSectionChange} />;
   }
 }
 
@@ -145,7 +156,23 @@ export default function DocsClient({ data }: DocsClientProps) {
   const [activeSection, setActiveSection] = useState("getting-started");
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  useEffect(() => {
+    const readHash = () => {
+      const id = window.location.hash.slice(1);
+      if (
+        sectionGroups.some((group) =>
+          group.sections.some((section) => section.id === id),
+        )
+      )
+        setActiveSection(id);
+    };
+    readHash();
+    window.addEventListener("hashchange", readHash);
+    return () => window.removeEventListener("hashchange", readHash);
+  }, []);
+
   function handleSectionChange(id: string) {
+    window.history.replaceState(null, "", `#${id}`);
     setActiveSection(id);
     setMobileOpen(false);
   }
@@ -160,15 +187,16 @@ export default function DocsClient({ data }: DocsClientProps) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  Serve API
+                  Serve integration docs
                 </h1>
                 <p className="text-muted-foreground">
-                  Try endpoints live with your API key
+                  Install the SDK, configure two env variables, and start using
+                  Serve
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="hidden rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950 dark:text-green-300 sm:inline-flex">
-                  v1.0.0
+                  SDK 0.1.0
                 </span>
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                   <SheetTrigger asChild>
@@ -194,7 +222,13 @@ export default function DocsClient({ data }: DocsClientProps) {
         </div>
 
         <div className="container mx-auto">
-          <ApiKeySelector />
+          {![
+            "getting-started",
+            "react-integration",
+            "hosting",
+            "sdk-reference",
+            "authentication",
+          ].includes(activeSection) && <ApiKeySelector />}
         </div>
 
         <div className="container mx-auto px-4 py-8">

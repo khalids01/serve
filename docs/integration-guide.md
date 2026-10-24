@@ -1,509 +1,248 @@
 # Serve Integration Guide
 
-This document is written for **developers and AI agents** integrating an application with a self-hosted **Serve** file storage instance. After reading it, you should know what credentials you need, which endpoints to call, and how to build correct URLs for uploaded files.
+Use this guide for new integrations. The same checked examples appear on Serve's /docs page.
+The SDK adds API paths and authorization headers; your app does not need storage-provider code.
+For earlier endpoints, see [legacy-integration-guide.md](legacy-integration-guide.md).
 
-For interactive testing, use `/docs` in the dashboard UI. For deployment and env vars, see [configuration.md](configuration.md). For a compact endpoint list, see [api.md](api.md).
+## Server: two env variables and one package
 
----
+Create an application and API key in the Serve dashboard. Use Node 20+ or Bun.
+Install (after npm publication):
 
-## Quick start checklist
-
-1. **Deploy or reach** a running Serve instance (e.g. `https://files.example.com`).
-2. **Sign in** to the dashboard and create an **Application** (tenant bucket for your app's files).
-3. **Generate an API key** for that application (`sk_live_...`).
-4. **Store the key server-side** — never in browser/mobile client code.
-5. **Upload** with `POST /api/upload` using the API key.
-6. **Persist** the returned `image.id` and `image.url` in your database.
-7. **Serve files** to users via absolute URLs: `{BASE_URL}{image.url}` (public, no auth).
-8. **List / delete / metadata** using authenticated JSON APIs below.
-
----
-
-## Mental model
-
-| Concept | Meaning |
-| --- | --- |
-| **Application** | A logical tenant. Each app has its own file namespace and API keys. |
-| **Image / file record** | A row in Serve's DB pointing at stored bytes (images, PDFs, video, etc.). |
-| **Blob deduplication** | Same file bytes (SHA-256) are stored once globally; re-upload links the blob to your app. |
-| **Variants** | Extra renditions for raster images (WebP copy, blurred placeholder). Non-images have no variants. |
-| **Public serve URL** | `/api/img/:name` — **no API key required** to read file bytes. |
-| **Management API** | Upload, list, get metadata, delete — **API key or dashboard session required**. |
-
-Serve is **API-first**: your backend talks to Serve; your frontend usually loads files from `/api/img/...` URLs.
-
----
-
-## Copy-paste agent instructions: TypeScript ecommerce admin
-
-Use this section when asking an AI agent to integrate Serve into a TypeScript ecommerce starter. The goal is not only "upload a file"; the app should include a small media library, image picker dialogs, and a safe image rendering component that product/catalog pages can reuse.
-
-```text
-Implement Serve file storage integration for a TypeScript ecommerce app.
-
-Security and architecture:
-- Never expose the Serve API key to the browser.
-- Add server env vars:
-  - FILE_SERVER_URL: Serve API root or instance root, e.g. http://localhost:3002/api or https://files.example.com/api
-  - FILE_SERVER_PUBLIC_URL: public instance root/CDN root, e.g. https://files.example.com
-  - FILE_SERVER_API_KEY: sk_live_...
-- The browser must call our app backend, not Serve directly, for management actions.
-- Public image rendering may use absolute Serve URLs because GET /api/img/:name is public.
-
-Server module:
-- Create an admin images module, for example /admin/images.
-- Protect every route with the app's admin auth/session guard.
-- Require read permission for list/detail and manage permission for upload/delete.
-- Routes to expose from our backend:
-  - GET /admin/images
-  - GET /admin/images/:id
-  - DELETE /admin/images/:id
-  - POST /admin/images/upload
-- The backend forwards to Serve:
-  - GET {FILE_SERVER_URL}/images
-  - GET {FILE_SERVER_URL}/images/:id
-  - DELETE {FILE_SERVER_URL}/images/:id
-  - POST {FILE_SERVER_URL}/upload
-- Normalize FILE_SERVER_URL so both "https://files.example.com" and "https://files.example.com/api" work.
-- Normalize FILE_SERVER_PUBLIC_URL by removing any trailing /api before building public URLs.
-- For upload, proxy the multipart request body through to Serve and inject Authorization: Bearer FILE_SERVER_API_KEY plus x-api-key.
-- Do not manually set multipart Content-Type in the browser; let fetch/FormData set the boundary.
-- Remove hop-by-hop/request-specific headers such as host and content-length when proxying upload.
-- Parse upstream JSON errors and return clear errors to the frontend.
-
-Normalized image shape returned by our backend:
-- id, filename, originalName, contentType, sizeBytes
-- width, height, hash
-- publicUrl: absolute URL from Serve image.url
-- previewUrl: absolute URL for the WebP variant when available, otherwise publicUrl
-- placeholderUrl: absolute URL for the placeholder variant when available
-- variants[] with publicUrl added to each variant
-- tags, linkedApplications, createdAt, updatedAt
-
-Frontend API client:
-- Add adminImagesApi with list/detail/delete/upload methods.
-- list accepts page, limit, search, contentType, sortBy, sortOrder.
-- upload accepts File[] and comma-separated tags.
-- For multi-upload, append a "files" JSON field describing file part names:
-  [{"file":"file_0","tags":["product","banner"]}]
-  Then append each binary file as file_0, file_1, etc.
-- Use credentials/include or the app's existing authenticated client so backend admin auth works.
-- Invalidate image queries after upload/delete.
-
-Reusable image component:
-- Add a core Img component used instead of raw <img> for product and admin media.
-- Props should include src, alt, placeholderSrc, showPlaceholder, showLoadingSpinner, fallback, objectFit.
-- If src matches /api/img/:name, prefer the .webp URL and derive a placeholder URL by appending "-placeholder".
-- Fade from placeholder to the main image when loaded.
-- Show a neutral fallback with an image icon on missing src or load error.
-- Preserve lazy loading and async decoding by default.
-
-Admin media library page:
-- Add /admin/images.
-- Required controls:
-  - Upload images button
-  - Search input
-  - Content type filter: all, JPEG, PNG, WebP, SVG
-  - Sort select: newest, oldest, name A-Z/Z-A, largest, smallest
-  - Grid/list view switcher
-  - Refresh button
-  - Pagination
-- Show loading, error, empty, and syncing states.
-- Grid and table/list views should display preview image, original name, dimensions, file size, content type, tags, and created date.
-- Actions:
-  - Preview/open metadata dialog
-  - Copy public URL
-  - Open public URL in new tab
-  - Delete image, with confirmation and manage permission check
-- If the user has read permission but not manage permission, allow browsing/copying but hide upload/delete.
-
-Upload dialog:
-- Support drag-and-drop and file picker.
-- Accept image/* and multiple files.
-- Validate client-side max size as 50 MB per file unless the app config says otherwise.
-- Let users enter comma-separated tags.
-- Show skipped file errors and upload progress/pending state.
-- Close and reset only after successful upload.
-
-Image picker dialog:
-- Reusable component for product forms, variant forms, banners, rich content blocks, etc.
-- Props: open, mode single|multiple, value, title, description, onOpenChange, onSelect.
-- Include search, content type filter, sort, refresh, upload, pagination.
-- Allow selecting existing Serve images and uploading new ones without leaving the form.
-- Return selected image.publicUrl value(s), because product fields should store renderable public URLs.
-- In single mode, selecting an image should replace the draft selection. In multiple mode, toggle selected images.
-
-Ecommerce data model and forms:
-- Products should have optional coverImageUrl.
-- Product variants should support imageUrls: string[].
-- Store public Serve URLs in product/variant fields for immediate rendering.
-- Optionally also store Serve image ids in separate fields if the app needs future metadata/delete workflows.
-- Product create/edit forms should use the ImagePickerDialog instead of requiring users to paste URLs manually.
-- Shop/product/cart pages should render product.coverImageUrl and variant.imageUrls with the shared Img component.
-
-RBAC/navigation:
-- Add permissions similar to:
-  - admin.images.read
-  - admin.images.manage
-- Admin users with catalog/product management should usually get image manage permission.
-- Add an Images item in the admin navigation only when the session can read/manage images.
-
-Testing checklist:
-- Unit test URL normalization: with and without trailing /api, no double /api in output.
-- Unit test public URL building from relative Serve paths.
-- Unit test upload proxy keeps multipart body and injects API key headers.
-- Unit test read/manage permission guards.
-- UI smoke test upload, list refresh, picker select, and product form image save.
+```sh
+npm install @file-server/server
 ```
 
-Use these implementation details with the endpoint reference below. The important data flow is: **browser admin UI → your app backend with session auth → Serve with API key → backend normalizes public URLs → browser stores/uses public URLs**.
+Before publication, install the verified server tarball from npm_pkg/artifacts instead.
+In the consuming app's .env.local:
 
----
-
-## Base URL
-
-All paths below are relative to your instance root:
-
-```
-BASE_URL = NEXT_PUBLIC_APP_URL   # e.g. https://files.example.com
-API_ROOT = {BASE_URL}/api
+```env
+# Your consuming app needs these two values. Never use a public prefix for the key.
+FILE_SERVER_URL=https://files.example.com
+FILE_SERVER_API_KEY=sk_replace_with_your_application_key
 ```
 
-Example: upload endpoint = `{BASE_URL}/api/upload`
+FILE_SERVER_URL is the public Serve origin, such as http://localhost:5000 in
+local development. Do not append /api or a file path. Keep the key server-only;
+never use NEXT_PUBLIC_ or VITE_ for the key. Restart your app after env changes.
 
----
+Save upload.mjs:
 
-## Authentication
+```js
+import { createFileServer } from "@file-server/server";
 
-### API key (recommended for integrations)
+const files = createFileServer({
+  baseUrl: process.env.FILE_SERVER_URL,
+  apiKey: process.env.FILE_SERVER_API_KEY,
+});
 
-| Header | Value |
-| --- | --- |
-| `Authorization` | `Bearer sk_live_...` |
-| **or** `x-api-key` | `sk_live_...` |
+const asset = await files.files.upload({
+  file: new Blob(["Hello from Serve"], { type: "text/plain" }),
+  filename: "hello.txt",
+});
 
-- Keys are scoped to **one application**. You do **not** need to send `applicationId` when using a key (it is inferred).
-- Invalid or revoked keys → `401` with `{ "error": "Invalid or revoked API key" }`.
-- Keys do not expire automatically; revoke in the dashboard to disable.
-
-### Dashboard session
-
-Signed-in browser session (cookie). Used by the dashboard UI and some routes when no API key is sent. **Not suitable for server-to-server integration** unless you automate cookie auth (avoid this).
-
-### Public (no auth)
-
-| Endpoint | Auth |
-| --- | --- |
-| `GET /api/img/:name` | None — anyone with the URL can fetch the file |
-
----
-
-## Auth matrix
-
-| Endpoint | API key | Session | Public |
-| --- | :---: | :---: | :---: |
-| `POST /api/upload` | Yes | Yes | No |
-| `GET /api/images` | Yes | Yes | No |
-| `GET /api/images/:id` | Yes | Yes | No |
-| `DELETE /api/images/:id` | Yes | Yes | No |
-| `GET /api/audit-logs` | Yes | Yes | No |
-| `GET /api/img/:name` | — | — | **Yes** |
-| `GET /api/stats` | No | Yes | No |
-| `GET/POST /api/admin/backups/*` | No | Yes | No |
-| `GET/DELETE /api/cache` | No | Yes | No |
-
-**Rule for integrators:** use an **API key** for upload/list/delete. Use **session-only** routes only when building dashboard/admin tools, not product backends.
-
----
-
-## Typical integration flow
-
-```text
-Your backend                          Serve
-     |                                   |
-     |  POST /api/upload  (multipart)    |
-     |  Authorization: Bearer sk_live_*  |
-     |---------------------------------->|
-     |                                   | store blob, create DB record
-     |  { success, image: { id, url } }  |
-     |<----------------------------------|
-     |                                   |
-     |  Save image.id + url in your DB   |
-     |                                   |
-Your frontend                           Serve
-     |  GET {BASE_URL}/api/img/....jpg   |
-     |---------------------------------->|
-     |  200 image bytes                  |
-     |<----------------------------------|
+console.log("File URL:", asset.urls.content);
 ```
 
-### 1. Upload a file
+Run `node --env-file=.env.local upload.mjs` (Node 20.6+). Open the printed URL:
+it should show Hello from Serve. Frameworks such as Next.js load server env
+variables themselves, so no extra env-loader package is required there.
 
-```http
-POST /api/upload
-Authorization: Bearer sk_live_YOUR_KEY
-Content-Type: multipart/form-data
+## File URLs: Serve, not a bucket endpoint
+
+Use asset.urls.content for downloads, video/audio and byte-range streaming.
+Use asset.urls.image or AdvancedImage for images and resizing. Persist asset.id
+when your app needs to retrieve/delete it. URLs are already absolute.
+
+The browser requests Serve; Serve reads local or S3 storage, creates transforms
+and handles ranges. S3 credentials, bucket names and paths stay on the Serve host.
+Public buckets and S3 CORS are unnecessary. A CDN may sit in front of the Serve
+origin later. Delivered content is public; tokens protect management, not a known
+content URL. Do not promise private/signed downloads in this version.
+
+## React / Next.js App Router
+
+Keep the same FILE_SERVER_URL and FILE_SERVER_API_KEY on your consuming app's
+server. Also install:
+
+```sh
+npm install @file-server/react server-only
 ```
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `file` | Yes | Binary file (single upload) |
-| `tags` | No | JSON **string** of a string array, e.g. `"[\"avatar\",\"profile\"]"` |
-| `applicationId` | No* | Required only without API key (dashboard uploads) |
+React 18.2 and 19 are supported. The token route below assumes an existing Better
+Auth instance at @/lib/auth. With a different provider, replace only authorize
+with your app's real session/permission check. This example grants all signed-in
+users file management; apply your role/tenant policy there when required.
 
-\* With API key auth, `applicationId` is taken from the key.
+lib/file-server.ts:
 
-**Success (single file):**
+```ts
+import "server-only";
+import { createFileServer } from "@file-server/server";
 
-```json
-{
-  "success": true,
-  "image": {
-    "id": "clx123abc",
-    "filename": "a1b2c3d4e5f67890.jpg",
-    "originalName": "photo.jpg",
-    "contentType": "image/jpeg",
-    "sizeBytes": 245760,
-    "width": 1920,
-    "height": 1080,
-    "hash": "a1b2c3...",
-    "url": "/api/img/clx123abc.jpg",
-    "variants": [
-      {
-        "id": "var_1",
-        "label": "webp",
-        "filename": "a1b2c3d4e5f67890.webp",
-        "url": "/api/img/a1b2c3d4e5f67890.webp"
-      }
-    ],
-    "linkedApplications": [{ "id": "app_1", "name": "My App", "slug": "my-app" }],
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z"
-  }
+const baseUrl = process.env.FILE_SERVER_URL;
+const apiKey = process.env.FILE_SERVER_API_KEY;
+if (!baseUrl || !apiKey) {
+  throw new Error(
+    "Set FILE_SERVER_URL and FILE_SERVER_API_KEY on your app's server.",
+  );
+}
+export const files = createFileServer({ baseUrl, apiKey });
+```
+
+app/api/file-server/token/route.ts:
+
+```ts
+import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { auth } from "@/lib/auth";
+import { files } from "@/lib/file-server";
+
+export async function POST(request: Request) {
+  // Next.js can use an internal hostname in request.url behind a proxy.
+  // Keep the public Host header and the request's forwarded HTTP(S) protocol.
+  const requestUrl = new URL(request.url);
+  const host = request.headers.get("host") ?? requestUrl.host;
+  const publicOrigin = new URL(`${requestUrl.protocol}//${host}`).origin;
+  const tokenRequest = new Request(new URL(requestUrl.pathname, publicOrigin), {
+    method: request.method,
+    headers: request.headers,
+    signal: request.signal,
+  });
+  return createBrowserTokenHandler({
+    client: files,
+    authorize: async (request) => {
+      const session = await auth.api.getSession({ headers: request.headers });
+      return Boolean(session?.user);
+    },
+    scopes: ["files:read", "files:write", "files:delete"],
+    allowedOrigins: [publicOrigin],
+  })(tokenRequest);
 }
 ```
 
-**Multi-file upload:** send `files` as a JSON string array describing form field names, plus multiple file parts. Response shape: `{ success, images: [...], errors? }`.
+The consumer origin comes from Request, so no extra consumer-origin env variable
+is required. Reverse proxies must preserve the public host/protocol. Never replace
+authorize with an unconditional true. Do not copy the quickstart's lib/auth.ts:
+it is a deny-by-default typecheck fixture, not an auth implementation.
 
-**Limits:** default max file size = **50 MB** (`config.upload.maxFileSizeMb` in `src/config.ts`).
+app/files/files-client.tsx:
 
-**Deduplication:** uploading identical bytes again returns the same `id` / URLs; the blob is not duplicated in storage.
+```tsx
+"use client";
 
-### 2. Build the public file URL
+import {
+  createTokenProvider,
+  FileServerProvider,
+  MediaLibrary,
+} from "@file-server/react";
+import "@file-server/react/styles.css";
 
-Response `url` is a **path**. Prepend your instance base:
+const tokenProvider = createTokenProvider("/api/file-server/token");
 
-```
-https://files.example.com/api/img/clx123abc.jpg
-```
-
-Use this in `<img src>`, PDF links, etc. No Authorization header on GET.
-
-### 3. On-demand resize (images only)
-
-Append query params to `/api/img/:name`:
-
-```
-GET /api/img/clx123abc.webp?w=800
-GET /api/img/clx123abc.webp?w=400&h=300
-GET /api/img/clx123abc.webp?w=1200&q=70
-```
-
-| Param | Alias | Description |
-| --- | --- | --- |
-| `w` | `width` | Max width (px), preserves aspect ratio |
-| `h` | `height` | Max height (px) |
-| `q` | `quality` | 1–100 (WebP output) |
-
-- Request **WebP** by using `.webp` in the path name.
-- **Raster images only** (JPEG, PNG, WebP). Other types return the original file or `400` if resize params are used.
-- Placeholder URLs use suffix `-placeholder` in the path (see upload response variants).
-
-### 4. List files
-
-```http
-GET /api/images?page=1&limit=20&search=avatar&sortBy=createdAt&sortOrder=desc
-Authorization: Bearer sk_live_YOUR_KEY
+export function FilesClient({ baseUrl }: { baseUrl: string }) {
+  return (
+    <FileServerProvider baseUrl={baseUrl} tokenProvider={tokenProvider}>
+      <MediaLibrary />
+    </FileServerProvider>
+  );
+}
 ```
 
-With API key, `applicationId` query param is optional (defaults to key's app). With session auth, pass `applicationId` for a specific app you own.
+app/files/page.tsx:
 
-Response includes `images[]`, `pagination` (`page`, `limit`, `total`, `pages`, `hasNext`, `hasPrev`).
+```tsx
+import { files } from "@/lib/file-server";
+import { FilesClient } from "./files-client";
 
-### 5. Get one file's metadata
-
-```http
-GET /api/images/{id}
-Authorization: Bearer sk_live_YOUR_KEY
+export default function FilesPage() {
+  return <FilesClient baseUrl={files.baseUrl} />;
+}
 ```
 
-Returns the same rich `image` object as upload. API key must belong to an app **linked** to that image.
+Only the public base URL crosses into the client. After signing in, open /files,
+upload an image/text file, preview it, and delete it. Import the CSS once and keep
+the token provider stable. Server-only uploads do not need a provider/token route.
 
-### 6. Delete a file
+For Express, Nest, Elysia and TanStack Start, use the checked modules in
+[npm_pkg/examples/integrations](../npm_pkg/examples/integrations/README.md).
 
-```http
-DELETE /api/images/{id}
-Authorization: Bearer sk_live_YOUR_KEY
-```
+## Configure the Serve host once
 
-```json
-{ "success": true }
-```
+This is host configuration, not additional consuming-app env:
 
-Deletes the blob from storage and removes **all** application links. If the image was shared across apps, it is removed everywhere.
+- NEXT_PUBLIC_APP_URL: externally reachable Serve origin, matching FILE_SERVER_URL.
+- FILE_SERVER_BROWSER_TOKEN_SECRET: separate random secret of at least 32 characters;
+  generate with `openssl rand -base64 32`. Required only for browser management.
+- Existing PostgreSQL, auth and local/S3 storage configuration; see
+  [configuration.md](configuration.md). Restart/redeploy after env changes.
 
-### 7. Audit logs (optional)
+Deploy the compatible /api/v1 backend before using the packages. Align reverse
+proxy/platform body limits with MAX_FILE_SIZE_MB, forward the public host/protocol,
+and preserve Range headers. No schema migration is added by the SDK work.
 
-```http
-GET /api/audit-logs?applicationId={appId}&page=1&limit=10
-Authorization: Bearer sk_live_YOUR_KEY
-```
+## Check the connection without changing files
 
-Returns `UPLOAD` and `DELETE` events with metadata, IP, and user agent.
+Save check-serve.mjs and run `node --env-file=.env.local check-serve.mjs`:
 
----
+```js
+import { createFileServer } from "@file-server/server";
 
-## Error handling
-
-| Status | Typical cause |
-| --- | --- |
-| `401` | Missing auth, invalid API key, or expired session |
-| `403` | Key's app cannot access this resource |
-| `404` | Unknown `id`, application, or image file in storage |
-| `400` | Missing `file`, file too large, invalid JSON in `tags` |
-| `500` | Server/storage error |
-
-Errors are JSON: `{ "error": "message", "details": "..." }` (details optional).
-
-**Integrator practice:** retry only idempotent GETs; on upload failure, do not assume partial success — check response body.
-
----
-
-## Code examples
-
-### Node.js (fetch) — upload
-
-```javascript
-const BASE = "https://files.example.com";
-const API_KEY = process.env.SERVE_API_KEY;
-
-const form = new FormData();
-form.append("file", new Blob([buffer], { type: "image/jpeg" }), "photo.jpg");
-form.append("tags", JSON.stringify(["profile"]));
-
-const res = await fetch(`${BASE}/api/upload`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${API_KEY}` },
-  body: form,
+const files = createFileServer({
+  baseUrl: process.env.FILE_SERVER_URL,
+  apiKey: process.env.FILE_SERVER_API_KEY,
 });
-
-const data = await res.json();
-if (!res.ok) throw new Error(data.error ?? "Upload failed");
-
-const publicUrl = `${BASE}${data.image.url}`;
-// store data.image.id and publicUrl in your database
+const response = await fetch(new URL("/api/v1/capabilities", files.baseUrl));
+if (!response.ok)
+  throw new Error(`Serve v1 is unavailable: HTTP ${response.status}`);
+const { data: capabilities } = await response.json();
+if (capabilities.apiVersion !== "v1")
+  throw new Error("Deploy the Serve v1 backend first.");
+if (capabilities.publicBaseUrl !== new URL(files.baseUrl).origin)
+  throw new Error(
+    "The Serve host's NEXT_PUBLIC_APP_URL must match FILE_SERVER_URL.",
+  );
+const { data } = await files.files.list({ limit: 1 });
+for (const asset of data) {
+  for (const url of [
+    asset.urls.content,
+    asset.urls.image,
+    asset.urls.placeholder,
+  ]) {
+    if (url && new URL(url).origin !== new URL(files.baseUrl).origin) {
+      throw new Error(
+        "The Serve host's NEXT_PUBLIC_APP_URL must match FILE_SERVER_URL.",
+      );
+    }
+  }
+}
+console.log("Server SDK: connected; API key accepted.");
+console.log(
+  capabilities.browserTokens.enabled
+    ? "React: browser tokens enabled. Add your authenticated token route."
+    : "React: set FILE_SERVER_BROWSER_TOKEN_SECRET on the Serve host first.",
+);
 ```
 
-### Python (requests) — upload
+This checks v1 deployment, the configured public origin, API-key acceptance and
+browser-token readiness. It does not upload or delete data.
 
-```python
-import json
-import requests
-
-BASE = "https://files.example.com"
-API_KEY = "sk_live_..."
-
-with open("photo.jpg", "rb") as f:
-    res = requests.post(
-        f"{BASE}/api/upload",
-        headers={"Authorization": f"Bearer {API_KEY}"},
-        files={"file": ("photo.jpg", f, "image/jpeg")},
-        data={"tags": json.dumps(["profile"])},
-    )
-
-res.raise_for_status()
-body = res.json()
-public_url = BASE + body["image"]["url"]
-```
-
-### cURL — list
-
-```bash
-curl -s "https://files.example.com/api/images?page=1&limit=10" \
-  -H "Authorization: Bearer sk_live_YOUR_KEY"
-```
-
----
-
-## What to store in your app
-
-| Field | Store? | Why |
-| --- | --- | --- |
-| `image.id` | **Yes** | Stable key for metadata API and delete |
-| `image.url` | **Yes** (or rebuild from id) | Public serve path |
-| `image.filename` | Optional | Storage/internal name (hash-based) |
-| `originalName` | Optional | Display name per application link |
-| API key | **Never in client** | Server env / secrets manager only |
-
----
-
-## Endpoints not for product integration
-
-These require a **dashboard login cookie**, not an API key:
-
-- `/api/stats` — owner storage summary
-- `/api/admin/backups/*` — backup schedule, scan, restore, download
-- `/api/cache` — resize cache management
-- `/api/applications/*` — CRUD apps and keys (use dashboard or automate via session)
-
-If an AI agent is wiring **end-user file upload** for a SaaS product, it should only need: **upload, list, get, delete, img serve, audit-logs**.
-
----
-
-## Image processing behavior
-
-| File type | On upload | On `/api/img` |
-| --- | --- | --- |
-| JPEG, PNG, WebP | Optimized; WebP + placeholder variants generated | Resize / WebP / quality supported |
-| PDF, video, audio, etc. | Stored as-is | Served as-is; resize params → `400` |
-
----
-
-## Related docs
-
-| Doc | Use when |
+| Symptom | Action |
 | --- | --- |
-| [api.md](api.md) | Quick endpoint reference |
-| [configuration.md](configuration.md) | Env vars, S3, backups, cache |
-| [deployment.md](deployment.md) | Docker, PostgreSQL, production |
-| `/docs` (in app) | Live API testing with your key |
+| npm package not found | Publish 0.1.0 first, or install the verified tarballs |
+| 404 on /api/v1 | Deploy the matching backend; use an origin without /api |
+| 401 INVALID_API_KEY | Use a current key for the correct Serve application |
+| 503 BROWSER_TOKENS_NOT_CONFIGURED | Set the dedicated secret on the Serve host |
+| Token route returns 401 | Sign in to the consuming app; connect real authorization |
+| 403 ORIGIN_DENIED / browser CORS error | Check token origin and proxy public host/protocol |
+| URLs point at localhost/wrong host | Correct NEXT_PUBLIC_APP_URL on Serve and redeploy |
+| 413 | Align proxy/platform request size and Serve upload limits |
 
----
+## Verification and practical limits
 
-## Agent summary (copy-paste)
-
-```yaml
-service: Serve file storage
-base_url: https://YOUR_INSTANCE
-auth:
-  type: api_key
-  header: "Authorization: Bearer sk_live_..."
-  scope: one application per key
-  never_expose_in: browser, mobile app, public repos
-upload:
-  method: POST
-  path: /api/upload
-  body: multipart/form-data
-  fields:
-    file: required binary
-    tags: optional JSON string array e.g. '["tag1"]'
-serve_public:
-  path: /api/img/:name
-  auth: none
-  resize: "?w=&h=&q=" on raster images; use .webp extension for WebP
-list: GET /api/images
-get_meta: GET /api/images/:id
-delete: DELETE /api/images/:id
-audit: GET /api/audit-logs?applicationId=&page=&limit=
-max_upload_mb: 50  # default; see config.upload.maxFileSizeMb
-```
+CI checks these exact code blocks for drift, typechecks the Next.js files from
+clean tarball installs, and executes the standalone scripts with an injected
+transport. Integration tests connect the SDK and browser-token handler to the real
+Serve v1 routes, validators, serializer, file processing, range delivery and deletion,
+using in-memory database/storage substitutes. This catches API/SDK incompatibility;
+it does not prove a particular deployed PostgreSQL/S3/proxy configuration is healthy.
+Run the connection check and a staging upload/preview/delete before release.

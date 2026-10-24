@@ -27,6 +27,8 @@ export function Assets() {
 }
 ```
 
+For a complete Next.js example using only the same two server env variables, see the [integration guide](https://github.com/khalids01/serve/blob/main/docs/integration-guide.md). A server page passes the public base URL into the provider; no duplicate public env variable is needed.
+
 Create `/api/file-server/token` on your application's authenticated backend using
 `@file-server/server/adapters/fetch`. It must authorize your current user before
 minting a short-lived token. **Never give this package a File Server API key.**

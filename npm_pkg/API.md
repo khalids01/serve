@@ -43,6 +43,8 @@ width/height (nullable), tags, createdAt/updatedAt (ISO timestamps), urls
 public File Server URL. Each variant has id, label, contentType, dimensions, size
 and URL. No storage keys, hashes, owners or linked application identities appear.
 
+Capabilities also report the configured `publicBaseUrl` and `browserTokens.enabled`; connection checks use these to catch a wrong public host URL or missing signing secret before React setup. Missing token configuration returns `503 BROWSER_TOKENS_NOT_CONFIGURED`.
+
 Browser token input: scopes (files:read/write/delete), allowedOrigins (exact
 HTTP(S) origins), expiresInSeconds (1–900, default 300). Unknown fields are rejected.
 Signed HS256 JWT claims include issuer, audience, application subject, scopes,

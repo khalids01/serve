@@ -1,5 +1,16 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "jsx": "react-jsx", "paths": { "@/*": ["../src/*"] } },
-  "include": ["tests/**/*.ts", "vitest.backend.config.ts"]
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "../src/*"
+      ]
+    },
+    "allowJs": true
+  },
+  "include": [
+    "tests/**/*.ts",
+    "vitest.backend.config.ts"
+  ]
 }

@@ -18,6 +18,7 @@ const SUPPORTED_LANGS = new Set([
   "bash",
   "javascript",
   "typescript",
+  "tsx",
   "shell",
   "text",
 ]);
@@ -28,7 +29,7 @@ function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
       themes: ["github-dark", "github-light"],
-      langs: ["json", "bash", "javascript", "typescript"],
+      langs: ["json", "bash", "javascript", "typescript", "tsx"],
     });
   }
   return highlighterPromise;

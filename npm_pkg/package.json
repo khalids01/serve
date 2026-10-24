@@ -17,9 +17,11 @@
     "test:backend": "vitest run --config vitest.backend.config.ts",
     "lint": "biome check packages scripts tests examples",
     "clean": "node scripts/clean.mjs",
-    "verify": "bun run contracts:check && bun run lint && bun run typecheck && bun run test && bun run test:backend && bun run build && bun run examples:check && bun run verify:consumer",
+    "verify": "bun run contracts:check && bun run docs:check && bun run lint && bun run typecheck && bun run test && bun run test:backend && bun run build && bun run examples:check && bun run verify:consumer",
     "verify:consumer": "node scripts/verify-consumer.mjs",
-    "examples:check": "bun run --cwd examples/integrations typecheck && bun run --cwd examples/integrations build"
+    "examples:check": "bun run --cwd examples/integrations typecheck && bun run --cwd examples/integrations build && bun run --cwd examples/quickstart typecheck",
+    "docs:sync": "node scripts/sync-docs.mjs",
+    "docs:check": "node scripts/sync-docs.mjs --check"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

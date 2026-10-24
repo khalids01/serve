@@ -18,6 +18,7 @@ Node/Bun, ESM/CommonJS and SSR. Tarballs are written to `artifacts/` (ignored).
 `bun run clean` removes build/release artifacts. No command above starts a server,
 changes the database or publishes packages.
 
+- [Exact /docs quickstart examples](examples/quickstart/README.md)
 - [Server SDK](packages/server/README.md)
 - [React components and hooks](packages/react/README.md)
 - [Versioned API contract](API.md)
@@ -28,3 +29,5 @@ The deployment needs a configured public URL (`NEXT_PUBLIC_APP_URL`) and a
 separate `FILE_SERVER_BROWSER_TOKEN_SECRET` of at least 32 characters. Apply the
 backend changes alongside the packages; these packages use `/api/v1`, not legacy
 API shapes. Browser tokens authorize management; asset delivery is public.
+
+`bun run docs:sync` generates the website code blocks and Markdown integration guide from the checked quickstart files. `bun run docs:check` rejects drift.

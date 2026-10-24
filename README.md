@@ -36,7 +36,7 @@
 
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: SQLite (configurable for PostgreSQL/MySQL)
+- **Database**: PostgreSQL (Prisma)
 - **Authentication**: Better-Auth with Magic Link
 - **File Storage**: Local filesystem or S3-compatible storage (R2, MinIO, AWS S3)
 - **UI Components**: Radix UI, Lucide Icons
@@ -46,7 +46,7 @@
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20+
 - Bun (recommended) or npm/yarn/pnpm
 - Git
 
@@ -64,10 +64,9 @@
    # or npm/pnpm install
    ```
 
-3. **Create database file**
-   ```bash
-   touch dev.db
-   ```
+3. **Prepare PostgreSQL**
+   Create a PostgreSQL database and use its connection URL in the next step.
+   The current Prisma schema requires PostgreSQL; a SQLite file will not work.
 
 4. **Set up environment variables**
    ```bash
@@ -75,18 +74,18 @@
    ```
    Edit `.env` with your configuration (required variables):
    ```env
-   NEXT_PUBLIC_APP_URL=http://localhost:4000
-   DATABASE_URL="file:./dev.db"
+   NEXT_PUBLIC_APP_URL=http://localhost:5000
+   DATABASE_URL="postgresql://postgres:password@localhost:5432/serve"
    BETTER_AUTH_SECRET="your-secure-secret-key-change-in-production"
    
+   # Dedicated browser-token secret; generate separately with openssl rand -base64 32
+   FILE_SERVER_BROWSER_TOKEN_SECRET="your-separate-random-secret-at-least-32-characters"
+
    # Email configuration for magic links (required for auth)
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=465
    EMAIL=your-email@gmail.com
    EMAIL_PASSWORD=your-app-password
-   EMAIL_FROM="Serve File Storage"
    
-   # Allow new user registration via magic link (set to false to disable signups)
+   # Enable initial account creation; disable afterwards if appropriate
    ENABLE_SIGNUP=true
    ```
 
@@ -103,11 +102,19 @@
    ```
 
 7. **Open your browser**
-   Navigate to [http://localhost:4000](http://localhost:4000)
+   Navigate to [http://localhost:5000](http://localhost:5000)
 
 ## 📖 API Documentation
 
-Visit `/docs` for interactive API documentation with live testing capabilities. You can test all API endpoints directly from the documentation page by entering your API key - no login required!
+Visit `/docs` for the SDK-first integration guide, React/Next.js setup, deployment checks and legacy REST testers. Read [the integration guide](docs/integration-guide.md) for a Markdown version.
+
+New consuming apps need only `FILE_SERVER_URL` (the Serve origin, without `/api`) and `FILE_SERVER_API_KEY` on their server:
+
+```sh
+npm install @file-server/server
+```
+
+The server SDK uploads, lists, retrieves and deletes assets. Add `@file-server/react` plus an authenticated browser-token route for upload and media components. Use the file URLs returned by Serve; S3 settings stay on the Serve host. The 0.1.0 packages are prepared but not yet published: use the verified tarballs until release.
 
 ## 📖 Usage
 
