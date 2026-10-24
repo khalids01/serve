@@ -21,8 +21,8 @@ workspace automatically publishes.
 6. Publish the **verified artifacts**, not a differently rebuilt working tree:
 
    ```sh
-   npm publish artifacts/skycanvasstudio-serve-server-0.1.0.tgz --access public
-   npm publish artifacts/skycanvasstudio-serve-react-0.1.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-server-0.1.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-react-0.1.0.tgz --access public
    ```
 
 7. Give the organization's existing file-server team publish access:
