@@ -111,10 +111,10 @@ Visit `/docs` for the SDK-first integration guide, React/Next.js setup, deployme
 New consuming apps need only `FILE_SERVER_URL` (the Serve origin, without `/api`) and `FILE_SERVER_API_KEY` on their server:
 
 ```sh
-npm install @file-server/server
+npm install @skycanvasstudio/serve-server
 ```
 
-The server SDK uploads, lists, retrieves and deletes assets. Add `@file-server/react` plus an authenticated browser-token route for upload and media components. Use the file URLs returned by Serve; S3 settings stay on the Serve host. The 0.1.0 packages are prepared but not yet published: use the verified tarballs until release.
+The server SDK uploads, lists, retrieves and deletes assets. Add `@skycanvasstudio/serve-react` plus an authenticated browser-token route for upload and media components. Use the file URLs returned by Serve; S3 settings stay on the Serve host. The 0.1.0 packages are prepared but not yet published: use the verified tarballs until release.
 
 ## 📖 Usage
 

@@ -43,7 +43,7 @@ Create an application and API key in the Serve dashboard. Use Node 20+ or Bun.
 Install (after npm publication):
 
 \`\`\`sh
-npm install @file-server/server
+npm install @skycanvasstudio/serve-server
 \`\`\`
 
 Before publication, install the verified server tarball from npm_pkg/artifacts instead.
@@ -85,7 +85,7 @@ Keep the same FILE_SERVER_URL and FILE_SERVER_API_KEY on your consuming app's
 server. Also install:
 
 \`\`\`sh
-npm install @file-server/react server-only
+npm install @skycanvasstudio/serve-react server-only
 \`\`\`
 
 React 18.2 and 19 are supported. The token route below assumes an existing Better

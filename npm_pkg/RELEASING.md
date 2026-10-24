@@ -1,6 +1,6 @@
 # Releasing 0.1.0
 
-The scope owner confirmed control of `@file-server`. Registry availability and
+The scope owner confirmed the `@skycanvasstudio` organization and selected `serve-server` / `serve-react`. Registry availability and
 publish credentials must still be checked at release time. Nothing in this
 workspace automatically publishes.
 
@@ -21,11 +21,18 @@ workspace automatically publishes.
 6. Publish the **verified artifacts**, not a differently rebuilt working tree:
 
    ```sh
-   npm publish artifacts/file-server-server-0.1.0.tgz --access public
-   npm publish artifacts/file-server-react-0.1.0.tgz --access public
+   npm publish artifacts/skycanvasstudio-serve-server-0.1.0.tgz --access public
+   npm publish artifacts/skycanvasstudio-serve-react-0.1.0.tgz --access public
    ```
 
-7. Verify both registry versions and perform an install from npm in a new project.
+7. Give the organization's existing file-server team publish access:
+
+   ```sh
+   npm access grant read-write skycanvasstudio:file-server @skycanvasstudio/serve-server
+   npm access grant read-write skycanvasstudio:file-server @skycanvasstudio/serve-react
+   ```
+
+8. Verify both registry versions and perform an install from npm in a new project.
 
 `prepack` rebuilds source before a direct package pack. `prepublishOnly` runs
 package-local checks when publishing a package directory. The release verifier

@@ -1,5 +1,5 @@
 {
-  "name": "@file-server/react",
+  "name": "@skycanvasstudio/serve-react",
   "version": "0.1.0",
   "description": "React uploads, media management, previews, and optimized images for File Server.",
   "license": "MIT",

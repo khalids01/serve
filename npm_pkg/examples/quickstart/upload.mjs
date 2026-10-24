@@ -1,4 +1,4 @@
-import { createFileServer } from "@file-server/server";
+import { createFileServer } from "@skycanvasstudio/serve-server";
 
 const files = createFileServer({
   baseUrl: process.env.FILE_SERVER_URL,

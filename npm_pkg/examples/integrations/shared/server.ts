@@ -1,4 +1,4 @@
-import { createFileServer } from "@file-server/server";
+import { createFileServer } from "@skycanvasstudio/serve-server";
 export function createClient() {
   const baseUrl = process.env.FILE_SERVER_URL;
   const apiKey = process.env.FILE_SERVER_API_KEY;

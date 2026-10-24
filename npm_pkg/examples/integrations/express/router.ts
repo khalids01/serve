@@ -1,4 +1,4 @@
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import express, { type Request as ExpressRequest } from "express";
 import { createClient } from "../shared/server";
 export function fileServerRouter(

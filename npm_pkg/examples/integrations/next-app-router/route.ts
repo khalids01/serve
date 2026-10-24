@@ -1,4 +1,4 @@
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import { type Authorize, createClient } from "../shared/server";
 // In app/api/file-server/token/route.ts export makeRoutes(yourSessionAndRbacCheck, consumerOrigin).token as POST.
 // In app/api/file-server/upload/route.ts export its upload as POST.

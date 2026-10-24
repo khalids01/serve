@@ -4,8 +4,8 @@ import {
   createTokenProvider,
   FileServerProvider,
   MediaLibrary,
-} from "@file-server/react";
-import "@file-server/react/styles.css";
+} from "@skycanvasstudio/serve-react";
+import "@skycanvasstudio/serve-react/styles.css";
 
 const tokenProvider = createTokenProvider("/api/file-server/token");
 

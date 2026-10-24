@@ -75,7 +75,13 @@ try {
     consumer,
   );
   for (const name of ["server", "react"]) {
-    const dist = join(consumer, "node_modules", "@file-server", name, "dist");
+    const dist = join(
+      consumer,
+      "node_modules",
+      "@skycanvasstudio",
+      `serve-${name}`,
+      "dist",
+    );
     const walk = (dir) =>
       readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
         entry.isDirectory()
@@ -94,10 +100,10 @@ try {
   }
   writeFileSync(
     join(consumer, "consumer.mts"),
-    `import { createFileServer, type FileAsset } from '@file-server/server';
-import { createBrowserTokenHandler } from '@file-server/server/adapters/fetch';
-import '@file-server/react/styles.css';
-import { AdvancedImage, FileUploader, MediaLibrary, FileServerProvider, useUpload, useFiles, useDeleteFile, UploadQueue } from '@file-server/react';
+    `import { createFileServer, type FileAsset } from '@skycanvasstudio/serve-server';
+import { createBrowserTokenHandler } from '@skycanvasstudio/serve-server/adapters/fetch';
+import '@skycanvasstudio/serve-react/styles.css';
+import { AdvancedImage, FileUploader, MediaLibrary, FileServerProvider, useUpload, useFiles, useDeleteFile, UploadQueue } from '@skycanvasstudio/serve-react';
 const client = createFileServer({baseUrl:'https://files.example',apiKey:'sk_test'});
 createBrowserTokenHandler({client, authorize:async()=>true,scopes:['files:read'],allowedOrigins:['https://consumer.example']});
 void [AdvancedImage,FileUploader,MediaLibrary,FileServerProvider,useUpload,useFiles,useDeleteFile,UploadQueue];
@@ -105,7 +111,7 @@ const asset: FileAsset | undefined = undefined; void asset;`,
   );
   writeFileSync(
     join(consumer, "consumer.cts"),
-    `import server = require('@file-server/server'); import ui = require('@file-server/react'); void server.createFileServer; void ui.AdvancedImage;`,
+    `import server = require('@skycanvasstudio/serve-server'); import ui = require('@skycanvasstudio/serve-react'); void server.createFileServer; void ui.AdvancedImage;`,
   );
   const tsconfig = {
     compilerOptions: {
@@ -190,12 +196,12 @@ assert.equal((await POST(make('https://attacker.example','session=valid'))).stat
     FILE_SERVER_API_KEY: "sk_documented_test",
   };
   const smoke = `import assert from 'node:assert/strict';
-import {createRequire} from 'node:module'; import {createFileServer} from '@file-server/server';
-import * as ui from '@file-server/react'; import React from 'react'; import {renderToString} from 'react-dom/server';
-const require = createRequire(import.meta.url); assert.equal(typeof require('@file-server/server').createFileServer,'function'); assert.equal(typeof require('@file-server/react').MediaLibrary,'function');
+import {createRequire} from 'node:module'; import {createFileServer} from '@skycanvasstudio/serve-server';
+import * as ui from '@skycanvasstudio/serve-react'; import React from 'react'; import {renderToString} from 'react-dom/server';
+const require = createRequire(import.meta.url); assert.equal(typeof require('@skycanvasstudio/serve-server').createFileServer,'function'); assert.equal(typeof require('@skycanvasstudio/serve-react').MediaLibrary,'function');
 const client=createFileServer({baseUrl:'https://files.example',apiKey:'sk_test',fetch:async()=>Response.json({data:[],pagination:{page:1,limit:20,total:0,pages:0,hasNext:false,hasPrev:false}})}); assert.deepEqual((await client.files.list()).data,[]);
 const markup=renderToString(React.createElement(ui.FileServerProvider,{baseUrl:'https://files.example',tokenProvider:async()=>{throw new Error('SSR requested token')}},React.createElement(ui.MediaLibrary)));assert(markup.includes('Media library'));
-assert(require.resolve('@file-server/react/styles.css').endsWith('styles.css'));`;
+assert(require.resolve('@skycanvasstudio/serve-react/styles.css').endsWith('styles.css'));`;
   writeFileSync(join(consumer, "smoke.mjs"), smoke);
   for (const version of [18, 19]) {
     if (version === 19)

@@ -1,14 +1,14 @@
-# @file-server/server
+# @skycanvasstudio/serve-server
 
 TypeScript client for a deployed [Serve File Server](https://github.com/khalids01/serve).
 Node.js 20+ or Bun 1.1+; ESM and CommonJS. Uses standard Fetch APIs, with no framework runtime dependency.
 
 ```sh
-npm install @file-server/server
+npm install @skycanvasstudio/serve-server
 ```
 
 ```ts
-import { createFileServer, FileServerError } from '@file-server/server';
+import { createFileServer, FileServerError } from '@skycanvasstudio/serve-server';
 
 const files = createFileServer({
   baseUrl: process.env.FILE_SERVER_URL!,
@@ -71,7 +71,7 @@ the File Server, and configure `NEXT_PUBLIC_APP_URL` to its public origin. On th
 `/api/file-server/token`:
 
 ```ts
-import { createBrowserTokenHandler } from '@file-server/server/adapters/fetch';
+import { createBrowserTokenHandler } from '@skycanvasstudio/serve-server/adapters/fetch';
 
 export const POST = createBrowserTokenHandler({
   client: files,

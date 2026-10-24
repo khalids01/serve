@@ -7,8 +7,8 @@
     "build": "tsup shared/media.tsx next-app-router/route.ts tanstack-start/server.ts express/router.ts nest/controller.ts elysia/router.ts --format esm --out-dir dist"
   },
   "dependencies": {
-    "@file-server/server": "workspace:*",
-    "@file-server/react": "workspace:*",
+    "@skycanvasstudio/serve-server": "workspace:*",
+    "@skycanvasstudio/serve-react": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@tanstack/react-start": "^1.168.0",
     "elysia": "^1.4.0",

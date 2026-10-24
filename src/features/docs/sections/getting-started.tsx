@@ -30,7 +30,7 @@ export function GettingStartedSection({
           , create an application and generate an API key for it. Use Node.js
           20+ or Bun. The env-file command below requires Node.js 20.6+.
         </p>
-        <CodeBlock code="npm install @file-server/server" language="bash" />
+        <CodeBlock code="npm install @skycanvasstudio/serve-server" language="bash" />
         <p className="text-sm text-muted-foreground">
           The 0.1.0 packages are prepared for release. Registry installation
           works after publication; before then, install the verified .tgz

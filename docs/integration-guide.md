@@ -10,7 +10,7 @@ Create an application and API key in the Serve dashboard. Use Node 20+ or Bun.
 Install (after npm publication):
 
 ```sh
-npm install @file-server/server
+npm install @skycanvasstudio/serve-server
 ```
 
 Before publication, install the verified server tarball from npm_pkg/artifacts instead.
@@ -29,7 +29,7 @@ never use NEXT_PUBLIC_ or VITE_ for the key. Restart your app after env changes.
 Save upload.mjs:
 
 ```js
-import { createFileServer } from "@file-server/server";
+import { createFileServer } from "@skycanvasstudio/serve-server";
 
 const files = createFileServer({
   baseUrl: process.env.FILE_SERVER_URL,
@@ -66,7 +66,7 @@ Keep the same FILE_SERVER_URL and FILE_SERVER_API_KEY on your consuming app's
 server. Also install:
 
 ```sh
-npm install @file-server/react server-only
+npm install @skycanvasstudio/serve-react server-only
 ```
 
 React 18.2 and 19 are supported. The token route below assumes an existing Better
@@ -78,7 +78,7 @@ lib/file-server.ts:
 
 ```ts
 import "server-only";
-import { createFileServer } from "@file-server/server";
+import { createFileServer } from "@skycanvasstudio/serve-server";
 
 const baseUrl = process.env.FILE_SERVER_URL;
 const apiKey = process.env.FILE_SERVER_API_KEY;
@@ -93,7 +93,7 @@ export const files = createFileServer({ baseUrl, apiKey });
 app/api/file-server/token/route.ts:
 
 ```ts
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import { auth } from "@/lib/auth";
 import { files } from "@/lib/file-server";
 
@@ -134,8 +134,8 @@ import {
   createTokenProvider,
   FileServerProvider,
   MediaLibrary,
-} from "@file-server/react";
-import "@file-server/react/styles.css";
+} from "@skycanvasstudio/serve-react";
+import "@skycanvasstudio/serve-react/styles.css";
 
 const tokenProvider = createTokenProvider("/api/file-server/token");
 
@@ -185,7 +185,7 @@ and preserve Range headers. No schema migration is added by the SDK work.
 Save check-serve.mjs and run `node --env-file=.env.local check-serve.mjs`:
 
 ```js
-import { createFileServer } from "@file-server/server";
+import { createFileServer } from "@skycanvasstudio/serve-server";
 
 const files = createFileServer({
   baseUrl: process.env.FILE_SERVER_URL,

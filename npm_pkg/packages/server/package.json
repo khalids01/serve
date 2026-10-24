@@ -1,5 +1,5 @@
 {
-  "name": "@file-server/server",
+  "name": "@skycanvasstudio/serve-server",
   "version": "0.1.0",
   "description": "Framework-neutral server SDK for File Server.",
   "license": "MIT",

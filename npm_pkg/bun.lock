@@ -23,8 +23,8 @@
     "examples/integrations": {
       "name": "file-server-integration-examples",
       "dependencies": {
-        "@file-server/react": "workspace:*",
-        "@file-server/server": "workspace:*",
+        "@skycanvasstudio/serve-react": "workspace:*",
+        "@skycanvasstudio/serve-server": "workspace:*",
         "@nestjs/common": "^11.0.0",
         "@tanstack/react-start": "^1.168.0",
         "elysia": "^1.4.0",
@@ -41,8 +41,8 @@
     "examples/quickstart": {
       "name": "file-server-quickstart",
       "dependencies": {
-        "@file-server/react": "workspace:*",
-        "@file-server/server": "workspace:*",
+        "@skycanvasstudio/serve-react": "workspace:*",
+        "@skycanvasstudio/serve-server": "workspace:*",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
         "server-only": "^0.0.1",
@@ -56,7 +56,7 @@
       },
     },
     "packages/react": {
-      "name": "@file-server/react",
+      "name": "@skycanvasstudio/serve-react",
       "version": "0.1.0",
       "dependencies": {
         "zod": "^4.3.6",
@@ -67,7 +67,7 @@
       },
     },
     "packages/server": {
-      "name": "@file-server/server",
+      "name": "@skycanvasstudio/serve-server",
       "version": "0.1.0",
       "dependencies": {
         "zod": "^4.3.6",
@@ -195,9 +195,9 @@
 
     "@file-server/contracts": ["@file-server/contracts@workspace:packages/contracts"],
 
-    "@file-server/react": ["@file-server/react@workspace:packages/react"],
+    "@skycanvasstudio/serve-react": ["@skycanvasstudio/serve-react@workspace:packages/react"],
 
-    "@file-server/server": ["@file-server/server@workspace:packages/server"],
+    "@skycanvasstudio/serve-server": ["@skycanvasstudio/serve-server@workspace:packages/server"],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 

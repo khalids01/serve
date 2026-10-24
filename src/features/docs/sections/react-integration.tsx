@@ -15,7 +15,7 @@ export function ReactIntegrationSection() {
       <section className="space-y-4 rounded-lg border bg-card p-6">
         <h3 className="text-lg font-semibold">Install</h3>
         <CodeBlock
-          code="npm install @file-server/server @file-server/react server-only"
+          code="npm install @skycanvasstudio/serve-server @skycanvasstudio/serve-react server-only"
           language="bash"
         />
         <p>

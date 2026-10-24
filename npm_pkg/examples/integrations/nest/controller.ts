@@ -1,5 +1,4 @@
 import "reflect-metadata";
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
 import {
   Body,
   Controller,
@@ -8,6 +7,7 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import type {
   Request as ExpressRequest,
   Response as ExpressResponse,

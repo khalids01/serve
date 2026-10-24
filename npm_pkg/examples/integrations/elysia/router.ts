@@ -1,4 +1,4 @@
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import { Elysia, t } from "elysia";
 import { type Authorize, createClient } from "../shared/server";
 export function fileServerRoutes(authorize: Authorize, consumerOrigin: string) {

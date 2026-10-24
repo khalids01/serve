@@ -1,4 +1,4 @@
-import { createBrowserTokenHandler } from "@file-server/server/adapters/fetch";
+import { createBrowserTokenHandler } from "@skycanvasstudio/serve-server/adapters/fetch";
 import { auth } from "@/lib/auth";
 import { files } from "@/lib/file-server";
 

@@ -1,19 +1,19 @@
-# @file-server/react
+# @skycanvasstudio/serve-react
 
 React uploads, file selection, previews and a paginated media library for
 [Serve File Server](https://github.com/khalids01/serve). Supports React 18.2 and
 19, ESM/CommonJS, SSR and Next.js client boundaries. No Tailwind dependency.
 
 ```sh
-npm install @file-server/react react react-dom
+npm install @skycanvasstudio/serve-react react react-dom
 ```
 
 ```tsx
 'use client';
 import {
   FileServerProvider, MediaLibrary, createTokenProvider,
-} from '@file-server/react';
-import '@file-server/react/styles.css';
+} from '@skycanvasstudio/serve-react';
+import '@skycanvasstudio/serve-react/styles.css';
 
 // Keep this function stable; the provider stores tokens only in memory.
 const tokenProvider = createTokenProvider('/api/file-server/token');
@@ -30,7 +30,7 @@ export function Assets() {
 For a complete Next.js example using only the same two server env variables, see the [integration guide](https://github.com/khalids01/serve/blob/main/docs/integration-guide.md). A server page passes the public base URL into the provider; no duplicate public env variable is needed.
 
 Create `/api/file-server/token` on your application's authenticated backend using
-`@file-server/server/adapters/fetch`. It must authorize your current user before
+`@skycanvasstudio/serve-server/adapters/fetch`. It must authorize your current user before
 minting a short-lived token. **Never give this package a File Server API key.**
 Tokens are origin-bound and application-scoped. File URLs themselves are public;
 this is not private or signed content delivery.

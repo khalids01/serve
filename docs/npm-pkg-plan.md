@@ -4,8 +4,8 @@
 
 Build two reusable npm packages for the existing File Server application:
 
-- `@file-server/server`: a framework-neutral TypeScript server SDK for uploading and managing files through a deployed File Server instance.
-- `@file-server/react`: React components and hooks for file/image upload, selection, preview, management, and optimized image rendering.
+- `@skycanvasstudio/serve-server`: a framework-neutral TypeScript server SDK for uploading and managing files through a deployed File Server instance.
+- `@skycanvasstudio/serve-react`: React components and hooks for file/image upload, selection, preview, management, and optimized image rendering.
 
 All npm-package source, package tooling, package tests, and package examples must live under the project-root `npm_pkg/` directory. The existing Next.js application remains in its current root structure.
 
@@ -24,7 +24,7 @@ Follow these rules throughout the implementation:
 3. Do not start the File Server application or any example application unless the user explicitly permits it. Static checks, unit tests, package builds, and tarball inspection are allowed.
 4. Do not make a Prisma schema change or run a migration, database push, seed, or any command that can synchronize a schema without first asking the user to run/approve it.
 5. Version 1 must not require a database migration. Keep the existing Prisma `Image`, `ImageVariant`, and `ImageApplication` model names internally and expose generic `FileAsset` names only at the API/SDK boundary.
-6. Never expose or bundle an application API key in `@file-server/react`, browser code, public environment variables, HTML, or browser storage.
+6. Never expose or bundle an application API key in `@skycanvasstudio/serve-react`, browser code, public environment variables, HTML, or browser storage.
 7. Never import `next/*`, Prisma, `@/` aliases, root application modules, or root application UI components from either public package.
 8. Keep framework-specific code behind explicit subpath exports. Importing the main server SDK must not load Express, NestJS, Elysia, or Next.js.
 9. Preserve existing `/api/*` endpoints for backward compatibility. Add `/api/v1/*` endpoints rather than silently changing existing response shapes.
@@ -71,8 +71,8 @@ There are exactly two user-facing packages:
 
 | Directory | Package | Published | Purpose |
 | --- | --- | --- | --- |
-| `npm_pkg/packages/server` | `@file-server/server` | Yes | Server-only API client and integration handlers |
-| `npm_pkg/packages/react` | `@file-server/react` | Yes | React provider, hooks, uploaders, pickers, previews, and image component |
+| `npm_pkg/packages/server` | `@skycanvasstudio/serve-server` | Yes | Server-only API client and integration handlers |
+| `npm_pkg/packages/react` | `@skycanvasstudio/serve-react` | Yes | React provider, hooks, uploaders, pickers, previews, and image component |
 | `npm_pkg/packages/contracts` | `@file-server/contracts` | No, private | Canonical DTOs, schemas, MIME helpers, error types, and test fixtures |
 
 The private contracts workspace must be bundled into both public packages. Published tarballs must not contain a runtime or declaration-file import of `@file-server/contracts`, and neither published `package.json` may list it as a dependency.
@@ -82,7 +82,7 @@ If reliable bundling of private contracts into declaration files becomes fragile
 ### 3.3 Runtime and module targets
 
 - TypeScript source only; generated output goes to each package's `dist/` directory.
-- `@file-server/server` supports Node.js 20+ and Bun 1.1+.
+- `@skycanvasstudio/serve-server` supports Node.js 20+ and Bun 1.1+.
 - The server SDK uses standard `fetch`, `Request`, `Response`, `Headers`, `FormData`, `Blob`, and `AbortSignal` concepts and permits injecting a custom `fetch` implementation.
 - Publish ESM and CommonJS builds for the server package.
 - Publish ESM and CommonJS builds for the React package, with React 18.2 and React 19 supported as peer versions.
@@ -92,9 +92,9 @@ If reliable bundling of private contracts into declaration files becomes fragile
 
 ### 3.4 Styling decision
 
-`@file-server/react` must not require Tailwind CSS, shadcn/ui, or the consuming application's build-time class scanning.
+`@skycanvasstudio/serve-react` must not require Tailwind CSS, shadcn/ui, or the consuming application's build-time class scanning.
 
-Ship small, namespaced plain CSS as `@file-server/react/styles.css`. Use `fs-` class names and `--fs-*` CSS custom properties. Every component must also accept `className` and useful slot class overrides so consumers can restyle it.
+Ship small, namespaced plain CSS as `@skycanvasstudio/serve-react/styles.css`. Use `fs-` class names and `--fs-*` CSS custom properties. Every component must also accept `className` and useful slot class overrides so consumers can restyle it.
 
 Do not copy the app's complete shadcn component library into the package.
 
@@ -179,7 +179,7 @@ Current endpoints return different shapes and relative URL fields. `/api/v1` mus
 
 ### 5.5 Browser secrets and CORS
 
-The existing API-key model is server-to-server. It must not be used directly by React components. Add short-lived browser access tokens and scoped CORS before allowing `@file-server/react` to call the File Server origin directly.
+The existing API-key model is server-to-server. It must not be used directly by React components. Add short-lived browser access tokens and scoped CORS before allowing `@skycanvasstudio/serve-react` to call the File Server origin directly.
 
 ---
 
@@ -407,7 +407,7 @@ Defaults:
 
 ### 7.3 Consumer-side token handler
 
-`@file-server/server` provides a handler factory that a consuming application's authenticated backend can mount. The handler calls the File Server token endpoint with its private API key.
+`@skycanvasstudio/serve-server` provides a handler factory that a consuming application's authenticated backend can mount. The handler calls the File Server token endpoint with its private API key.
 
 The authorization callback is mandatory:
 
@@ -443,7 +443,7 @@ Public content responses may retain `Access-Control-Allow-Origin: *` for v1.
 
 ---
 
-## 8. `@file-server/server` design
+## 8. `@skycanvasstudio/serve-server` design
 
 ### 8.1 Package structure
 
@@ -470,14 +470,14 @@ npm_pkg/packages/server/
 └── CHANGELOG.md
 ```
 
-Do not create a Next-specific runtime adapter. Next.js App Router and TanStack Start should use the standard Fetch `Request -> Response` adapter from `@file-server/server/adapters/fetch`.
+Do not create a Next-specific runtime adapter. Next.js App Router and TanStack Start should use the standard Fetch `Request -> Response` adapter from `@skycanvasstudio/serve-server/adapters/fetch`.
 
 ### 8.2 Main client API
 
 Target API:
 
 ```ts
-import { createFileServer } from "@file-server/server"
+import { createFileServer } from "@skycanvasstudio/serve-server"
 
 const fileServer = createFileServer({
   baseUrl: process.env.FILE_SERVER_URL!,
@@ -596,7 +596,7 @@ Use a mocked `fetch` for deterministic unit tests. Cover:
 
 ---
 
-## 9. `@file-server/react` design
+## 9. `@skycanvasstudio/serve-react` design
 
 ### 9.1 Package structure
 
@@ -644,8 +644,8 @@ Target API:
 import {
   FileServerProvider,
   createTokenProvider,
-} from "@file-server/react"
-import "@file-server/react/styles.css"
+} from "@skycanvasstudio/serve-react"
+import "@skycanvasstudio/serve-react/styles.css"
 
 <FileServerProvider
   baseUrl="https://files.example.com"
@@ -845,8 +845,8 @@ Examples are part of the acceptance criteria. They must consume the packed tarba
 
 Every example must show two independent flows:
 
-1. Server-side upload using `@file-server/server`.
-2. Authenticated React management using a short-lived token endpoint and `@file-server/react`.
+1. Server-side upload using `@skycanvasstudio/serve-server`.
+2. Authenticated React management using a short-lived token endpoint and `@skycanvasstudio/serve-react`.
 
 ### 10.1 Next.js App Router
 
@@ -916,13 +916,13 @@ Both packages require:
 - `publishConfig.access: "public"` if the final names remain scoped public packages.
 - `prepublishOnly` running package-local validation.
 
-`@file-server/react`:
+`@skycanvasstudio/serve-react`:
 
 - `peerDependencies`: React and React DOM ranges covering 18.2 and 19.
 - `sideEffects`: only the CSS export.
 - Browser-safe dependency graph.
 
-`@file-server/server`:
+`@skycanvasstudio/serve-server`:
 
 - Must not be marked browser-safe.
 - No React dependency.
@@ -949,7 +949,7 @@ After each package build, verify:
 
 Tasks:
 
-1. Confirm `@file-server/server` and `@file-server/react` naming availability/ownership. If unavailable, ask the user before changing names.
+1. Confirm `@skycanvasstudio/serve-server` and `@skycanvasstudio/serve-react` naming availability/ownership. If unavailable, ask the user before changing names.
 2. Record existing static-check commands and current failures without fixing unrelated issues.
 3. Add a written `/api/v1` contract document or OpenAPI file derived from section 6.
 4. List existing legacy endpoints that will remain supported.
@@ -1133,7 +1133,7 @@ Live verification must use dedicated test applications/files and must not operat
 The task is complete only when all applicable items are true:
 
 - `npm_pkg/` contains the isolated workspace and all package-related source/tooling/examples.
-- The two public packages are `@file-server/server` and `@file-server/react`, or the user has explicitly approved replacement names.
+- The two public packages are `@skycanvasstudio/serve-server` and `@skycanvasstudio/serve-react`, or the user has explicitly approved replacement names.
 - The existing root application has not been moved.
 - `/api/v1` has consistent validated DTOs and errors.
 - API keys remain server-only.
