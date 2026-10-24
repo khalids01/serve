@@ -1,0 +1,51 @@
+# PostgreSQL is provisioned separately in Dokploy on dokploy-network.
+# Both tags must be from the same successful workflow/release.
+services:
+  migrate:
+    image: ${IMAGE_REPOSITORY:-khalids01/serve}:migrate-${IMAGE_TAG:?Set IMAGE_TAG to main or sha-FULL_COMMIT}
+    pull_policy: always
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+    networks:
+      - dokploy-network
+
+  file-server:
+    image: ${IMAGE_REPOSITORY:-khalids01/serve}:app-${IMAGE_TAG:?Set IMAGE_TAG to main or sha-FULL_COMMIT}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Dokploy writes the Compose service's Environment settings into this file.
+    env_file:
+      - ${SERVE_ENV_FILE:-.env}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "5000"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
+      UPLOAD_DIR: /uploads
+    expose:
+      - "5000"
+    volumes:
+      - serve-uploads:/uploads
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 35s
+
+volumes:
+  serve-uploads:
+
+networks:
+  dokploy-network:
+    external: true

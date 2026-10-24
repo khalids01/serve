@@ -375,46 +375,42 @@ Be respectful, inclusive, and helpful. We follow the [Contributor Covenant](http
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_APP_URL` | Application URL | `http://localhost:3003` |
-| `DATABASE_URL` | Database connection string | `file:./dev.db` |
-| `BETTER_AUTH_SECRET` | Authentication secret key | Required |
-| `ENABLE_SIGNUP` | Allow new user registration via magic link | `true` |
-| `UPLOAD_DIR` | Root directory for uploaded files | `uploads` |
-| `ORIGINAL_MAX_DIM` | Max dimension for optimized originals (px) | `2560` |
-| `MAX_FILE_SIZE` | Max upload size in bytes | `10_000_000` |
-| `SMTP_HOST` | Email server host | Optional |
-| `SMTP_PORT` | Email server port | Optional |
+See [configuration.md](docs/configuration.md) and [.env.example](.env.example) for
+local setup. Production Compose settings are listed in [.env.production.example](.env.production.example).
 
-### Database Support
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_APP_URL` | Public Serve origin (local default http://localhost:5000); set at Docker build and runtime |
+| `DATABASE_URL` | PostgreSQL connection URL |
+| `BETTER_AUTH_SECRET` | Private random authentication secret |
+| `FILE_SERVER_BROWSER_TOKEN_SECRET` | Separate secret for React management tokens |
+| `STORAGE_PROVIDER` | `s3` (default) or `local` |
+| `UPLOAD_DIR` | Local storage root (`uploads` locally, `/uploads` in the image) |
+| `MAX_FILE_SIZE_MB`, `NEXT_PUBLIC_MAX_FILE_SIZE` | Server and browser upload limits in MB |
+| `EMAIL`, `EMAIL_PASSWORD` | Magic-link SMTP credentials |
 
-- **SQLite** (default) - Perfect for development and small deployments
-- **PostgreSQL** - Recommended for production
-- **MySQL** - Also supported
+The checked-in Prisma schema uses PostgreSQL. SQLite/MySQL URLs do not work with it.
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+**Push to GitHub → build app/migration Docker images → Docker Hub → trigger Dokploy → pull images → migrate → start Serve.**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/khalids01/serve)
+Select `docker-compose.production.yml` in your Dokploy Compose service. CI runs on
+`main`; the service uses `IMAGE_TAG=main` for automatic deployments or a SHA tag for
+controlled releases. It does not build from source on the VPS.
 
-### Docker
+Follow [the deployment guide](docs/deployment.md) to configure Docker Hub credentials,
+the public build URL, runtime env, and either the authenticated Dokploy API (as in
+the ecommerce reference) or its raw Compose webhook.
+
+For local image verification:
 
 ```bash
-# Build the image
-docker build -t serve .
-
-# Run the container
-docker run -p 3003:3003 serve
+docker build --target app --build-arg NEXT_PUBLIC_APP_URL=https://files.example.com -t serve-check:app .
 ```
 
-### Self-Hosted
-
-1. Build the application: `bun build`
-2. Set up your database
-3. Configure environment variables
-4. Start the server: `bun start`
+Use your real domain in GitHub before publishing production images. Builds do not
+apply migrations; the one-shot `migrate` service does that during deployment.
 
 ## 📊 Roadmap
 

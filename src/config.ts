@@ -21,12 +21,17 @@ const uploadMaxFileSizeMb = positiveNumber(
   50,
 );
 
+const storageProvider = process.env.STORAGE_PROVIDER ?? "s3";
+if (storageProvider !== "s3" && storageProvider !== "local") {
+  throw new Error("STORAGE_PROVIDER must be s3 or local.");
+}
+
 export const config = {
   storage: {
     /** Switch between local filesystem and S3-compatible object storage. */
-    provider: "s3" as StorageProvider,
+    provider: storageProvider as StorageProvider,
     local: {
-      uploadDir: "uploads" as string,
+      uploadDir: process.env.UPLOAD_DIR ?? "uploads",
     },
     s3: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID,

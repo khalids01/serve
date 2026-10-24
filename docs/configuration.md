@@ -6,7 +6,7 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 
 1. Copy [`.env.example`](../.env.example) to `.env` and set secrets (`DATABASE_URL`, `BETTER_AUTH_SECRET`, SMTP).
 2. Run `npm run db:push` (or `db:migrate`) to apply the schema.
-3. Choose a storage provider in [`src/config.ts`](../src/config.ts) (`local` or `s3`).
+3. Set `STORAGE_PROVIDER=local` or `s3` in the service environment.
 4. Configure backups (optional) via env vars or **Dashboard → Data Backup**.
 5. Sign in, create an application, and generate an API key.
 6. Integrate your app using [integration-guide.md](integration-guide.md).
@@ -19,7 +19,7 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `storage.provider` | `"s3"` | `"local"` or `"s3"` |
+| `storage.provider` | `"s3"` | Controlled by `STORAGE_PROVIDER=local` or `s3` |
 | `storage.cacheInStorage` | `false` | Store on-demand resize outputs under `{tenant}/_cache/` |
 | `upload.maxFileSizeMb` | `50` | Server-side upload limit |
 | `upload.publicMaxFileSizeMb` | `50` | Documented client limit (sync with `NEXT_PUBLIC_MAX_FILE_SIZE`) |
@@ -46,6 +46,8 @@ Copy `.env.example` to `.env` and set values:
 | `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
 | `EMAIL`, `EMAIL_PASSWORD` | SMTP credentials (secrets) |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET` | S3 storage credentials (when using S3) |
+| `STORAGE_PROVIDER` | `s3` (default) or `local` |
+| `UPLOAD_DIR` | Local storage root; Docker uses `/uploads` and its persistent volume |
 | `S3_REGION` | Optional region (`auto` for R2, e.g. `us-east-1` for AWS) |
 | `S3_ENDPOINT` | Custom endpoint (R2/MinIO); omit for native AWS S3 |
 | `BACKUP_ENABLED` | Set to `false` to disable backups |
@@ -57,7 +59,7 @@ Copy `.env.example` to `.env` and set values:
 | `BACKUP_WEEKLY_RETENTION_WEEKS` | Keep weekly snapshots for N weeks |
 | `BACKUP_MONTHLY_RETENTION_MONTHS` | Keep monthly snapshots for N months |
 
-SMTP host/port/from, `UPLOAD_DIR`, upload limits, and image settings are in [`src/config.ts`](../src/config.ts).
+SMTP host/port/from and image settings remain in [`src/config.ts`](../src/config.ts). Storage provider, local upload directory and upload limits can be set through env. For Docker builds, public URL and browser limits must match the runtime values; see [deployment.md](deployment.md).
 
 ## Dashboard layout
 
@@ -72,14 +74,7 @@ SMTP host/port/from, `UPLOAD_DIR`, upload limits, and image settings are in [`sr
 
 ### Local
 
-Set in `src/config.ts`:
-
-```typescript
-storage: {
-  provider: "local",
-  // ...
-}
-```
+Set `STORAGE_PROVIDER=local` and optionally `UPLOAD_DIR` in the service environment.
 
 New files are deduplicated globally under `{UPLOAD_DIR}/_blobs/`; legacy application directories remain readable:
 
@@ -97,7 +92,7 @@ Public placeholder URLs use `/api/img/{hash}.{ext}-placeholder` (e.g. `/api/img/
 
 ### S3-compatible storage (AWS S3, Cloudflare R2, MinIO, etc.)
 
-All S3-compatible providers use the same API. Set `storage.provider` to `"s3"` in `src/config.ts` and configure credentials in `.env`.
+All S3-compatible providers use the same API. Set `STORAGE_PROVIDER=s3` and configure credentials in the service environment.
 
 **Cloudflare R2 example:**
 
