@@ -1,27 +1,21 @@
-import { prisma } from "@/lib/prisma";
+import { withBlobLock } from "@/lib/blob-lock";
 import { FileStorageService } from "@/lib/file-storage";
-import { contentHash16 } from "@/lib/storage/hash";
 import { formatImageResponse, imageInclude } from "@/lib/image-response";
 import type { Prisma } from "@/lib/prisma-types";
+import { contentHash16 } from "@/lib/storage/hash";
 
-type ImageWithRelations = Prisma.ImageGetPayload<{ include: typeof imageInclude }>;
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "P2002"
-  );
-}
+type ImageWithRelations = Prisma.ImageGetPayload<{
+  include: typeof imageInclude;
+}>;
 
 async function linkImageToApplication(
+  db: Prisma.TransactionClient,
   imageId: string,
   applicationId: string,
   originalName: string,
   tags?: string[] | null,
 ): Promise<ImageWithRelations> {
-  await prisma.imageApplication.upsert({
+  await db.imageApplication.upsert({
     where: {
       imageId_applicationId: { imageId, applicationId },
     },
@@ -38,13 +32,14 @@ async function linkImageToApplication(
     },
   });
 
-  return prisma.image.findUniqueOrThrow({
+  return db.image.findUniqueOrThrow({
     where: { id: imageId },
     include: imageInclude,
   });
 }
 
 async function createImageWithStorage(
+  db: Prisma.TransactionClient,
   buffer: Buffer,
   originalName: string,
   contentType: string,
@@ -58,7 +53,7 @@ async function createImageWithStorage(
     contentType,
   );
 
-  return prisma.image.create({
+  return db.image.create({
     data: {
       hash: uploadResult.id,
       filename: uploadResult.filename,
@@ -95,23 +90,25 @@ export async function processImageUpload(
   tags?: string[] | null,
 ) {
   const hash = contentHash16(buffer);
-  const existing = await prisma.image.findUnique({
-    where: { hash },
-    include: imageInclude,
-  });
+  return withBlobLock(hash, async (db) => {
+    const existing = await db.image.findUnique({
+      where: { hash },
+      include: imageInclude,
+    });
 
-  if (existing) {
-    const image = await linkImageToApplication(
-      existing.id,
-      applicationId,
-      originalName,
-      tags,
-    );
-    return formatImageResponse(image, applicationId);
-  }
+    if (existing) {
+      const image = await linkImageToApplication(
+        db,
+        existing.id,
+        applicationId,
+        originalName,
+        tags,
+      );
+      return formatImageResponse(image, applicationId);
+    }
 
-  try {
     const image = await createImageWithStorage(
+      db,
       buffer,
       originalName,
       contentType,
@@ -119,25 +116,5 @@ export async function processImageUpload(
       tags,
     );
     return formatImageResponse(image, applicationId);
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      throw error;
-    }
-
-    const raced = await prisma.image.findUnique({
-      where: { hash },
-      include: imageInclude,
-    });
-    if (!raced) {
-      throw error;
-    }
-
-    const image = await linkImageToApplication(
-      raced.id,
-      applicationId,
-      originalName,
-      tags,
-    );
-    return formatImageResponse(image, applicationId);
-  }
+  });
 }

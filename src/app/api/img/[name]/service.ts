@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import path from "path";
+import path from "node:path";
+import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
+import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
+import { getStorage } from "@/lib/storage/factory";
+import { isSharpResizable } from "@/lib/storage/image";
 import {
-  readBlobFileWithLegacy,
   readBlobCacheWithLegacy,
+  readBlobFileWithLegacy,
   writeBlobCache,
 } from "@/lib/storage/read";
-import { getStorage } from "@/lib/storage/factory";
-import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
-import { isSharpResizable } from "@/lib/storage/image";
 
 const MAX_DIMENSION = 4096;
 
@@ -47,6 +47,11 @@ function getContentTypeByExt(ext: string): string {
       return "image/avif";
     case "svg":
       return "image/svg+xml";
+    case "gif":
+      return "image/gif";
+    case "tiff":
+    case "tif":
+      return "image/tiff";
     case "mp4":
       return "video/mp4";
     case "pdf":
@@ -57,11 +62,16 @@ function getContentTypeByExt(ext: string): string {
 }
 
 function bufferResponse(buf: Buffer, contentType: string): NextResponse {
-  const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  const body = buf.buffer.slice(
+    buf.byteOffset,
+    buf.byteOffset + buf.byteLength,
+  );
   return new NextResponse(body as ArrayBuffer, {
     status: 200,
     headers: {
       "Content-Type": contentType,
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox; default-src 'none'",
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
@@ -74,7 +84,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     const wParam = url.searchParams.get("width") || url.searchParams.get("w");
     const hParam = url.searchParams.get("height") || url.searchParams.get("h");
-    const fmtParam = url.searchParams.get("format") || url.searchParams.get("f");
+    const fmtParam =
+      url.searchParams.get("format") || url.searchParams.get("f");
     const qParam = url.searchParams.get("quality") || url.searchParams.get("q");
 
     const width = clamp(wParam ? parseInt(wParam, 10) : null);
@@ -83,7 +94,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     const PLACEHOLDER_SUFFIX = "-placeholder";
     let isPlaceholder = rawName.endsWith(PLACEHOLDER_SUFFIX);
-    let imagePathName = isPlaceholder
+    const imagePathName = isPlaceholder
       ? rawName.slice(0, -PLACEHOLDER_SUFFIX.length)
       : rawName;
 
@@ -168,12 +179,15 @@ export async function serveImage(request: NextRequest, rawName: string) {
         legacyTenantKeys,
       );
       if (!buf) {
-        return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Variant not found" },
+          { status: 404 },
+        );
       }
       return bufferResponse(buf, getContentTypeByExt(targetExt));
     }
 
-    if (!width && !height && targetExt === normalizedOrigExt) {
+    if (!width && !height && !quality && targetExt === normalizedOrigExt) {
       const buf = await readBlobFileWithLegacy(
         storage,
         image.filename,
@@ -185,27 +199,26 @@ export async function serveImage(request: NextRequest, rawName: string) {
           { status: 404 },
         );
       }
-      return bufferResponse(buf, image.contentType || "application/octet-stream");
+      return bufferResponse(
+        buf,
+        image.contentType || "application/octet-stream",
+      );
     }
 
-    if (!width && !height && targetExt !== normalizedOrigExt) {
+    if (!width && !height && !quality && targetExt !== normalizedOrigExt) {
       const variantFilename = `${base}.${targetExt}`;
       const buf = await readBlobFileWithLegacy(
         storage,
         variantFilename,
         legacyTenantKeys,
       );
-      if (!buf) {
-        return NextResponse.json({ error: "Variant not found" }, { status: 404 });
-      }
-      return bufferResponse(buf, getContentTypeByExt(targetExt));
+      if (buf) return bufferResponse(buf, getContentTypeByExt(targetExt));
+      // Formats such as AVIF need not be pre-generated at upload time.
+      // Fall through to the on-demand conversion/cache path.
     }
 
     const needsTransform =
-      !!width ||
-      !!height ||
-      !!quality ||
-      targetExt !== normalizedOrigExt;
+      !!width || !!height || !!quality || targetExt !== normalizedOrigExt;
 
     if (
       needsTransform &&
@@ -251,7 +264,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
       });
     }
 
-    if (targetExt === "webp") pipeline = pipeline.webp({ quality: quality ?? 80 });
+    if (targetExt === "webp")
+      pipeline = pipeline.webp({ quality: quality ?? 80 });
     else if (targetExt === "png")
       pipeline = pipeline.png({
         compressionLevel: 9,
@@ -260,6 +274,9 @@ export async function serveImage(request: NextRequest, rawName: string) {
       });
     else if (targetExt === "avif")
       pipeline = pipeline.avif({ quality: quality ?? 50 });
+    else if (targetExt === "gif") pipeline = pipeline.gif();
+    else if (targetExt === "tiff" || targetExt === "tif")
+      pipeline = pipeline.tiff();
     else pipeline = pipeline.jpeg({ quality: quality ?? 85, mozjpeg: true });
 
     const out = await pipeline.toBuffer();

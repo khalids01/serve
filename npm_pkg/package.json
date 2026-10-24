@@ -1,0 +1,40 @@
+{
+  "name": "file-server-packages",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "bun@1.4.3",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "bun run --cwd packages/contracts build && bun run --cwd packages/server build && bun run --cwd packages/react build",
+    "typecheck": "bun run --cwd packages/contracts typecheck && bun run --cwd packages/server typecheck && bun run --cwd packages/react typecheck && tsc -p tsconfig.backend.json",
+    "test": "bun run --cwd packages/contracts test && bun run --cwd packages/server test && bun run --cwd packages/react test",
+    "pack:check": "bun run --cwd packages/server pack:check && bun run --cwd packages/react pack:check",
+    "contracts:sync": "node scripts/sync-contracts.mjs",
+    "contracts:check": "node scripts/sync-contracts.mjs --check",
+    "test:backend": "vitest run --config vitest.backend.config.ts",
+    "lint": "biome check packages scripts tests examples",
+    "clean": "node scripts/clean.mjs",
+    "verify": "bun run contracts:check && bun run lint && bun run typecheck && bun run test && bun run test:backend && bun run build && bun run examples:check && bun run verify:consumer",
+    "verify:consumer": "node scripts/verify-consumer.mjs",
+    "examples:check": "bun run --cwd examples/integrations typecheck && bun run --cwd examples/integrations build"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.18",
+    "@biomejs/biome": "2.2.0",
+    "@types/node": "^20.19.26",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "jsdom": "^26.1.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "jose": "^6.2.3"
+  },
+  "type": "module"
+}

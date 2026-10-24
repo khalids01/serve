@@ -1,0 +1,72 @@
+{
+  "name": "@file-server/react",
+  "version": "0.1.0",
+  "description": "React uploads, media management, previews, and optimized images for File Server.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": {
+      "types": "./dist/styles.d.ts",
+      "default": "./dist/styles.css"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
+  "peerDependencies": {
+    "react": ">=18.2.0 <20",
+    "react-dom": ">=18.2.0 <20"
+  },
+  "scripts": {
+    "build": "tsup && cp src/styles.css dist/styles.css && cp src/styles.d.ts dist/styles.d.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "pack:check": "npm pack --dry-run",
+    "prepack": "bun run build",
+    "prepublishOnly": "bun run typecheck && bun run test && bun run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khalids01/serve.git",
+    "directory": "npm_pkg/packages/react"
+  },
+  "homepage": "https://github.com/khalids01/serve#readme",
+  "bugs": {
+    "url": "https://github.com/khalids01/serve/issues"
+  },
+  "keywords": [
+    "file-server",
+    "upload",
+    "storage",
+    "typescript",
+    "react"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

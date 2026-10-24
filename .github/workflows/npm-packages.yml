@@ -1,0 +1,32 @@
+name: npm packages
+on:
+  pull_request:
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+  push:
+    branches: [main]
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - run: bun install --frozen-lockfile
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+      - run: bun install --frozen-lockfile
+        working-directory: npm_pkg
+      - run: bun run verify
+        working-directory: npm_pkg
+      - run: npm run typecheck
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarballs
+          path: npm_pkg/artifacts/*.tgz

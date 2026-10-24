@@ -1,5 +1,5 @@
 import path from "path";
-import sharp, { Metadata } from "sharp";
+import sharp, { type Metadata } from "sharp";
 import { config } from "@/config";
 
 export type NormalizedRasterExt = "jpg" | "png" | "webp" | null;

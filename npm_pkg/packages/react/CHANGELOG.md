@@ -1,0 +1,9 @@
+# Changelog
+
+## 0.1.0
+
+- React 18/19 provider with in-memory token deduplication, refresh and expired-token retry.
+- File/image pickers, upload queue with shared concurrency, cancellation and explicit retry.
+- Responsive images, bounded safe previews and a paginated media library.
+- Management hooks, controlled selection, permission props and native preview dialogs.
+- Standalone CSS with theme/slot overrides, reduced-motion support and ESM/CommonJS declarations.
