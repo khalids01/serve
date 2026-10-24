@@ -36,6 +36,7 @@ import { ListImagesSection } from "@/features/docs/sections/list-images";
 import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
 import { ReactIntegrationSection } from "@/features/docs/sections/react-integration";
 import { SdkReferenceSection } from "@/features/docs/sections/sdk-reference";
+import { StorageSection } from "@/features/docs/sections/storage";
 import { UploadImageSection } from "@/features/docs/sections/upload-image";
 import { cn } from "@/lib/utils";
 import type { DocsPageData } from "./page";
@@ -50,6 +51,7 @@ const sectionGroups = [
     sections: [
       { id: "getting-started", title: "Getting Started", icon: Book },
       { id: "react-integration", title: "React / Next.js", icon: ImageIcon },
+      { id: "storage", title: "Storage & file manager", icon: Book },
       { id: "hosting", title: "Hosting & checks", icon: Key },
       { id: "sdk-reference", title: "SDK / API v1", icon: Book },
       { id: "authentication", title: "Authentication", icon: Key },
@@ -127,6 +129,8 @@ function DocsContent({
       return <GettingStartedSection onSectionChange={onSectionChange} />;
     case "react-integration":
       return <ReactIntegrationSection />;
+    case "storage":
+      return <StorageSection />;
     case "hosting":
       return <HostingSection />;
     case "sdk-reference":

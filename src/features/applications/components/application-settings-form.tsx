@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { ApplicationDTO } from "./application-details/types";
+import { StorageLocationSelect } from "@/features/storage/location-select";
+import type { ApplicationDTO } from "./application-details/types";
 
 interface Props {
   application: ApplicationDTO;
@@ -14,24 +15,30 @@ interface Props {
 
 export function ApplicationSettingsForm({ application }: Props) {
   const router = useRouter();
+  const [storage, setStorage] = useState(
+    application.defaultStorageLocationId ?? "default",
+  );
   const [name, setName] = useState(application.name);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast.error("Application name is required");
       return;
     }
 
-    if (name === application.name) {
+    if (
+      name === application.name &&
+      storage === (application.defaultStorageLocationId ?? "default")
+    ) {
       toast.info("No changes to save");
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
       const response = await fetch(`/api/applications/${application.id}`, {
         method: "PATCH",
@@ -40,6 +47,7 @@ export function ApplicationSettingsForm({ application }: Props) {
         },
         body: JSON.stringify({
           name: name.trim(),
+          defaultStorageLocationId: storage,
         }),
       });
 
@@ -52,7 +60,9 @@ export function ApplicationSettingsForm({ application }: Props) {
       router.refresh();
     } catch (error) {
       console.error("Update error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update application");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update application",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -60,9 +70,12 @@ export function ApplicationSettingsForm({ application }: Props) {
 
   const handleReset = () => {
     setName(application.name);
+    setStorage(application.defaultStorageLocationId ?? "default");
   };
 
-  const hasChanges = name !== application.name;
+  const hasChanges =
+    name !== application.name ||
+    storage !== (application.defaultStorageLocationId ?? "default");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -82,26 +95,31 @@ export function ApplicationSettingsForm({ application }: Props) {
 
       <div className="space-y-2">
         <Label>Application Slug</Label>
-        <Input
-          value={application.slug}
-          disabled
-          className="bg-muted"
-        />
+        <Input value={application.slug} disabled className="bg-muted" />
         <p className="text-xs text-muted-foreground">
-          The slug cannot be changed as it determines the storage directory path.
+          The slug cannot be changed as it determines the storage directory
+          path.
         </p>
       </div>
 
+      <div className="space-y-2">
+        <Label>Default storage</Label>
+        <StorageLocationSelect
+          value={storage}
+          onChange={setStorage}
+          disabled={isLoading}
+        />
+        <p className="text-xs text-muted-foreground">
+          Applies to new uploads. Existing files keep their saved location.
+        </p>
+      </div>
       <div className="flex gap-2">
-        <Button 
-          type="submit" 
-          disabled={!hasChanges || isLoading}
-        >
+        <Button type="submit" disabled={!hasChanges || isLoading}>
           {isLoading ? "Saving..." : "Save Changes"}
         </Button>
-        <Button 
-          type="button" 
-          variant="outline" 
+        <Button
+          type="button"
+          variant="outline"
           onClick={handleReset}
           disabled={!hasChanges || isLoading}
         >

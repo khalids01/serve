@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2 } from "lucide-react";
 
 interface ImageCropDialogProps {
   open: boolean;
@@ -30,7 +28,6 @@ export function ImageCropDialog({
   onOpenChange,
   imageUrl,
   imageName,
-  linkedApplications,
   onSave,
 }: ImageCropDialogProps) {
   const [crop, setCrop] = useState<Crop>({
@@ -41,7 +38,6 @@ export function ImageCropDialog({
     y: 25,
   });
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-  const [saveMode, setSaveMode] = useState<"new" | "replace">("new");
   const [isSaving, setIsSaving] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -56,21 +52,18 @@ export function ImageCropDialog({
         y: 25,
       });
       setCompletedCrop(null);
-      setSaveMode("new");
     }
   }, [open, imageUrl]);
 
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-      setCrop({
-        unit: "%",
-        width: 50,
-        height: 50,
-        x: 25,
-        y: 25,
-      });
-    },
-    [],
-  );
+  const onImageLoad = useCallback(() => {
+    setCrop({
+      unit: "%",
+      width: 50,
+      height: 50,
+      x: 25,
+      y: 25,
+    });
+  }, []);
 
   const getCroppedImg = useCallback(
     (image: HTMLImageElement, pixelCrop: PixelCrop): Promise<Blob> => {
@@ -124,7 +117,7 @@ export function ImageCropDialog({
     setIsSaving(true);
     try {
       const croppedBlob = await getCroppedImg(imgRef.current, completedCrop);
-      await onSave(croppedBlob, saveMode);
+      await onSave(croppedBlob, "new");
       onOpenChange(false);
     } catch (error) {
       console.error("Error cropping image:", error);
@@ -139,8 +132,8 @@ export function ImageCropDialog({
         <DialogHeader>
           <DialogTitle>Crop Image</DialogTitle>
           <DialogDescription>
-            Adjust the crop area and choose whether to save as a new image or
-            replace the original
+            Adjust the crop area and save it as a new image. The original stays
+            unchanged.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,6 +145,7 @@ export function ImageCropDialog({
               onComplete={(c) => setCompletedCrop(c)}
               aspect={undefined}
             >
+              {/* biome-ignore lint/performance/noImgElement: Canvas cropping needs a native image element. */}
               <img
                 ref={imgRef}
                 src={imageUrl}
@@ -166,36 +160,6 @@ export function ImageCropDialog({
         </div>
 
         <div className="space-y-4 pt-4 border-t">
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Save Options</Label>
-            <RadioGroup
-              value={saveMode}
-              onValueChange={(v) => setSaveMode(v as "new" | "replace")}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="new" id="new" />
-                <Label htmlFor="new" className="font-normal cursor-pointer">
-                  Save as new image (keeps original)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="replace" id="replace" />
-                <Label htmlFor="replace" className="font-normal cursor-pointer">
-                  Replace original image
-                </Label>
-              </div>
-            </RadioGroup>
-            {saveMode === "replace" &&
-              linkedApplications &&
-              linkedApplications.length > 1 && (
-                <p className="text-sm text-amber-600 dark:text-amber-500">
-                  This image is shared with{" "}
-                  {linkedApplications.map((app) => app.name).join(", ")}. Replacing
-                  it will update the file for all linked applications.
-                </p>
-              )}
-          </div>
-
           <DialogFooter>
             <Button
               variant="outline"

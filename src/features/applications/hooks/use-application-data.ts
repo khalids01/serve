@@ -1,7 +1,7 @@
 "use client";
 
-import api from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
 
 // Shared types
 export interface Application {
@@ -63,15 +63,13 @@ export type UseApplicationDataOptions = {
   fetchCache?: boolean;
 };
 
-
 export function generateSlug(name: string) {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
-
 
 export function useApplicationData(options?: UseApplicationDataOptions) {
   const {
@@ -103,8 +101,20 @@ export function useApplicationData(options?: UseApplicationDataOptions) {
   });
 
   const createMutation = useMutation({
-    mutationFn: async ({ name, slug }: { name: string; slug: string }) => {
-      const { data } = await api.post("/api/applications", { name, slug });
+    mutationFn: async ({
+      name,
+      slug,
+      defaultStorageLocationId,
+    }: {
+      name: string;
+      slug: string;
+      defaultStorageLocationId?: string;
+    }) => {
+      const { data } = await api.post("/api/applications", {
+        name,
+        slug,
+        defaultStorageLocationId,
+      });
       return data;
     },
     onSuccess: async () => {
@@ -124,7 +134,9 @@ export function useApplicationData(options?: UseApplicationDataOptions) {
   const activityQuery = useQuery<AuditLogItem[]>({
     queryKey: ["application-activity", id],
     queryFn: async () => {
-      const response = await api.get(`/api/audit-logs?applicationId=${id}&limit=10`);
+      const response = await api.get(
+        `/api/audit-logs?applicationId=${id}&limit=10`,
+      );
       return response.data?.logs ?? [];
     },
     enabled: Boolean(doActivity && id),

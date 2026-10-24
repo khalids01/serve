@@ -1,5 +1,4 @@
-import { ImagesPageClient } from "@/features/images/components/images-page-client";
-
+import { redirect } from "next/navigation";
 export default function ImagesPage() {
-  return <ImagesPageClient />;
+  redirect("/dashboard/files");
 }

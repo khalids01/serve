@@ -1,6 +1,8 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-import { useApplicationData, generateSlug } from "@/features/applications/hooks/use-application-data";
+import {
+  generateSlug,
+  useApplicationData,
+} from "@/features/applications/hooks/use-application-data";
+import { StorageLocationSelect } from "@/features/storage/location-select";
 
 export function NewApplicationDialog({
   triggerLabel = "New Application",
@@ -25,6 +29,7 @@ export function NewApplicationDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [defaultStorageLocationId, setStorage] = useState("default");
   const {
     createMutation: { mutateAsync, isPending },
   } = useApplicationData();
@@ -44,6 +49,7 @@ export function NewApplicationDialog({
     try {
       await mutateAsync({
         name,
+        defaultStorageLocationId,
         slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       });
       toast.success("Application created successfully");
@@ -98,6 +104,13 @@ export function NewApplicationDialog({
               and hyphens.
             </p>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Storage location</Label>
+          <StorageLocationSelect
+            value={defaultStorageLocationId}
+            onChange={setStorage}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

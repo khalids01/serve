@@ -1,5 +1,7 @@
 # 🚀 Serve - Open Source File Storage
 
+See [storage connections and file manager](docs/storage-and-file-manager.md) for Default, encrypted S3 connections, persistent Local storage, folders, and file moves.
+
 **100% Free & Open Source** • Fast, secure, and scalable file storage server built for developers who need reliable file storage without vendor lock-in.
 
 > 🎯 **Use it for anything legal** - Commercial projects, personal use, SaaS applications, or as a foundation for your own file storage solution. No restrictions, no licensing fees.
@@ -20,6 +22,8 @@
 - **🔒 Secure by Default** - Built-in security best practices
 - **🚀 High Performance** - Optimized for speed and scalability
 - **📊 Usage stats** - Storage and file counts in dashboard settings
+- **Storage connections** - Encrypted S3 credentials, environment defaults, and persistent VPS storage
+- **File manager** - Folders, grid/list views, upload queue, move/copy across storage, previews, stars, and Trash
 - **💾 Data backup & restore** - Scheduled JSON/SQL backups with scan-from-storage recovery
 - **🗄️ Cache management** - View and clear on-demand resize cache from the dashboard
 - **🎯 API-First Design** - RESTful APIs for easy integration
@@ -414,7 +418,7 @@ apply migrations; the one-shot `migrate` service does that during deployment.
 
 ## 📊 Roadmap
 
-- [ ] **S3 Compatible Storage** - AWS S3, MinIO, etc.
+- [x] **S3 Compatible Storage** - AWS S3, MinIO, etc.
 - [ ] **Advanced Image Processing** - More optimization options
 - [ ] **CDN Integration** - CloudFlare, AWS CloudFront
 - [ ] **Webhook Support** - Real-time notifications

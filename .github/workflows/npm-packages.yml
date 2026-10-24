@@ -1,15 +1,26 @@
 name: npm packages
 on:
   pull_request:
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/docs/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
   push:
     branches: [main]
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/docs/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
 permissions:
   contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: serve-test-only
+          POSTGRES_DB: serve_storage_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d serve_storage_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +37,16 @@ jobs:
       - run: bun run verify
         working-directory: npm_pkg
       - run: npm run typecheck
+      - name: Validate a fresh storage schema
+        run: bunx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:serve-test-only@127.0.0.1:5432/serve_storage_test
+      - name: Test storage and file-manager operations against PostgreSQL
+        run: bun run test:storage
+        env:
+          DATABASE_URL: postgresql://postgres:serve-test-only@127.0.0.1:5432/serve_storage_test
+          SERVE_INTEGRATION_TEST: '1'
+          NEXT_PUBLIC_APP_URL: https://files.example
       - uses: actions/upload-artifact@v4
         with:
           name: npm-tarballs

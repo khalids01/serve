@@ -42,9 +42,15 @@ const navItems = [
   },
   {
     title: "Files",
-    href: "/dashboard/images",
+    href: "/dashboard/files",
     icon: Files,
-    isActive: (pathname: string) => pathname.startsWith("/dashboard/images"),
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/files"),
+  },
+  {
+    title: "Storage",
+    href: "/dashboard/storage",
+    icon: Database,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/storage"),
   },
   {
     title: "Upload",

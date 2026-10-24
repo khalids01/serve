@@ -27,7 +27,7 @@ For interactive testing, use `/docs` in the dashboard UI. For deployment and env
 | --- | --- |
 | **Application** | A logical tenant. Each app has its own file namespace and API keys. |
 | **Image / file record** | A row in Serve's DB pointing at stored bytes (images, PDFs, video, etc.). |
-| **Blob deduplication** | Same file bytes (SHA-256) are stored once globally; re-upload links the blob to your app. |
+| **Blob deduplication** | Same bytes share a blob within one owner and storage location; each upload has its own entry. |
 | **Variants** | Extra renditions for raster images (WebP copy, blurred placeholder). Non-images have no variants. |
 | **Public serve URL** | `/api/img/:name` — **no API key required** to read file bytes. |
 | **Management API** | Upload, list, get metadata, delete — **API key or dashboard session required**. |
@@ -352,7 +352,7 @@ Authorization: Bearer sk_live_YOUR_KEY
 { "success": true }
 ```
 
-Deletes the blob from storage and removes **all** application links. If the image was shared across apps, it is removed everywhere.
+Deletes one application entry. Other entries retain their files; storage is released only when the final reference is removed. Session callers should pass applicationId explicitly.
 
 ### 7. Audit logs (optional)
 

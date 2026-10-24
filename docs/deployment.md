@@ -1,5 +1,7 @@
 # Deployment: GitHub → Docker Hub → Dokploy
 
+See [storage connections and file manager](storage-and-file-manager.md) for Default, encrypted S3 connections, persistent Local storage, folders, and file moves.
+
 This follows the `ts-starter` ecommerce deployment pattern: CI publishes an app
 image and a one-shot migration image, updates the deployment tags only after both
 succeed, then sends a deployment request to Dokploy. Dokploy clones this repository,

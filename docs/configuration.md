@@ -1,5 +1,7 @@
 # Configuration
 
+See [storage connections and file manager](storage-and-file-manager.md) for Default, encrypted S3 connections, persistent Local storage, folders, and file moves.
+
 This guide covers environment variables, `src/config.ts`, and storage setup for Serve.
 
 ## Quick actions
@@ -76,19 +78,9 @@ SMTP host/port/from and image settings remain in [`src/config.ts`](../src/config
 
 Set `STORAGE_PROVIDER=local` and optionally `UPLOAD_DIR` in the service environment.
 
-New files are deduplicated globally under `{UPLOAD_DIR}/_blobs/`; legacy application directories remain readable:
+Local files live beneath the persistent upload root, separated by owner and location. For example, explicit Local storage uses `owners/<owner-id>/local/_blobs/`; Default has its own configuration-specific namespace. Variants and generated cache live alongside their originals.
 
-```
-uploads/
-  _blobs/
-    abc123.jpeg
-    abc123.webp
-    abc123-placeholder.jpeg
-    _cache/
-      abc123_w800_h600.webp
-```
-
-Public placeholder URLs use `/api/img/{hash}.{ext}-placeholder` (e.g. `/api/img/abc123.webp-placeholder`); on-disk files keep the `{hash}-placeholder.{ext}` naming.
+Public file URLs use stable logical entry IDs. Use the URLs returned by Serve instead of constructing paths from hashes or storage filenames.
 
 ### S3-compatible storage (AWS S3, Cloudflare R2, MinIO, etc.)
 

@@ -70,11 +70,11 @@ Note: When using API key authentication, the application ID is automatically det
 
 ### Deduplication
 
-Uploads are deduplicated globally by file content (SHA-256 hash):
+Uploads deduplicate file content within the same owner and storage location:
 
-- Uploading the same bytes again returns the **same `id`**, URLs, and variant metadata.
-- The file is stored once in object storage under `_blobs/{hash}.{ext}`.
-- Re-uploading links the existing blob to the requesting application (or refreshes that link's metadata).
+- Each upload creates a logical entry. The v1 API returns that entry ID and its stable URLs.
+- The stored blob and variants are shared only within that storage location, under its owner/connection namespace.
+- Re-uploading creates another entry referencing the existing blob, with its own name and tags.
 - Per-application `originalName` and `tags` are stored on the app link, not on the shared blob.
 
 Example response fields:
@@ -148,7 +148,7 @@ Delete an image:
 DELETE /api/images/:id
 ```
 
-Permanently deletes the blob from storage and removes all application links. If the image is linked to multiple applications, it is removed from all of them.
+Permanently deletes one application entry. The blob and variants are deleted only after their final reference is removed, including references in Trash. API keys select their own application; session clients should pass applicationId to select the application explicitly.
 
 ## Audit Logs
 

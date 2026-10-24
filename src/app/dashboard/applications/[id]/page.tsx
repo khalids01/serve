@@ -1,16 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth-server";
 import { tenantStoragePath } from "@/config";
-import ApplicationDetailsClient from "@/features/applications/components/application-details-client";
-import  {
-  type ApplicationDTO,
-  type ImageFileDTO,
-  type AuditLogItemDTO,
-  type CacheResponse,
+import type {
+  ApplicationDTO,
+  AuditLogItemDTO,
+  CacheResponse,
+  ImageFileDTO,
 } from "@/features/applications/components/application-details/types";
+import ApplicationDetailsClient from "@/features/applications/components/application-details-client";
+import { getCurrentUser } from "@/lib/auth-server";
 import { formatImageResponse, imageInclude } from "@/lib/image-response";
+import { prisma } from "@/lib/prisma";
 
 export default async function ApplicationDetailsPage(props: {
   params: Promise<{ id: string }>;
@@ -33,7 +33,7 @@ export default async function ApplicationDetailsPage(props: {
   const storageDir = tenantStoragePath(app.slug);
 
   const links = await prisma.imageApplication.findMany({
-    where: { applicationId: app.id },
+    where: { applicationId: app.id, deletedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
       image: { include: imageInclude },
@@ -41,7 +41,7 @@ export default async function ApplicationDetailsPage(props: {
   });
 
   const activityRaw = await prisma.auditLog.findMany({
-    where: { applicationId: app.id },
+    where: { applicationId: app.id, deletedAt: null },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
@@ -49,6 +49,7 @@ export default async function ApplicationDetailsPage(props: {
   const application: ApplicationDTO = {
     id: app.id,
     name: app.name,
+    defaultStorageLocationId: app.defaultStorageLocationId,
     slug: app.slug,
     createdAt: app.createdAt.toISOString(),
     storageDir,
@@ -59,7 +60,7 @@ export default async function ApplicationDetailsPage(props: {
   };
 
   const images: ImageFileDTO[] = links.map((link) => {
-    const formatted = formatImageResponse(link.image, app.id);
+    const formatted = formatImageResponse(link.image, app.id, link.id);
     return {
       id: formatted.id,
       filename: formatted.filename,
@@ -98,7 +99,9 @@ export default async function ApplicationDetailsPage(props: {
   const cacheData: CacheResponse | null = null;
 
   return (
-    <Suspense fallback={<div className="container mx-auto py-8">Loading...</div>}>
+    <Suspense
+      fallback={<div className="container mx-auto py-8">Loading...</div>}
+    >
       <ApplicationDetailsClient
         application={application}
         images={images}

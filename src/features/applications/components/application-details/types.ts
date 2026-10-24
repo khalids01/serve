@@ -1,58 +1,59 @@
 export interface ApplicationDTO {
-    id: string;
-    name: string;
-    slug: string;
-    createdAt: string;
-    storageDir: string;
-    _count: { imageApplications: number; apiKeys: number };
+  defaultStorageLocationId?: string;
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  storageDir: string;
+  _count: { imageApplications: number; apiKeys: number };
 }
 
 export interface LinkedApplicationDTO {
-    id: string;
-    name: string;
-    slug: string;
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export interface ImageFileDTO {
+  id: string;
+  filename: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  width?: number;
+  height?: number;
+  createdAt: string;
+  applicationId?: string;
+  applicationName?: string;
+  linkedApplications?: LinkedApplicationDTO[];
+  variants: Array<{
     id: string;
+    label: string;
     filename: string;
-    originalName: string;
-    contentType: string;
-    sizeBytes: number;
     width?: number;
     height?: number;
-    createdAt: string;
-    applicationId?: string;
-    applicationName?: string;
-    linkedApplications?: LinkedApplicationDTO[];
-    variants: Array<{
-        id: string;
-        label: string;
-        filename: string;
-        width?: number;
-        height?: number;
-        sizeBytes: number;
-    }>;
+    sizeBytes: number;
+  }>;
 }
 
 export interface AuditLogItemDTO {
-    id: string;
-    userId?: string | null;
-    applicationId?: string | null;
-    action: string;
-    targetId?: string | null;
-    ip?: string | null;
-    userAgent?: string | null;
-    metadata?: any;
-    createdAt: string;
+  id: string;
+  userId?: string | null;
+  applicationId?: string | null;
+  action: string;
+  targetId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  metadata?: any;
+  createdAt: string;
 }
 
 export interface CacheItem {
-    name: string;
-    sizeBytes: number;
-    mtimeMs?: number;
+  name: string;
+  sizeBytes: number;
+  mtimeMs?: number;
 }
 export interface CacheResponse {
-    items: CacheItem[];
-    totalBytes: number;
+  items: CacheItem[];
+  totalBytes: number;
 }

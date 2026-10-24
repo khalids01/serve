@@ -3,6 +3,8 @@
 Use this guide for new integrations. The same checked examples appear on Serve's /docs page.
 The SDK adds API paths and authorization headers; your app does not need storage-provider code.
 For earlier endpoints, see [legacy-integration-guide.md](legacy-integration-guide.md).
+Choose Default, Local or a saved S3 connection in the dashboard; see
+[storage connections and file manager](storage-and-file-manager.md).
 
 ## Server: two env variables and one package
 

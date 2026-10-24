@@ -1,13 +1,13 @@
+import { Zap } from "lucide-react";
 import { CodeBlock } from "@/features/docs/code-block";
 import { DocsSectionLayout } from "@/features/docs/components/docs-section-layout";
 import { DeleteImageApiTester } from "../components/delete-image-tester";
-import { Zap } from "lucide-react";
 
 export function DeleteImageSection() {
   return (
     <DocsSectionLayout
       title="Delete Image"
-      description="Permanently delete an image and all its variants from storage."
+      description="Permanently delete one application entry; release stored bytes when their final reference is removed."
       method="DELETE"
       path="/api/images/{id}"
       alert={
@@ -21,8 +21,9 @@ export function DeleteImageSection() {
                 Warning
               </h4>
               <p className="text-sm text-red-700 dark:text-red-400">
-                This action cannot be undone. The image and all its variants
-                will be permanently deleted.
+                This action cannot be undone. Other entries retain their files.
+                Use Trash in the file manager when you need recoverable
+                deletion.
               </p>
             </div>
           </div>
