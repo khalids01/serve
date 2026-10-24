@@ -114,7 +114,7 @@ New consuming apps need only `FILE_SERVER_URL` (the Serve origin, without `/api`
 npm install @skycanvasstudio/serve-server
 ```
 
-The server SDK uploads, lists, retrieves and deletes assets. Add `@skycanvasstudio/serve-react` plus an authenticated browser-token route for upload and media components. Use the file URLs returned by Serve; S3 settings stay on the Serve host. The 0.1.0 packages are prepared but not yet published: use the verified tarballs until release.
+The server SDK uploads, lists, retrieves and deletes assets. Add `@skycanvasstudio/serve-react` plus an authenticated browser-token route for upload and media components. Use the file URLs returned by Serve; S3 settings stay on the Serve host. Install released versions from npm; use the verified tarballs when testing an unreleased local build.
 
 ## 📖 Usage
 

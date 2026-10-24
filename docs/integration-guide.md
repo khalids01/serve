@@ -7,13 +7,13 @@ For earlier endpoints, see [legacy-integration-guide.md](legacy-integration-guid
 ## Server: two env variables and one package
 
 Create an application and API key in the Serve dashboard. Use Node 20+ or Bun.
-Install (after npm publication):
+Install:
 
 ```sh
 npm install @skycanvasstudio/serve-server
 ```
 
-Before publication, install the verified server tarball from npm_pkg/artifacts instead.
+For an unreleased local build, install the verified server tarball from npm_pkg/artifacts instead.
 In the consuming app's .env.local:
 
 ```env
@@ -228,7 +228,7 @@ browser-token readiness. It does not upload or delete data.
 
 | Symptom | Action |
 | --- | --- |
-| npm package not found | Publish 0.1.0 first, or install the verified tarballs |
+| npm package not found | Use the exact @skycanvasstudio names and public npm registry; use tarballs for unreleased builds |
 | 404 on /api/v1 | Deploy the matching backend; use an origin without /api |
 | 401 INVALID_API_KEY | Use a current key for the correct Serve application |
 | 503 BROWSER_TOKENS_NOT_CONFIGURED | Set the dedicated secret on the Serve host |

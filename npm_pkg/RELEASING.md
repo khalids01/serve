@@ -1,4 +1,16 @@
-# Releasing 0.1.0
+# Release record and procedure
+
+## 0.1.0 — published 2026-10-24
+
+- [@skycanvasstudio/serve-server](https://www.npmjs.com/package/@skycanvasstudio/serve-server): public, latest tag 0.1.0.
+- [@skycanvasstudio/serve-react](https://www.npmjs.com/package/@skycanvasstudio/serve-react): public, latest tag 0.1.0.
+- The skycanvasstudio:file-server team has read-write access to both packages.
+- Registry tarball integrity matches the locally verified artifacts. A clean install from npm passes ESM/CommonJS imports, the Fetch adapter, CSS resolution and React SSR.
+
+0.1.0 is already published. For future releases, increment the package versions
+and update the artifact filenames below before publishing; npm versions are immutable.
+
+## Release procedure
 
 The scope owner confirmed the `@skycanvasstudio` organization and selected `serve-server` / `serve-react`. Registry availability and
 publish credentials must still be checked at release time. Nothing in this
@@ -45,3 +57,10 @@ Their builds/typechecks validate framework and package APIs. Authentication is
 supplied by the host application; the TanStack sample denies access until wired
 up. Private delivery, resumable uploads, transcoding and malware scanning are
 outside 0.1.0.
+
+During publication, npm may require separate browser approvals for each package
+and each team-access change. Complete the matching approval while its command is
+waiting. A successful publish can enter npm processing before the public registry
+serves the new version; confirm registry availability and a clean install before
+announcing the release. Do not republish a successfully accepted version while
+waiting for processing.

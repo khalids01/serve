@@ -68,8 +68,9 @@ export function HostingSection() {
               <tr>
                 <td className="p-2">npm package not found</td>
                 <td className="p-2">
-                  0.1.0 must be published first, or install the verified local
-                  tarballs.
+                  Use the exact @skycanvasstudio package names and the public
+                  npm registry. Use verified tarballs for unreleased local
+                  builds.
                 </td>
               </tr>
               <tr>
