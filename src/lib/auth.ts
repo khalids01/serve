@@ -1,21 +1,21 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { magicLink, admin } from "better-auth/plugins";
-import { prisma } from "./prisma";
-import { sendMagicLinkEmail } from "./email";
+import { admin, magicLink } from "better-auth/plugins";
 import { config } from "@/config";
+import { sendMagicLinkEmail } from "./email";
+import { prisma } from "./prisma";
 
 export const auth = betterAuth({
   baseURL: config.app.url ?? config.app.betterAuthUrl,
   database: prismaAdapter(prisma, {
-    provider: "sqlite",
+    provider: "postgresql",
   }),
   emailAndPassword: {
     enabled: false,
   },
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url, token }) => {
+      sendMagicLink: async ({ email, url }) => {
         try {
           const appUrl = config.app.url;
           let finalUrl = url;

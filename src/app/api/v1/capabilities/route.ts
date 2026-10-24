@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
-import { maxFileSizeBytes } from "@/config";
+import { config, maxFileSizeBytes } from "@/config";
+import { browserTokensEnabled } from "@/lib/v1-api";
 export function GET() {
   return NextResponse.json(
     {
       data: {
         apiVersion: "v1",
+        publicBaseUrl: new URL(config.app.url).origin,
         publicContent: true,
         maxFileSizeBytes: maxFileSizeBytes(),
         maxImageDimension: 4096,
         imageFormats: ["jpg", "png", "webp", "avif"],
         crop: { saveAsNew: true, replace: false },
-        browserTokens: { defaultLifetimeSeconds: 300, maxLifetimeSeconds: 900 },
+        browserTokens: {
+          enabled: browserTokensEnabled(),
+          defaultLifetimeSeconds: 300,
+          maxLifetimeSeconds: 900,
+        },
         uploads: { filesPerRequest: 1 },
       },
     },

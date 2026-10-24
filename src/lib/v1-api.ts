@@ -11,10 +11,16 @@ export type V1Auth = {
   apiKey: boolean;
 };
 const validScopes: FileScope[] = ["files:read", "files:write", "files:delete"];
+class BrowserTokenConfigurationError extends Error {}
+export function browserTokensEnabled() {
+  return (process.env.FILE_SERVER_BROWSER_TOKEN_SECRET?.length ?? 0) >= 32;
+}
 function tokenSecret() {
   const secret = process.env.FILE_SERVER_BROWSER_TOKEN_SECRET;
   if (!secret || secret.length < 32)
-    throw new Error("Browser tokens are not configured.");
+    throw new BrowserTokenConfigurationError(
+      "Set FILE_SERVER_BROWSER_TOKEN_SECRET (at least 32 random characters) on the Serve host.",
+    );
   return new TextEncoder().encode(secret);
 }
 export function error(
@@ -91,6 +97,8 @@ export async function authenticate(
     }
     return { applicationId: payload.sub, scopes, apiKey: false };
   } catch (cause) {
+    if (cause instanceof BrowserTokenConfigurationError)
+      return error("BROWSER_TOKENS_NOT_CONFIGURED", cause.message, 503);
     const code =
       cause instanceof Error && cause.name === "JWTExpired"
         ? "TOKEN_EXPIRED"
@@ -181,11 +189,10 @@ export function withAuth(
       }
     } catch (cause) {
       console.error("V1 request failed", requestId, cause);
-      response = error(
-        "INTERNAL_ERROR",
-        "The request could not be completed.",
-        500,
-      );
+      response =
+        cause instanceof BrowserTokenConfigurationError
+          ? error("BROWSER_TOKENS_NOT_CONFIGURED", cause.message, 503)
+          : error("INTERNAL_ERROR", "The request could not be completed.", 500);
     }
     response.headers.set("X-Request-Id", requestId);
     response.headers.set("Cache-Control", "no-store");

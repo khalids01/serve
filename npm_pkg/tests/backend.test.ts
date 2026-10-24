@@ -127,3 +127,40 @@ describe("browser token boundaries", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+it("reports token configuration readiness and an actionable minting error", async () => {
+  const { GET: capabilities } = await import(
+    "../../src/app/api/v1/capabilities/route"
+  );
+  const { POST: mint } = await import(
+    "../../src/app/api/v1/browser-tokens/route"
+  );
+  process.env.FILE_SERVER_BROWSER_TOKEN_SECRET = "";
+  expect((await (await capabilities()).json()).data.browserTokens.enabled).toBe(
+    false,
+  );
+  mocks.validateKey.mockResolvedValueOnce({ application: { id: "app-a" } });
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const response = await mint(
+      new NextRequest("https://files.example/api/v1/browser-tokens", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer sk_test",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          scopes: ["files:read"],
+          allowedOrigins: [origin],
+        }),
+      }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toHaveProperty(
+      "error.code",
+      "BROWSER_TOKENS_NOT_CONFIGURED",
+    );
+  } finally {
+    log.mockRestore();
+  }
+});

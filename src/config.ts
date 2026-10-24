@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 export type StorageProvider = "local" | "s3";
 
@@ -84,7 +84,7 @@ export const config = {
   },
 
   app: {
-    url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:4000",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:5000",
     baseUrl: process.env.NEXT_PUBLIC_BASE_URL ?? "",
     betterAuthUrl: process.env.BETTER_AUTH_URL,
   },
