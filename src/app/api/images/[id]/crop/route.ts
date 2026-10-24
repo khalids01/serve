@@ -1,201 +1,69 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
-import { prisma } from '@/lib/prisma'
-import { FileStorageService } from '@/lib/file-storage'
-import { protect } from '@/features/auth/guard'
-import { deleteBlobAndLegacyCacheByBase } from '@/lib/storage/read'
-import { getStorage } from '@/lib/storage/factory'
-import sharp from 'sharp'
-import path from 'path'
-import { processImageUpload } from '@/lib/image-upload'
-import {
-  formatImageResponse,
-  getJunctionForApp,
-  getLegacyTenantKeys,
-  imageInclude,
-  userOwnsLinkedImage,
-} from '@/lib/image-response'
-import { isSharpResizable } from '@/lib/storage/image'
-
+import { type NextRequest, NextResponse } from "next/server";
+import { protect } from "@/features/auth/guard";
+import { processImageUpload } from "@/lib/image-upload";
+import { prisma } from "@/lib/prisma";
+import { sessionApi } from "@/lib/session-api";
+import { StorageLocationError } from "@/lib/storage/locations";
+import { parseUpload } from "@/lib/v1-upload";
 export const runtime = "nodejs";
-
-export async function POST(
+export function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const formData = await request.formData();
-    const { id } = await context.params;
-
+  return sessionApi(async () => {
     const auth = await protect(request);
     if (auth instanceof NextResponse) return auth;
-    const { user } = auth;
-
-    const croppedFile = formData.get("file") as File;
-    const saveMode = formData.get("saveMode") as "new" | "replace";
-    const contextApplicationId = formData.get("applicationId") as string | null;
-
-    if (!croppedFile) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    const originalImage = await prisma.image.findUnique({
-      where: { id },
-      include: imageInclude,
+    const { id } = await context.params;
+    const entry = await prisma.imageApplication.findFirst({
+      where: {
+        OR: [{ id }, { imageId: id }],
+        deletedAt: null,
+        ...(auth.application ? { applicationId: auth.application.id } : {}),
+        application: { ownerId: auth.user.id },
+      },
+      include: { image: true },
     });
-
-    if (!originalImage) {
-      return NextResponse.json({ error: "Image not found" }, { status: 404 });
-    }
-
-    const owns = await userOwnsLinkedImage(id, user.id);
-    if (!owns) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const applicationId =
-      contextApplicationId ??
-      originalImage.applications[0]?.applicationId;
-
-    if (!applicationId) {
-      return NextResponse.json({ error: "Application context required" }, { status: 400 });
-    }
-
+    if (!entry) throw new StorageLocationError("File not found.", 404);
+    // Accept the legacy application field only when it matches the authorized entry.
+    const form = await request.formData();
     if (
-      !isSharpResizable(originalImage.contentType, originalImage.filename)
-    ) {
-      return NextResponse.json(
-        { error: "Crop is only supported for raster image files" },
-        { status: 400 },
+      form.has("applicationId") &&
+      form.get("applicationId") !== entry.applicationId
+    )
+      throw new StorageLocationError(
+        "Application does not match this file.",
+        403,
       );
-    }
-
-    const junction = getJunctionForApp(originalImage, applicationId);
-    const fileStorage = new FileStorageService();
-    const buffer = Buffer.from(await croppedFile.arrayBuffer());
-
-    const metadata = await sharp(buffer).metadata();
-    const { width, height } = metadata;
-
-    if (saveMode === "replace") {
-      await fileStorage.putRaw(
-        originalImage.filename,
-        buffer,
-        originalImage.contentType,
+    form.delete("applicationId");
+    const input = await parseUpload(
+      new Request(request.url, { method: "POST", body: form }),
+    );
+    if (input.saveMode === "replace")
+      throw new StorageLocationError(
+        "Files are immutable. Save the crop as a new file.",
+        409,
       );
-
-      const legacyTenantKeys = getLegacyTenantKeys(originalImage);
-      const base = path.parse(originalImage.filename).name;
-      await deleteBlobAndLegacyCacheByBase(getStorage(), base, legacyTenantKeys);
-
-      await prisma.image.update({
-        where: { id },
-        data: {
-          width: width || null,
-          height: height || null,
-          sizeBytes: buffer.length,
-        },
-      });
-
-      try {
-        const userAgent = request.headers.get("user-agent") || undefined;
-        const ip =
-          (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
-          request.headers.get("x-real-ip") ||
-          undefined;
-
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            applicationId,
-            action: "UPDATE",
-            targetId: originalImage.id,
-            ip: ip || undefined,
-            userAgent: userAgent || undefined,
-            metadata: {
-              operation: "crop-replace",
-              originalName: junction?.originalName,
-              filename: originalImage.filename,
-              newDimensions: `${width}x${height}`,
-            } as any,
-          },
-        });
-      } catch (e) {
-        console.error("Audit log error:", e);
-      }
-
-      revalidatePath(`/dashboard/applications/${applicationId}`, 'page');
-      revalidatePath('/dashboard/applications', 'layout');
-
-      return NextResponse.json({
-        success: true,
-        mode: "replace",
-        image: {
-          id: originalImage.id,
-          width,
-          height,
-        },
-      });
-    }
-
-    const originalExt = path.extname(originalImage.filename);
-    const sourceName = junction?.originalName ?? originalImage.filename;
-    const croppedOriginalName = `${path.basename(sourceName, path.extname(sourceName))}_cropped${originalExt}`;
-
+    if (
+      !entry.image.contentType.startsWith("image/") ||
+      !input.contentType.startsWith("image/") ||
+      input.contentType === "image/svg+xml"
+    )
+      throw new StorageLocationError("Cropping requires a raster image.");
+    const storageLocationId = entry.image.storageLocationId.startsWith(
+      "default:",
+    )
+      ? "default"
+      : entry.image.storageLocationId.startsWith("local:")
+        ? "local"
+        : entry.image.storageLocationId;
     const result = await processImageUpload(
-      buffer,
-      croppedOriginalName,
-      originalImage.contentType,
-      applicationId,
+      input.buffer,
+      input.filename,
+      input.contentType,
+      entry.applicationId,
+      input.tags,
+      { folderId: entry.folderId, storageLocationId },
     );
-
-    try {
-      const userAgent = request.headers.get("user-agent") || undefined;
-      const ip =
-        (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
-        request.headers.get("x-real-ip") ||
-        undefined;
-
-      await prisma.auditLog.create({
-        data: {
-          userId: user.id,
-          applicationId,
-          action: "UPLOAD",
-          targetId: result.id,
-          ip: ip || undefined,
-          userAgent: userAgent || undefined,
-          metadata: {
-            operation: "crop-new",
-            originalName: result.originalName,
-            filename: result.filename,
-            dimensions: `${width}x${height}`,
-            sourceImageId: originalImage.id,
-          } as any,
-        },
-      });
-    } catch (e) {
-      console.error("Audit log error:", e);
-    }
-
-    revalidatePath(`/dashboard/applications/${applicationId}`, 'page');
-    revalidatePath('/dashboard/applications', 'layout');
-
-    return NextResponse.json({
-      success: true,
-      mode: "new",
-      image: formatImageResponse(
-        await prisma.image.findUniqueOrThrow({
-          where: { id: result.id },
-          include: imageInclude,
-        }),
-        applicationId,
-      ),
-    });
-  } catch (error) {
-    console.error("Crop image error:", error);
-    return NextResponse.json(
-      { error: "Failed to crop image" },
-      { status: 500 },
-    );
-  }
+    return NextResponse.json({ success: true, mode: "new", image: result });
+  });
 }

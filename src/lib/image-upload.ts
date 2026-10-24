@@ -1,42 +1,18 @@
 import { withBlobLock } from "@/lib/blob-lock";
 import { FileStorageService } from "@/lib/file-storage";
 import { formatImageResponse, imageInclude } from "@/lib/image-response";
+import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/prisma-types";
 import { contentHash16 } from "@/lib/storage/hash";
+import {
+  resolveUploadLocation,
+  StorageLocationError,
+  withOwnerStorageLock,
+} from "@/lib/storage/locations";
 
 type ImageWithRelations = Prisma.ImageGetPayload<{
   include: typeof imageInclude;
 }>;
-
-async function linkImageToApplication(
-  db: Prisma.TransactionClient,
-  imageId: string,
-  applicationId: string,
-  originalName: string,
-  tags?: string[] | null,
-): Promise<ImageWithRelations> {
-  await db.imageApplication.upsert({
-    where: {
-      imageId_applicationId: { imageId, applicationId },
-    },
-    create: {
-      imageId,
-      applicationId,
-      originalName,
-      tags: tags ?? undefined,
-    },
-    update: {
-      originalName,
-      tags: tags ?? undefined,
-      updatedAt: new Date(),
-    },
-  });
-
-  return db.image.findUniqueOrThrow({
-    where: { id: imageId },
-    include: imageInclude,
-  });
-}
 
 async function createImageWithStorage(
   db: Prisma.TransactionClient,
@@ -44,9 +20,10 @@ async function createImageWithStorage(
   originalName: string,
   contentType: string,
   applicationId: string,
-  tags?: string[] | null,
+  tags: string[] | null | undefined,
+  location: Awaited<ReturnType<typeof resolveUploadLocation>>,
 ): Promise<ImageWithRelations> {
-  const fileStorage = new FileStorageService();
+  const fileStorage = new FileStorageService(location.storage);
   const uploadResult = await fileStorage.saveFile(
     buffer,
     originalName,
@@ -56,6 +33,9 @@ async function createImageWithStorage(
   return db.image.create({
     data: {
       hash: uploadResult.id,
+      ownerId: location.ownerId,
+      storageLocationId: location.id,
+      storageConfig: location.snapshot,
       filename: uploadResult.filename,
       contentType: uploadResult.contentType,
       sizeBytes: uploadResult.sizeBytes,
@@ -88,33 +68,69 @@ export async function processImageUpload(
   contentType: string,
   applicationId: string,
   tags?: string[] | null,
+  options: { folderId?: string | null; storageLocationId?: string } = {},
 ) {
-  const hash = contentHash16(buffer);
-  return withBlobLock(hash, async (db) => {
-    const existing = await db.image.findUnique({
-      where: { hash },
-      include: imageInclude,
-    });
-
-    if (existing) {
-      const image = await linkImageToApplication(
-        db,
-        existing.id,
-        applicationId,
-        originalName,
-        tags,
-      );
-      return formatImageResponse(image, applicationId);
-    }
-
-    const image = await createImageWithStorage(
-      db,
-      buffer,
-      originalName,
-      contentType,
+  const application = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    select: { ownerId: true },
+  });
+  return withOwnerStorageLock(application.ownerId, async () => {
+    const location = await resolveUploadLocation(
       applicationId,
-      tags,
+      options.storageLocationId,
     );
-    return formatImageResponse(image, applicationId);
+    if (options.folderId) {
+      const folder = await prisma.folder.findFirst({
+        where: { id: options.folderId, applicationId, deletedAt: null },
+      });
+      if (!folder) throw new StorageLocationError("Folder not found.", 404);
+    }
+    const hash = contentHash16(buffer);
+    return withBlobLock(`${location.id}:${hash}`, async (db) => {
+      let image = await db.image.findUnique({
+        where: {
+          storageLocationId_hash: { storageLocationId: location.id, hash },
+        },
+        include: imageInclude,
+      });
+      let entryId: string;
+      if (image) {
+        const entry = await db.imageApplication.create({
+          data: {
+            imageId: image.id,
+            applicationId,
+            originalName,
+            tags: tags ?? undefined,
+            folderId: options.folderId ?? null,
+          },
+        });
+        entryId = entry.id;
+        image = await db.image.findUniqueOrThrow({
+          where: { id: image.id },
+          include: imageInclude,
+        });
+      } else {
+        image = await createImageWithStorage(
+          db,
+          buffer,
+          originalName,
+          contentType,
+          applicationId,
+          tags,
+          location,
+        );
+        const entry = image.applications.find(
+          (value) => value.applicationId === applicationId,
+        );
+        if (!entry) throw new Error("Upload entry missing");
+        entryId = entry.id;
+        if (options.folderId)
+          await db.imageApplication.update({
+            where: { id: entryId },
+            data: { folderId: options.folderId },
+          });
+      }
+      return { ...formatImageResponse(image, applicationId, entryId), entryId };
+    });
   });
 }

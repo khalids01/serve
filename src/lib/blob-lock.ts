@@ -6,12 +6,13 @@ import type { Prisma } from "@/lib/prisma-types";
 export function withBlobLock<T>(
   hash: string,
   work: (tx: Prisma.TransactionClient) => Promise<T>,
+  timeout = 120_000,
 ) {
   return prisma.$transaction(
     async (tx) => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${hash}, 0))`;
       return work(tx);
     },
-    { maxWait: 30_000, timeout: 120_000 },
+    { maxWait: 30_000, timeout },
   );
 }

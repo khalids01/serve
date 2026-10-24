@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { StorageBackend } from "./backend";
-import { uniqueTenantKeys, blobCachePrefix } from "./keys";
-import { listTenantCache, clearTenantCache } from "./read";
+import { blobCachePrefix, uniqueTenantKeys } from "./keys";
+import { clearTenantCache, listTenantCache } from "./read";
 
 export type CacheItem = {
   name: string;
@@ -160,7 +160,10 @@ export async function listUserCacheOverview(
     for (const hash of hashes) allHashes.add(hash);
   }
   const userBlobItems = filterCacheItemsByHashes(blobItems, allHashes);
-  const blobBytes = userBlobItems.reduce((acc, item) => acc + item.sizeBytes, 0);
+  const blobBytes = userBlobItems.reduce(
+    (acc, item) => acc + item.sizeBytes,
+    0,
+  );
 
   return {
     fileCount: globalTenantFileCount + userBlobItems.length,
@@ -183,4 +186,32 @@ export async function clearAllUserCache(
   }
 
   return clearedBytes;
+}
+
+// Each blob's cache lives alongside that blob, regardless of the current app default.
+export async function locationCache(applicationId: string, clear = false) {
+  const { getStorageForImage } = await import("./locations");
+  const images = await prisma.image.findMany({
+    where: { applications: { some: { applicationId } } },
+  });
+  const groups = new Map<string, typeof images>();
+  for (const image of images) {
+    const group = groups.get(image.storageLocationId) ?? [];
+    group.push(image);
+    groups.set(image.storageLocationId, group);
+  }
+  const items: CacheItem[] = [];
+  let clearedBytes = 0;
+  for (const [id, group] of groups) {
+    const storage = await getStorageForImage(group[0]),
+      hashes = new Set(group.map((image) => image.hash));
+    if (clear) clearedBytes += await clearBlobCacheForHashes(storage, hashes);
+    else
+      items.push(
+        ...filterCacheItemsByHashes(await listBlobCache(storage), hashes).map(
+          (item) => ({ ...item, name: `${id}/${item.name}` }),
+        ),
+      );
+  }
+  return { ...summarizeCacheItems(items), clearedBytes };
 }

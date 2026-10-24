@@ -1,121 +1,93 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { protect } from '@/features/auth/guard'
-import { tenantStoragePath } from '@/config'
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { tenantStoragePath } from "@/config";
+import { protect } from "@/features/auth/guard";
+import { prisma } from "@/lib/prisma";
+import { requireOwnedApplication, sessionApi } from "@/lib/session-api";
+import {
+  assertLocationAccess,
+  withOwnerStorageLock,
+} from "@/lib/storage/locations";
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await protect(request)
-    if (auth instanceof NextResponse) return auth
-    const { user } = auth
+    const auth = await protect(request);
+    if (auth instanceof NextResponse) return auth;
+    const { user } = auth;
 
-    const { id } = await context.params
+    const { id } = await context.params;
     const application = await prisma.application.findFirst({
       where: {
         id,
-        ownerId: user.id
+        ownerId: user.id,
       },
       include: {
         _count: {
           select: {
             imageApplications: true,
-            apiKeys: true
-          }
-        }
+            apiKeys: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        createdAt: "desc",
+      },
+    });
 
     if (!application) {
       return NextResponse.json(
-        { error: 'Application not found' },
-        { status: 404 }
-      )
+        { error: "Application not found" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({
       application: {
         ...application,
-        storageDir: tenantStoragePath(application.slug)
-      }
-    })
-
+        storageDir: tenantStoragePath(application.slug),
+      },
+    });
   } catch (error) {
-    console.error('List applications error:', error)
+    console.error("List applications error:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch applications' },
-      { status: 500 }
-    )
+      { error: "Failed to fetch applications" },
+      { status: 500 },
+    );
   }
 }
 
-export async function PATCH(
+export function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const auth = await protect(request)
-    if (auth instanceof NextResponse) return auth
-    const { user } = auth
-
-    const { id } = await context.params
-    const body = await request.json()
-    const { name } = body
-
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Application name is required' },
-        { status: 400 }
-      )
-    }
-
-    const existingApplication = await prisma.application.findFirst({
-      where: {
-        id,
-        ownerId: user.id
-      }
-    })
-
-    if (!existingApplication) {
-      return NextResponse.json(
-        { error: 'Application not found or access denied' },
-        { status: 404 }
-      )
-    }
-
-    const updatedApplication = await prisma.application.update({
-      where: { id },
-      data: {
-        name: name.trim(),
-        updatedAt: new Date()
-      },
-      include: {
-        _count: {
-          select: {
-            imageApplications: true,
-            apiKeys: true
-          }
-        }
-      }
-    })
-
-    return NextResponse.json({
-      application: {
-        ...updatedApplication,
-        storageDir: tenantStoragePath(updatedApplication.slug)
-      }
-    })
-
-  } catch (error) {
-    console.error('Update application error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update application' },
-      { status: 500 }
-    )
-  }
+  return sessionApi(async () => {
+    const { id } = await context.params,
+      { user } = await requireOwnedApplication(request, id);
+    const input = z
+      .object({
+        name: z.string().trim().min(1).max(100),
+        defaultStorageLocationId: z.string().optional(),
+      })
+      .parse(await request.json());
+    return withOwnerStorageLock(user.id, async () => {
+      if (input.defaultStorageLocationId)
+        await assertLocationAccess(user.id, input.defaultStorageLocationId);
+      const application = await prisma.application.update({
+        where: { id },
+        data: input,
+        include: {
+          _count: { select: { imageApplications: true, apiKeys: true } },
+        },
+      });
+      return NextResponse.json({
+        application: {
+          ...application,
+          storageDir: tenantStoragePath(application.slug),
+        },
+      });
+    });
+  });
 }

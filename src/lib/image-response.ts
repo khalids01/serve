@@ -1,6 +1,6 @@
-import { uniqueTenantKeys } from "@/lib/storage/keys";
 import { withImageUrls } from "@/lib/image-urls";
 import type { Prisma } from "@/lib/prisma-types";
+import { uniqueTenantKeys } from "@/lib/storage/keys";
 
 export const imageInclude = {
   variants: true,
@@ -18,6 +18,7 @@ type LinkedApplication = {
 };
 
 type ImageApplicationWithApp = {
+  id: string;
   applicationId: string;
   originalName: string;
   tags: Prisma.JsonValue;
@@ -60,7 +61,10 @@ export function getLegacyTenantKeys(
 ): string[] {
   const keys = new Set<string>();
   for (const row of image.applications) {
-    for (const key of uniqueTenantKeys(row.application.slug, row.applicationId)) {
+    for (const key of uniqueTenantKeys(
+      row.application.slug,
+      row.applicationId,
+    )) {
       keys.add(key);
     }
   }
@@ -80,10 +84,13 @@ export function getJunctionForApp(
 export function formatImageResponse(
   image: ImageForResponse,
   contextApplicationId?: string,
+  contextEntryId?: string,
 ) {
   const linkedApplications = getLinkedApplications(image);
-  const junction = getJunctionForApp(image, contextApplicationId);
-  const withUrls = withImageUrls(image, image.id);
+  const junction = contextEntryId
+    ? image.applications.find((row) => row.id === contextEntryId)
+    : getJunctionForApp(image, contextApplicationId);
+  const withUrls = withImageUrls(image, junction?.id ?? image.id);
 
   return {
     ...withUrls,

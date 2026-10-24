@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
 import type { StorageByteRange } from "@/lib/storage/backend";
-import { getStorage } from "@/lib/storage/factory";
+import { getStorageForImage } from "@/lib/storage/locations";
 import { openBlobFileWithLegacy } from "@/lib/storage/read";
 
 export const runtime = "nodejs";
@@ -52,10 +52,16 @@ function contentHeaders(file: {
 }
 
 async function findFile(id: string) {
-  return prisma.image.findUnique({
+  const entry = await prisma.imageApplication.findUnique({
+    where: { id },
+    include: { image: { include: imageInclude } },
+  });
+  if (entry) return { ...entry.image, downloadName: entry.originalName };
+  const image = await prisma.image.findUnique({
     where: { id },
     include: imageInclude,
   });
+  return image ? { ...image, downloadName: image.filename } : null;
 }
 
 export async function HEAD(
@@ -96,7 +102,7 @@ export async function GET(
       });
     }
 
-    const storage = getStorage();
+    const storage = await getStorageForImage(file);
     const opened = await openBlobFileWithLegacy(
       storage,
       file.filename,
@@ -112,6 +118,11 @@ export async function GET(
 
     const headers = new Headers(contentHeaders(file));
     headers.set("Content-Length", String(opened.contentLength));
+    if (request.nextUrl.searchParams.get("download") === "1")
+      headers.set(
+        "Content-Disposition",
+        `attachment; filename="${file.downloadName.replace(/[^a-zA-Z0-9._-]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(file.downloadName).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16)}`)}`,
+      );
     if (range) {
       headers.set(
         "Content-Range",

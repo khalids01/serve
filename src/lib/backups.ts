@@ -11,7 +11,7 @@ import type {
 import { getStorage } from "@/lib/storage/factory";
 
 const CONFIG_ID = "default";
-const JSON_SCHEMA_VERSION = 1;
+const JSON_SCHEMA_VERSION = 2;
 
 export type EffectiveBackupConfig = {
   id: string;
@@ -46,6 +46,7 @@ type BackupJsonPayload = {
     createdAt: string;
     updatedAt: string;
     storageDir: string;
+    defaultStorageLocationId: string;
   }>;
   images: Array<{
     id: string;
@@ -55,6 +56,9 @@ type BackupJsonPayload = {
     width: number | null;
     height: number | null;
     hash: string;
+    ownerId: string;
+    storageLocationId: string;
+    storageConfig: Prisma.InputJsonValue;
     createdAt: string;
     updatedAt: string;
   }>;
@@ -64,9 +68,25 @@ type BackupJsonPayload = {
     applicationId: string;
     originalName: string;
     tags: unknown;
+    folderId: string | null;
+    deletedAt: string | null;
+    trashBatchId: string | null;
+    starred: boolean;
     linkedAt: string;
     updatedAt: string;
   }>;
+  storageConnections: Array<
+    Omit<
+      Prisma.StorageConnectionGetPayload<object>,
+      "createdAt" | "updatedAt"
+    > & { createdAt: string; updatedAt: string }
+  >;
+  folders: Array<
+    Omit<
+      Prisma.FolderGetPayload<object>,
+      "createdAt" | "updatedAt" | "deletedAt"
+    > & { createdAt: string; updatedAt: string; deletedAt: string | null }
+  >;
   imageVariants: Array<{
     id: string;
     imageId: string;
@@ -239,13 +259,21 @@ async function periodsForSnapshot(type: BackupType, now: Date) {
 }
 
 async function exportImageMetadataJson(): Promise<Buffer> {
-  const [applications, images, imageApplications, imageVariants] =
-    await Promise.all([
-      prisma.application.findMany({ orderBy: { createdAt: "asc" } }),
-      prisma.image.findMany({ orderBy: { createdAt: "asc" } }),
-      prisma.imageApplication.findMany({ orderBy: { linkedAt: "asc" } }),
-      prisma.imageVariant.findMany({ orderBy: { createdAt: "asc" } }),
-    ]);
+  const [
+    applications,
+    images,
+    imageApplications,
+    imageVariants,
+    storageConnections,
+    folders,
+  ] = await Promise.all([
+    prisma.application.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.image.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.imageApplication.findMany({ orderBy: { linkedAt: "asc" } }),
+    prisma.imageVariant.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.storageConnection.findMany(),
+    prisma.folder.findMany(),
+  ]);
 
   const payload: BackupJsonPayload = {
     schemaVersion: JSON_SCHEMA_VERSION,
@@ -256,6 +284,17 @@ async function exportImageMetadataJson(): Promise<Buffer> {
       imageApplications: imageApplications.length,
       imageVariants: imageVariants.length,
     },
+    storageConnections: storageConnections.map((row) => ({
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    folders: folders.map((row) => ({
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      deletedAt: toIso(row.deletedAt),
+    })),
     applications: applications.map((app) => ({
       ...app,
       createdAt: app.createdAt.toISOString(),
@@ -263,11 +302,13 @@ async function exportImageMetadataJson(): Promise<Buffer> {
     })),
     images: images.map((image) => ({
       ...image,
+      storageConfig: image.storageConfig as Prisma.InputJsonValue,
       createdAt: image.createdAt.toISOString(),
       updatedAt: image.updatedAt.toISOString(),
     })),
     imageApplications: imageApplications.map((link) => ({
       ...link,
+      deletedAt: toIso(link.deletedAt),
       linkedAt: link.linkedAt.toISOString(),
       updatedAt: link.updatedAt.toISOString(),
     })),
@@ -502,6 +543,8 @@ function assertBackupPayload(value: unknown): BackupJsonPayload {
   }
   for (const key of [
     "applications",
+    "storageConnections",
+    "folders",
     "images",
     "imageApplications",
     "imageVariants",
@@ -549,6 +592,7 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           slug: app.slug,
           ownerId: app.ownerId,
           storageDir: app.storageDir,
+          defaultStorageLocationId: app.defaultStorageLocationId,
           createdAt: parseDate(app.createdAt),
           updatedAt: parseDate(app.updatedAt),
         },
@@ -557,11 +601,45 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           slug: app.slug,
           ownerId: app.ownerId,
           storageDir: app.storageDir,
+          defaultStorageLocationId: app.defaultStorageLocationId,
         },
       });
       result.applications += 1;
     }
 
+    for (const row of payload.storageConnections) {
+      const data = {
+        ...row,
+        createdAt: parseDate(row.createdAt),
+        updatedAt: parseDate(row.updatedAt),
+      };
+      await tx.storageConnection.upsert({
+        where: { id: row.id },
+        create: data,
+        update: data,
+      });
+    }
+    // Insert without parents first so nested trees restore regardless of export order.
+    for (const row of payload.folders) {
+      const data = {
+        ...row,
+        parentId: null,
+        createdAt: parseDate(row.createdAt),
+        updatedAt: parseDate(row.updatedAt),
+        deletedAt: row.deletedAt ? parseDate(row.deletedAt) : null,
+      };
+      await tx.folder.upsert({
+        where: { id: row.id },
+        create: data,
+        update: data,
+      });
+    }
+    for (const row of payload.folders)
+      if (row.parentId)
+        await tx.folder.update({
+          where: { id: row.id },
+          data: { parentId: row.parentId },
+        });
     for (const image of payload.images) {
       await tx.image.upsert({
         where: { id: image.id },
@@ -573,6 +651,9 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           width: image.width,
           height: image.height,
           hash: image.hash,
+          ownerId: image.ownerId,
+          storageLocationId: image.storageLocationId,
+          storageConfig: image.storageConfig ?? undefined,
           createdAt: parseDate(image.createdAt),
           updatedAt: parseDate(image.updatedAt),
         },
@@ -583,6 +664,9 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           width: image.width,
           height: image.height,
           hash: image.hash,
+          ownerId: image.ownerId,
+          storageLocationId: image.storageLocationId,
+          storageConfig: image.storageConfig ?? undefined,
         },
       });
       result.images += 1;
@@ -622,6 +706,10 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           applicationId: link.applicationId,
           originalName: link.originalName,
           tags: link.tags as never,
+          folderId: link.folderId,
+          deletedAt: link.deletedAt ? parseDate(link.deletedAt) : null,
+          trashBatchId: link.trashBatchId,
+          starred: link.starred,
           linkedAt: parseDate(link.linkedAt),
           updatedAt: parseDate(link.updatedAt),
         },
@@ -630,6 +718,10 @@ export async function syncImageMetadataFromBackup(recordId: string) {
           applicationId: link.applicationId,
           originalName: link.originalName,
           tags: link.tags as never,
+          folderId: link.folderId,
+          deletedAt: link.deletedAt ? parseDate(link.deletedAt) : null,
+          trashBatchId: link.trashBatchId,
+          starred: link.starred,
         },
       });
       result.imageApplications += 1;

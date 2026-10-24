@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
   open: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { image: { findUnique: mocks.find } },
+  prisma: {
+    imageApplication: { findUnique: async () => null },
+    image: { findUnique: mocks.find },
+  },
 }));
 vi.mock("@/lib/storage/factory", () => ({ getStorage: () => ({}) }));
 vi.mock("@/lib/storage/read", () => ({

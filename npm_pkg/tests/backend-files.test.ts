@@ -11,7 +11,10 @@ const mocks = vi.hoisted(() => ({
   lock: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { imageApplication: { findUnique: mocks.linked } },
+  prisma: {
+    application: { findUniqueOrThrow: async () => ({ ownerId: "owner" }) },
+    imageApplication: { findFirst: mocks.linked, findUnique: mocks.linked },
+  },
 }));
 vi.mock("@/lib/blob-lock", () => ({
   withBlobLock: async (
@@ -53,6 +56,9 @@ const image = {
   id: "file",
   filename: "hash.png",
   hash: "hash",
+  ownerId: "owner",
+  storageLocationId: "system",
+  storageConfig: null,
   contentType: "image/png",
   sizeBytes: 10,
   width: 10,
@@ -84,6 +90,10 @@ const link = {
   applicationId: "app-a",
   originalName: "file.png",
   tags: ["one"],
+  folderId: null,
+  deletedAt: null,
+  trashBatchId: null,
+  starred: false,
   linkedAt: new Date(),
   updatedAt: new Date(),
   image,
@@ -110,12 +120,12 @@ describe("scoped files", () => {
     });
     expect(mocks.unlink).toHaveBeenCalledWith({
       where: {
-        imageId_applicationId: { imageId: "file", applicationId: "app-a" },
+        id: "link",
       },
     });
     expect(mocks.deleteBlob).not.toHaveBeenCalled();
     expect(mocks.deleteImage).not.toHaveBeenCalled();
-    expect(mocks.lock).toHaveBeenCalledWith("hash");
+    expect(mocks.lock).toHaveBeenCalledWith("system:hash");
     expect(mocks.unlink.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.count.mock.invocationCallOrder[0],
     );
@@ -141,7 +151,7 @@ describe("scoped files", () => {
   });
   it("serializes actual placeholder/variant URLs and omits internal fields", () => {
     const result = serializeFile(link);
-    expect(result.urls.placeholder).toContain("/file-placeholder.webp");
+    expect(result.urls.placeholder).toContain("/link-placeholder.webp");
     expect(result.variants[0].contentType).toBe("image/webp");
     expect(result).not.toHaveProperty("hash");
     expect(result).not.toHaveProperty("applications");

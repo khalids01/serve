@@ -1,117 +1,141 @@
-import { NextRequest, NextResponse } from 'next/server'
-import path from 'path'
-import sharp from 'sharp'
-import { prisma } from '@/lib/prisma'
+import { type NextRequest, NextResponse } from "next/server";
+import path from "path";
+import sharp from "sharp";
+import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
+import { prisma } from "@/lib/prisma";
+import { isSharpResizable } from "@/lib/storage/image";
+import { getStorageForImage } from "@/lib/storage/locations";
 import {
-  readBlobFileWithLegacy,
   readBlobCacheWithLegacy,
+  readBlobFileWithLegacy,
   writeBlobCache,
-} from '@/lib/storage/read'
-import { getStorage } from '@/lib/storage/factory'
-import { getLegacyTenantKeys, imageInclude } from '@/lib/image-response'
-import { isSharpResizable } from '@/lib/storage/image'
+} from "@/lib/storage/read";
 
-export const runtime = "nodejs"
+export const runtime = "nodejs";
 
-const MAX_DIMENSION = 4096
+const MAX_DIMENSION = 4096;
 
 function clamp(n: number | null): number | null {
-  if (n == null) return null
-  if (Number.isNaN(n)) return null
-  return Math.max(1, Math.min(MAX_DIMENSION, Math.floor(n)))
+  if (n == null) return null;
+  if (Number.isNaN(n)) return null;
+  return Math.max(1, Math.min(MAX_DIMENSION, Math.floor(n)));
 }
 
-function getTargetExt(format?: string | null): 'jpg' | 'png' | 'webp' | 'avif' {
-  const f = (format || '').toLowerCase()
-  if (f === 'webp') return 'webp'
-  if (f === 'png') return 'png'
-  if (f === 'avif') return 'avif'
-  return 'jpg'
+function getTargetExt(format?: string | null): "jpg" | "png" | "webp" | "avif" {
+  const f = (format || "").toLowerCase();
+  if (f === "webp") return "webp";
+  if (f === "png") return "png";
+  if (f === "avif") return "avif";
+  return "jpg";
 }
 
 function getContentTypeByExt(ext: string): string {
   switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg'
-    case 'png':
-      return 'image/png'
-    case 'webp':
-      return 'image/webp'
-    case 'avif':
-      return 'image/avif'
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "avif":
+      return "image/avif";
     default:
-      return 'application/octet-stream'
+      return "application/octet-stream";
   }
 }
 
 function bufferResponse(buf: Buffer, contentType: string): NextResponse {
-  const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+  const body = buf.buffer.slice(
+    buf.byteOffset,
+    buf.byteOffset + buf.byteLength,
+  );
   return new NextResponse(body as ArrayBuffer, {
     status: 200,
     headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000, immutable'
-    }
-  })
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
 }
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: rawId } = await context.params
-    const url = new URL(request.url)
-    const storage = getStorage()
-    const wParam = url.searchParams.get('width') || url.searchParams.get('w')
-    const hParam = url.searchParams.get('height') || url.searchParams.get('h')
-    const fmtParam = url.searchParams.get('format') || url.searchParams.get('f')
+    const { id: rawId } = await context.params;
+    const url = new URL(request.url);
 
-    const [id, idExt] = rawId.includes('.') ? ((): [string, string | null] => {
-      const dotIdx = rawId.indexOf('.')
-      return [rawId.slice(0, dotIdx), rawId.slice(dotIdx + 1).toLowerCase()]
-    })() : [rawId, null]
+    const wParam = url.searchParams.get("width") || url.searchParams.get("w");
+    const hParam = url.searchParams.get("height") || url.searchParams.get("h");
+    const fmtParam =
+      url.searchParams.get("format") || url.searchParams.get("f");
 
-    const width = clamp(wParam ? parseInt(wParam, 10) : null)
-    const height = clamp(hParam ? parseInt(hParam, 10) : null)
+    const [id, idExt] = rawId.includes(".")
+      ? ((): [string, string | null] => {
+          const dotIdx = rawId.indexOf(".");
+          return [
+            rawId.slice(0, dotIdx),
+            rawId.slice(dotIdx + 1).toLowerCase(),
+          ];
+        })()
+      : [rawId, null];
+
+    const width = clamp(wParam ? parseInt(wParam, 10) : null);
+    const height = clamp(hParam ? parseInt(hParam, 10) : null);
 
     const image = await prisma.image.findUnique({
       where: { id },
       include: imageInclude,
-    })
+    });
 
     if (!image) {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+      return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
-    const legacyTenantKeys = getLegacyTenantKeys(image)
+    const storage = await getStorageForImage(image);
+    const legacyTenantKeys = getLegacyTenantKeys(image);
 
-    const targetExt = getTargetExt((fmtParam || idExt) || undefined)
-    const origExt = path.extname(image.filename).replace('.', '').toLowerCase()
+    const targetExt = getTargetExt(fmtParam || idExt || undefined);
+    const origExt = path.extname(image.filename).replace(".", "").toLowerCase();
 
     if (!width && !height && (!idExt || targetExt === origExt) && !fmtParam) {
-      const buf = await readBlobFileWithLegacy(storage, image.filename, legacyTenantKeys)
+      const buf = await readBlobFileWithLegacy(
+        storage,
+        image.filename,
+        legacyTenantKeys,
+      );
       if (!buf) {
-        return NextResponse.json({ error: 'Original file not found' }, { status: 404 })
+        return NextResponse.json(
+          { error: "Original file not found" },
+          { status: 404 },
+        );
       }
-      return bufferResponse(buf, image.contentType || 'application/octet-stream')
+      return bufferResponse(
+        buf,
+        image.contentType || "application/octet-stream",
+      );
     }
 
-    if (!width && !height && targetExt === 'webp') {
-      const webpName = `${path.parse(image.filename).name}.webp`
-      const buf = await readBlobFileWithLegacy(storage, webpName, legacyTenantKeys)
+    if (!width && !height && targetExt === "webp") {
+      const webpName = `${path.parse(image.filename).name}.webp`;
+      const buf = await readBlobFileWithLegacy(
+        storage,
+        webpName,
+        legacyTenantKeys,
+      );
       if (buf) {
-        return bufferResponse(buf, 'image/webp')
+        return bufferResponse(buf, "image/webp");
       }
     }
 
-    const normalizedOrigExt = origExt === 'jpeg' ? 'jpg' : origExt
+    const normalizedOrigExt = origExt === "jpeg" ? "jpg" : origExt;
     const needsTransform =
       !!width ||
       !!height ||
       !!fmtParam ||
-      (!!idExt && targetExt !== normalizedOrigExt)
+      (!!idExt && targetExt !== normalizedOrigExt);
 
     if (
       needsTransform &&
@@ -120,42 +144,62 @@ export async function GET(
       return NextResponse.json(
         {
           error:
-            'Resize and format conversion are only supported for raster image files',
+            "Resize and format conversion are only supported for raster image files",
         },
         { status: 400 },
-      )
+      );
     }
 
-    const base = path.parse(image.filename).name
-    const cacheName = `${base}${width ? `_w${width}` : ''}${height ? `_h${height}` : ''}.${targetExt}`
+    const base = path.parse(image.filename).name;
+    const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""}.${targetExt}`;
 
-    const cached = await readBlobCacheWithLegacy(storage, cacheName, legacyTenantKeys)
+    const cached = await readBlobCacheWithLegacy(
+      storage,
+      cacheName,
+      legacyTenantKeys,
+    );
     if (cached) {
-      return bufferResponse(cached, getContentTypeByExt(targetExt))
+      return bufferResponse(cached, getContentTypeByExt(targetExt));
     }
 
-    const original = await readBlobFileWithLegacy(storage, image.filename, legacyTenantKeys)
+    const original = await readBlobFileWithLegacy(
+      storage,
+      image.filename,
+      legacyTenantKeys,
+    );
     if (!original) {
-      return NextResponse.json({ error: 'Original file not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: "Original file not found" },
+        { status: 404 },
+      );
     }
 
-    let pipeline = sharp(original)
+    let pipeline = sharp(original);
     pipeline = pipeline.resize(width || undefined, height || undefined, {
-      fit: 'inside',
-      withoutEnlargement: true
-    })
+      fit: "inside",
+      withoutEnlargement: true,
+    });
 
-    if (targetExt === 'webp') pipeline = pipeline.webp({ quality: 80 })
-    else if (targetExt === 'png') pipeline = pipeline.png({ compressionLevel: 9, palette: true })
-    else if (targetExt === 'avif') pipeline = pipeline.avif({ quality: 50 })
-    else pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true })
+    if (targetExt === "webp") pipeline = pipeline.webp({ quality: 80 });
+    else if (targetExt === "png")
+      pipeline = pipeline.png({ compressionLevel: 9, palette: true });
+    else if (targetExt === "avif") pipeline = pipeline.avif({ quality: 50 });
+    else pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true });
 
-    const out = await pipeline.toBuffer()
-    await writeBlobCache(storage, cacheName, out, getContentTypeByExt(targetExt))
+    const out = await pipeline.toBuffer();
+    await writeBlobCache(
+      storage,
+      cacheName,
+      out,
+      getContentTypeByExt(targetExt),
+    );
 
-    return bufferResponse(out, getContentTypeByExt(targetExt))
+    return bufferResponse(out, getContentTypeByExt(targetExt));
   } catch (error) {
-    console.error('Resize serve error:', error)
-    return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
+    console.error("Resize serve error:", error);
+    return NextResponse.json(
+      { error: "Failed to process image" },
+      { status: 500 },
+    );
   }
 }

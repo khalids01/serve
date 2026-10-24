@@ -1,22 +1,23 @@
 import path from "path";
 import { config } from "@/config";
-import { contentHash16 } from "@/lib/storage/hash";
-import { blobKey } from "@/lib/storage/keys";
+import type { StorageBackend } from "@/lib/storage/backend";
 import { getStorage } from "@/lib/storage/factory";
+import { contentHash16 } from "@/lib/storage/hash";
 import {
-  readMetadata,
   downscaleIfTooLarge,
-  optimizeOriginal,
-  toWebp,
   normalizeRasterFormat,
+  optimizeOriginal,
   placeholder,
   placeholderWebp,
+  readMetadata,
+  toWebp,
   UPLOAD_OPTIMIZABLE_MIME_TYPES,
 } from "@/lib/storage/image";
+import { blobKey } from "@/lib/storage/keys";
 import type { FileUploadResult } from "@/lib/storage/types";
 
 export class FileStorageService {
-  private storage = getStorage();
+  constructor(private storage: StorageBackend = getStorage()) {}
 
   async saveFile(
     buffer: Buffer,
@@ -100,9 +101,13 @@ export class FileStorageService {
             );
 
             const placeholderFilename = `${fileId}-placeholder.${normalizedOrigExt}`;
-            await this.storage.put(blobKey(placeholderFilename), placeholderBuf, {
-              contentType: `image/${normalizedOrigExt === "jpg" ? "jpeg" : normalizedOrigExt}`,
-            });
+            await this.storage.put(
+              blobKey(placeholderFilename),
+              placeholderBuf,
+              {
+                contentType: `image/${normalizedOrigExt === "jpg" ? "jpeg" : normalizedOrigExt}`,
+              },
+            );
 
             const phMeta = await readMetadata(placeholderBuf);
             result.variants.push({

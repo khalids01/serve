@@ -3,8 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
-import { getStorage } from "@/lib/storage/factory";
 import { isSharpResizable } from "@/lib/storage/image";
+import { getStorageForImage } from "@/lib/storage/locations";
 import {
   readBlobCacheWithLegacy,
   readBlobFileWithLegacy,
@@ -80,7 +80,6 @@ function bufferResponse(buf: Buffer, contentType: string): NextResponse {
 export async function serveImage(request: NextRequest, rawName: string) {
   try {
     const url = new URL(request.url);
-    const storage = getStorage();
 
     const wParam = url.searchParams.get("width") || url.searchParams.get("w");
     const hParam = url.searchParams.get("height") || url.searchParams.get("h");
@@ -116,13 +115,19 @@ export async function serveImage(request: NextRequest, rawName: string) {
         : baseName
       : baseName;
 
-    let image = await prisma.image.findUnique({
+    const entry = await prisma.imageApplication.findUnique({
       where: { id: lookupId },
-      include: imageInclude,
+      include: { image: { include: imageInclude } },
     });
+    let image =
+      entry?.image ??
+      (await prisma.image.findUnique({
+        where: { id: lookupId },
+        include: imageInclude,
+      }));
 
     if (!image) {
-      image = await prisma.image.findUnique({
+      image = await prisma.image.findFirst({
         where: { hash: lookupId },
         include: imageInclude,
       });
@@ -139,6 +144,7 @@ export async function serveImage(request: NextRequest, rawName: string) {
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
+    const storage = await getStorageForImage(image);
     const legacyTenantKeys = getLegacyTenantKeys(image);
 
     const origExt = path.extname(image.filename).replace(".", "").toLowerCase();

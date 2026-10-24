@@ -44,12 +44,18 @@ export function validateRuntimeEnv(env) {
   const provider = env.STORAGE_PROVIDER ?? "s3";
   if (!["local", "s3"].includes(provider))
     throw new Error("STORAGE_PROVIDER must be local or s3.");
-  if (provider === "s3")
-    for (const key of ["S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_BUCKET"])
-      if (!env[key])
-        throw new Error(
-          `S3 storage requires ${key}. Set it on the Dokploy service or select STORAGE_PROVIDER=local.`,
-        );
+  for (const value of [
+    env.STORAGE_ENCRYPTION_KEY,
+    ...(env.STORAGE_ENCRYPTION_PREVIOUS_KEYS ?? "").split(","),
+  ].filter(Boolean)) {
+    const trimmed = value.trim(),
+      key = Buffer.from(trimmed, "base64");
+    if (key.length !== 32 || key.toString("base64") !== trimmed)
+      throw new Error(
+        "Storage encryption keys must be base64-encoded 32-byte keys.",
+      );
+  }
+  // An unconfigured Default is disabled in the UI; Local and saved S3 locations still work.
 }
 if (
   process.argv[1] &&

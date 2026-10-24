@@ -11,7 +11,10 @@ export class UploadValidationError extends Error {
     super(message);
   }
 }
-export async function parseUpload(request: Request) {
+export async function parseUpload(
+  request: Request,
+  extraFields: string[] = [],
+) {
   const declaredLength = Number(request.headers.get("content-length"));
   if (
     Number.isFinite(declaredLength) &&
@@ -29,7 +32,7 @@ export async function parseUpload(request: Request) {
       "Application context comes from the credential.",
     );
   for (const key of form.keys())
-    if (!["file", "tags", "saveMode"].includes(key))
+    if (!["file", "tags", "saveMode", ...extraFields].includes(key))
       throw new UploadValidationError(
         "INVALID_UPLOAD",
         `Unknown upload field: ${key}`,
@@ -119,5 +122,7 @@ export async function parseUpload(request: Request) {
     contentType,
     tags,
     saveMode: form.get("saveMode"),
+    folderId: form.get("folderId"),
+    storageLocationId: form.get("storageLocationId"),
   };
 }

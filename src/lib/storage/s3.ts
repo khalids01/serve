@@ -1,3 +1,5 @@
+import { Agent as HttpAgent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
@@ -7,6 +9,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { config } from "@/config";
 import type {
   StorageBackend,
@@ -14,6 +17,7 @@ import type {
   StorageObjectInfo,
   StorageReadStream,
 } from "./backend";
+import { safeStorageLookup } from "./endpoint";
 
 function streamToBuffer(body: unknown): Promise<Buffer> {
   if (!body) return Promise.resolve(Buffer.alloc(0));
@@ -83,11 +87,20 @@ function isMissingObject(error: unknown): boolean {
   return false;
 }
 
+export type S3StorageOptions = {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  bucket?: string;
+  region?: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
+  restrictNetwork?: boolean;
+};
 export class S3StorageBackend implements StorageBackend {
   private client: S3Client;
   private bucket: string;
 
-  constructor() {
+  constructor(options: S3StorageOptions = config.storage.s3) {
     const {
       accessKeyId,
       secretAccessKey,
@@ -95,7 +108,7 @@ export class S3StorageBackend implements StorageBackend {
       region,
       endpoint,
       forcePathStyle,
-    } = config.storage.s3;
+    } = options;
 
     if (!accessKeyId || !secretAccessKey || !bucket) {
       throw new Error(
@@ -112,6 +125,16 @@ export class S3StorageBackend implements StorageBackend {
         secretAccessKey,
       },
       forcePathStyle,
+      ...(options.restrictNetwork
+        ? {
+            requestHandler: new NodeHttpHandler({
+              httpsAgent: new HttpsAgent({ lookup: safeStorageLookup }),
+              httpAgent: new HttpAgent({ lookup: safeStorageLookup }),
+              connectionTimeout: 10000,
+              socketTimeout: 30000,
+            }),
+          }
+        : {}),
     });
   }
 
@@ -177,7 +200,7 @@ export class S3StorageBackend implements StorageBackend {
         new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
       );
     } catch (error) {
-      console.error("Error deleting S3 object:", error);
+      if (!isMissingObject(error)) throw error;
     }
   }
 
@@ -229,7 +252,7 @@ export class S3StorageBackend implements StorageBackend {
     const batchSize = 1000;
     for (let i = 0; i < objects.length; i += batchSize) {
       const batch = objects.slice(i, i + batchSize);
-      await this.client.send(
+      const result = await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
           Delete: {
@@ -237,6 +260,8 @@ export class S3StorageBackend implements StorageBackend {
           },
         }),
       );
+      if (result.Errors?.length)
+        throw new Error("Some S3 objects could not be deleted.");
     }
   }
 }

@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/prisma", async () => ({
   prisma: (await import("./support/memory-serve")).db,
 }));
+vi.mock("@/lib/storage/local", () => ({
+  LocalStorageBackend: class {
+    constructor() {
+      Object.assign(this, storage);
+    }
+  },
+}));
 vi.mock("@/lib/storage/factory", async () => ({ getStorage: () => storage }));
 vi.mock("@/lib/api-keys", () => ({
   ApiKeyService: {
@@ -17,7 +24,12 @@ vi.mock("@/lib/api-keys", () => ({
 vi.mock("@/config", () => ({
   config: {
     app: { url: "https://files.example" },
-    storage: { cacheInStorage: true },
+    storage: {
+      provider: "local",
+      local: { uploadDir: "/unused" },
+      s3: {},
+      cacheInStorage: true,
+    },
     image: {
       originalMaxDim: 2560,
       placeholderWidth: 360,
@@ -110,6 +122,10 @@ describe("documented integration through real Serve routes", () => {
       contentType: "image/png",
     });
     expect(asset.kind).toBe("image");
+    const download = await bridge(`${asset.urls.content}?download=1`);
+    expect(download.headers.get("content-disposition")).toContain(
+      'filename="photo.png"',
+    );
     expect(asset.urls.placeholder).toBeTruthy();
     for (const url of [
       asset.urls.image,
@@ -128,7 +144,7 @@ describe("documented integration through real Serve routes", () => {
     };
     const a = await client().files.upload(input),
       b = await client("sk_app_b").files.upload(input);
-    expect(a.id).toBe(b.id);
+    expect(a.id).not.toBe(b.id);
     expect((await client().files.delete(a.id)).storageDeleted).toBe(false);
     await expect(client().files.get(a.id)).rejects.toHaveProperty(
       "status",

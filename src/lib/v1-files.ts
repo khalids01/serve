@@ -32,12 +32,12 @@ export function serializeFile(link: Link) {
       height: variant.height,
       sizeBytes: variant.sizeBytes,
       url: absolute(
-        `/api/img/${encodeURIComponent(image.id)}${placeholder ? "-placeholder" : ""}.${extension}`,
+        `/api/img/${encodeURIComponent(link.id)}${placeholder ? "-placeholder" : ""}.${extension}`,
       ),
     };
   });
   return fileAssetSchema.parse({
-    id: image.id,
+    id: link.id,
     filename: image.filename,
     originalName: link.originalName,
     contentType: image.contentType,
@@ -48,12 +48,12 @@ export function serializeFile(link: Link) {
     tags: Array.isArray(link.tags)
       ? link.tags.filter((tag): tag is string => typeof tag === "string")
       : [],
-    createdAt: image.createdAt.toISOString(),
-    updatedAt: image.updatedAt.toISOString(),
+    createdAt: link.linkedAt.toISOString(),
+    updatedAt: link.updatedAt.toISOString(),
     urls: {
-      content: absolute(`/api/v1/files/${image.id}/content`),
+      content: absolute(`/api/v1/files/${link.id}/content`),
       image: image.contentType.startsWith("image/")
-        ? absolute(`/api/img/${image.id}`)
+        ? absolute(`/api/img/${link.id}`)
         : null,
       placeholder:
         variants.find(
@@ -69,8 +69,8 @@ export function serializeFile(link: Link) {
   });
 }
 export function linkedFile(id: string, applicationId: string) {
-  return prisma.imageApplication.findUnique({
-    where: { imageId_applicationId: { imageId: id, applicationId } },
+  return prisma.imageApplication.findFirst({
+    where: { OR: [{ id }, { imageId: id }], applicationId, deletedAt: null },
     include: { image: { include: v1ImageInclude } },
   });
 }
@@ -78,7 +78,10 @@ export function listQuery(params: URLSearchParams, applicationId: string) {
   const raw: Record<string, unknown> = Object.fromEntries(params);
   raw.tags = params.getAll("tags");
   const input = listFilesInputSchema.parse(raw);
-  const conditions: Prisma.ImageApplicationWhereInput[] = [{ applicationId }];
+  const conditions: Prisma.ImageApplicationWhereInput[] = [
+    { applicationId },
+    { deletedAt: null },
+  ];
   if (input.search)
     conditions.push({
       originalName: { contains: input.search, mode: "insensitive" },

@@ -22,7 +22,9 @@ function normalizeExt(ext: string): string {
 }
 
 function hashFromFilename(filename: string): string {
-  return path.parse(filename).name.replace(new RegExp(`${PLACEHOLDER_SUFFIX}$`), "");
+  return path
+    .parse(filename)
+    .name.replace(new RegExp(`${PLACEHOLDER_SUFFIX}$`), "");
 }
 
 function storageFilenameToPublicPath(filename: string): string {
@@ -56,7 +58,9 @@ export function toPlaceholderUrl(
   opts?: { variants?: ImageVariantRef[] },
 ): string | null {
   const variants = opts?.variants ?? [];
-  const hasPlaceholderWebp = variants.some((v) => v.label === "placeholder-webp");
+  const hasPlaceholderWebp = variants.some(
+    (v) => v.label === "placeholder-webp",
+  );
   const hasPlaceholder = variants.some((v) => v.label === "placeholder");
 
   if (!hasPlaceholder && !hasPlaceholderWebp) {
@@ -101,16 +105,23 @@ export function imagePublicUrl(
   return `/api/img/${imageId ?? hash}${ext}`;
 }
 
-export function withImageUrls<T extends { filename: string; variants: ImageVariantRef[] }>(
+export function withImageUrls<
+  T extends { filename: string; variants: ImageVariantRef[] },
+>(
   image: T,
   imageId?: string,
-): T & { url: string; variants: Array<T["variants"][number] & { url: string }> } {
+): T & {
+  url: string;
+  variants: Array<T["variants"][number] & { url: string }>;
+} {
   return {
     ...image,
     url: imagePublicUrl(image.filename, imageId),
     variants: image.variants.map((variant) => ({
       ...variant,
-      url: variantToServeUrl(variant, image.filename),
+      url: imageId
+        ? `/api/img/${imageId}${isPlaceholderLabel(variant.label) ? "-placeholder" : ""}${path.extname(variant.filename)}`
+        : variantToServeUrl(variant, image.filename),
     })),
   };
 }

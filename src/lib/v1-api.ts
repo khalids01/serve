@@ -2,6 +2,8 @@ import { errors, jwtVerify, SignJWT } from "jose";
 import { type NextRequest, NextResponse } from "next/server";
 import { config } from "@/config";
 import { ApiKeyService } from "@/lib/api-keys";
+import { StorageLocationError } from "@/lib/storage/locations";
+import { StorageSecretError } from "@/lib/storage/secrets";
 import { browserTokenInputSchema } from "@/lib/v1-contracts";
 
 export type FileScope = "files:read" | "files:write" | "files:delete";
@@ -190,9 +192,21 @@ export function withAuth(
     } catch (cause) {
       console.error("V1 request failed", requestId, cause);
       response =
-        cause instanceof BrowserTokenConfigurationError
-          ? error("BROWSER_TOKENS_NOT_CONFIGURED", cause.message, 503)
-          : error("INTERNAL_ERROR", "The request could not be completed.", 500);
+        cause instanceof StorageLocationError
+          ? error("STORAGE_UNAVAILABLE", cause.message, cause.status)
+          : cause instanceof StorageSecretError
+            ? error(
+                "STORAGE_UNAVAILABLE",
+                "The storage encryption key is unavailable. Contact the Serve operator.",
+                503,
+              )
+            : cause instanceof BrowserTokenConfigurationError
+              ? error("BROWSER_TOKENS_NOT_CONFIGURED", cause.message, 503)
+              : error(
+                  "INTERNAL_ERROR",
+                  "The request could not be completed.",
+                  500,
+                );
     }
     response.headers.set("X-Request-Id", requestId);
     response.headers.set("Cache-Control", "no-store");

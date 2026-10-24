@@ -89,7 +89,7 @@ export class LocalStorageBackend implements StorageBackend {
       ) {
         return;
       }
-      console.error("Error deleting file:", error);
+      throw error;
     }
   }
 
@@ -135,6 +135,6 @@ export class LocalStorageBackend implements StorageBackend {
 
   async deletePrefix(prefix: string): Promise<void> {
     const dirPath = this.keyToPath(prefix.replace(/\/$/, ""));
-    await fs.rm(dirPath, { recursive: true, force: true }).catch(() => {});
+    await fs.rm(dirPath, { recursive: true, force: true });
   }
 }

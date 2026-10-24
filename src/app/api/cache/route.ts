@@ -1,70 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { config } from "@/config";
-import { protect } from "@/features/auth/guard";
 import { prisma } from "@/lib/prisma";
-import {
-  clearAllUserCache,
-  getHashesByApplicationForUser,
-  listUserCacheOverview,
-} from "@/lib/storage/cache-admin";
-import { getStorage } from "@/lib/storage/factory";
-
-export async function GET(request: NextRequest) {
-  try {
-    const auth = await protect(request);
-    if (auth instanceof NextResponse) return auth;
-    const { user } = auth;
-
-    const applications = await prisma.application.findMany({
+import { requireSession, sessionApi } from "@/lib/session-api";
+import { locationCache } from "@/lib/storage/cache-admin";
+export function GET(request: Request) {
+  return sessionApi(async () => {
+    const user = await requireSession(request);
+    const apps = await prisma.application.findMany({
       where: { ownerId: user.id },
       select: { id: true, name: true, slug: true },
-      orderBy: { name: "asc" },
     });
-
-    const hashesByApp = await getHashesByApplicationForUser(user.id);
-    const overview = await listUserCacheOverview(
-      getStorage(),
-      applications,
-      hashesByApp,
+    const applications = await Promise.all(
+      apps.map(async (app) => ({ ...app, ...(await locationCache(app.id)) })),
     );
-
     return NextResponse.json({
       cacheInStorage: config.storage.cacheInStorage,
-      ...overview,
-    });
-  } catch (error) {
-    console.error("Global cache list error:", error);
-    if (error instanceof Error && error.message === "Authentication required") {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-    return NextResponse.json({ error: "Failed to list cache" }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const auth = await protect(request);
-    if (auth instanceof NextResponse) return auth;
-    const { user } = auth;
-
-    const applications = await prisma.application.findMany({
-      where: { ownerId: user.id },
-      select: { id: true, slug: true },
-    });
-
-    const hashesByApp = await getHashesByApplicationForUser(user.id);
-    const clearedBytes = await clearAllUserCache(
-      getStorage(),
       applications,
-      hashesByApp,
-    );
-
+      fileCount: applications.reduce((n, app) => n + app.fileCount, 0),
+      totalBytes: applications.reduce((n, app) => n + app.totalBytes, 0),
+    });
+  });
+}
+export function DELETE(request: Request) {
+  return sessionApi(async () => {
+    const user = await requireSession(request);
+    const apps = await prisma.application.findMany({
+      where: { ownerId: user.id },
+      select: { id: true },
+    });
+    let clearedBytes = 0;
+    for (const app of apps)
+      clearedBytes += (await locationCache(app.id, true)).clearedBytes;
     return NextResponse.json({ success: true, clearedBytes });
-  } catch (error) {
-    console.error("Global cache clear error:", error);
-    if (error instanceof Error && error.message === "Authentication required") {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-    return NextResponse.json({ error: "Failed to clear cache" }, { status: 500 });
-  }
+  });
 }

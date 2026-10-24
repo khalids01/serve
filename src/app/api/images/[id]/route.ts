@@ -1,151 +1,84 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { FileStorageService } from '@/lib/file-storage'
-import { protect } from '@/features/auth/guard'
-import path from 'path'
-import { deleteBlobAndLegacyCacheByBase } from '@/lib/storage/read'
-import { objectKey } from '@/lib/storage/keys'
-import { getStorage } from '@/lib/storage/factory'
+import { type NextRequest, NextResponse } from "next/server";
+import { protect } from "@/features/auth/guard";
+import { purgeFileEntry } from "@/lib/file-deletion";
 import {
   appIsLinkedToImage,
   formatImageResponse,
-  getLegacyTenantKeys,
-  getLinkedApplications,
   imageInclude,
   userOwnsLinkedImage,
-} from '@/lib/image-response'
+} from "@/lib/image-response";
+import { prisma } from "@/lib/prisma";
+import { sessionApi } from "@/lib/session-api";
+import {
+  StorageLocationError,
+  withOwnerStorageLock,
+} from "@/lib/storage/locations";
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await protect(request)
-    if (auth instanceof NextResponse) return auth
-    const { user, application: authApp } = auth
+    const auth = await protect(request);
+    if (auth instanceof NextResponse) return auth;
+    const { user, application: authApp } = auth;
 
-    const { id } = await context.params
+    const { id } = await context.params;
     const image = await prisma.image.findUnique({
       where: { id },
       include: imageInclude,
-    })
+    });
 
     if (!image) {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+      return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
     if (authApp) {
-      const linked = await appIsLinkedToImage(id, authApp.id)
+      const linked = await appIsLinkedToImage(id, authApp.id);
       if (!linked) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
     } else {
-      const owns = await userOwnsLinkedImage(id, user.id)
+      const owns = await userOwnsLinkedImage(id, user.id);
       if (!owns) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
     }
 
-    return NextResponse.json(formatImageResponse(image, authApp?.id))
-
+    return NextResponse.json(formatImageResponse(image, authApp?.id));
   } catch (error) {
-    console.error('Get image error:', error)
+    console.error("Get image error:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch image' },
-      { status: 500 }
-    )
+      { error: "Failed to fetch image" },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(
+export function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const auth = await protect(request)
-    if (auth instanceof NextResponse) return auth
-    const { user, application: authApp } = auth
-
-    const { id } = await context.params
-    const image = await prisma.image.findUnique({
-      where: { id },
-      include: imageInclude,
-    })
-
-    if (!image) {
-      return NextResponse.json({ error: 'Image not found' }, { status: 404 })
-    }
-
-    if (authApp) {
-      const linked = await appIsLinkedToImage(id, authApp.id)
-      if (!linked) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-      }
-    } else {
-      const owns = await userOwnsLinkedImage(id, user.id)
-      if (!owns) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-      }
-    }
-
-    const linkedApplications = getLinkedApplications(image)
-    const legacyTenantKeys = getLegacyTenantKeys(image)
-    const fileStorage = new FileStorageService()
-    const storage = getStorage()
-
-    await fileStorage.deleteBlobFile(image.filename)
-    for (const tenantKey of legacyTenantKeys) {
-      await storage.delete(objectKey(tenantKey, image.filename))
-    }
-
-    for (const variant of image.variants) {
-      await fileStorage.deleteBlobFile(variant.filename)
-      for (const tenantKey of legacyTenantKeys) {
-        await storage.delete(objectKey(tenantKey, variant.filename))
-      }
-    }
-
-    const base = path.parse(image.filename).name
-    await deleteBlobAndLegacyCacheByBase(storage, base, legacyTenantKeys)
-
-    await prisma.image.delete({
-      where: { id }
-    })
-
-    try {
-      const userAgent = request.headers.get('user-agent') || undefined
-      const ip =
-        (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() ||
-        (request.headers.get('x-real-ip') || undefined)
-      await prisma.auditLog.create({
-        data: {
-          userId: user.id || null,
-          applicationId: authApp?.id ?? image.applications[0]?.applicationId ?? null,
-          action: 'DELETE',
-          targetId: image.id,
-          ip: ip || undefined,
-          userAgent: userAgent || undefined,
-          metadata: {
-            filename: image.filename,
-            linkedApplications,
-            variants: image.variants?.length || 0
-          } as any
-        }
-      })
-    } catch (e) {
-      console.error('Audit log (DELETE) error:', e)
-    }
-
-    return NextResponse.json({
-      success: true,
-      linkedApplications,
-    })
-
-  } catch (error) {
-    console.error('Delete image error:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete image' },
-      { status: 500 }
-    )
-  }
+  return sessionApi(async () => {
+    const auth = await protect(request);
+    if (auth instanceof NextResponse) return auth;
+    const { id } = await context.params;
+    const applicationId =
+      auth.application?.id ?? request.nextUrl.searchParams.get("applicationId");
+    const entry = await prisma.imageApplication.findFirst({
+      where: {
+        OR: [{ id }, { imageId: id }],
+        ...(applicationId ? { applicationId } : {}),
+        application: { ownerId: auth.user.id },
+      },
+      select: { id: true, applicationId: true },
+    });
+    if (!entry) throw new StorageLocationError("File not found.", 404);
+    return withOwnerStorageLock(auth.user.id, async () =>
+      NextResponse.json({
+        success: true,
+        ...(await purgeFileEntry(entry.id, entry.applicationId)),
+      }),
+    );
+  });
 }

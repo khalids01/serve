@@ -20,12 +20,12 @@ test("rejects a runtime URL different from the baked browser URL", () =>
       }),
     /Rebuild/,
   ));
-test("rejects missing env, SQLite, short secrets and incomplete S3 settings", () => {
+test("rejects missing env, SQLite, short secrets and invalid encryption keys", () => {
   for (const env of [
     { ...valid, DATABASE_URL: "" },
     { ...valid, DATABASE_URL: "file:./dev.db" },
     { ...valid, BETTER_AUTH_SECRET: "short" },
-    { ...valid, STORAGE_PROVIDER: "s3" },
+    { ...valid, STORAGE_ENCRYPTION_KEY: "invalid" },
     { ...valid, FILE_SERVER_BROWSER_TOKEN_SECRET: "short" },
   ])
     assert.throws(() => validateRuntimeEnv(env));
@@ -40,3 +40,8 @@ test("configuration errors do not expose credentials", () => {
     (error) => !error.message.includes("do-not-log"),
   );
 });
+
+test("allows missing Default S3 configuration so Local and saved connections remain usable", () =>
+  assert.doesNotThrow(() =>
+    validateRuntimeEnv({ ...valid, STORAGE_PROVIDER: "s3" }),
+  ));

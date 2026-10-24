@@ -14,6 +14,9 @@ type Variant = {
 type Image = {
   id: string;
   hash: string;
+  ownerId: string;
+  storageLocationId: string;
+  storageConfig: unknown;
   filename: string;
   contentType: string;
   sizeBytes: number;
@@ -29,6 +32,10 @@ type Link = {
   applicationId: string;
   originalName: string;
   tags: unknown;
+  folderId: string | null;
+  deletedAt: Date | null;
+  trashBatchId: string | null;
+  starred: boolean;
   linkedAt: Date;
   updatedAt: Date;
 };
@@ -58,21 +65,39 @@ function hydrateLink(link: Link) {
   if (!image) throw new Error("Missing image");
   return { ...link, image: hydrate(image) };
 }
-function find(where: { id?: string; hash?: string }) {
+type ImageWhere = {
+  id?: string;
+  hash?: string;
+  storageLocationId_hash?: { storageLocationId: string; hash: string };
+};
+function find(where: ImageWhere) {
   const image = [...images.values()].find((value) =>
-    where.id ? value.id === where.id : value.hash === where.hash,
+    where.id
+      ? value.id === where.id
+      : where.storageLocationId_hash
+        ? value.hash === where.storageLocationId_hash.hash &&
+          value.storageLocationId ===
+            where.storageLocationId_hash.storageLocationId
+        : value.hash === where.hash,
   );
   return image ? hydrate(image) : null;
 }
 function matches(
   link: Link,
   where: {
+    id?: string;
+    OR?: Array<{ id?: string; imageId?: string }>;
     applicationId?: string;
     imageId?: string;
     AND?: Array<{ applicationId?: string }>;
   },
 ) {
   return (
+    (!where.id || link.id === where.id) &&
+    (!where.OR ||
+      where.OR.some(
+        (part) => part.id === link.id || part.imageId === link.imageId,
+      )) &&
     (!where.applicationId || link.applicationId === where.applicationId) &&
     (!where.imageId || link.imageId === where.imageId) &&
     (!where.AND ||
@@ -88,14 +113,16 @@ export const db = {
     typeof work === "function"
       ? work(db)
       : Promise.all(work as Promise<unknown>[]),
+  application: {
+    findUniqueOrThrow: async () => ({
+      ownerId: "owner",
+      defaultStorageLocationId: "default",
+    }),
+  },
   image: {
-    findUnique: async ({ where }: { where: { id?: string; hash?: string } }) =>
-      find(where),
-    findUniqueOrThrow: async ({
-      where,
-    }: {
-      where: { id?: string; hash?: string };
-    }) => {
+    findFirst: async ({ where }: { where: ImageWhere }) => find(where),
+    findUnique: async ({ where }: { where: ImageWhere }) => find(where),
+    findUniqueOrThrow: async ({ where }: { where: ImageWhere }) => {
       const image = find(where);
       if (!image) throw new Error("Not found");
       return image;
@@ -138,6 +165,10 @@ export const db = {
         applicationId: app.applicationId,
         originalName: app.originalName,
         tags: app.tags ?? [],
+        folderId: null,
+        deletedAt: null,
+        trashBatchId: null,
+        starred: false,
         linkedAt: now,
         updatedAt: now,
       });
@@ -148,53 +179,42 @@ export const db = {
     },
   },
   imageApplication: {
-    findUnique: async ({
-      where,
+    create: async ({
+      data,
     }: {
-      where: {
-        imageId_applicationId: { imageId: string; applicationId: string };
-      };
+      data: Omit<
+        Link,
+        | "id"
+        | "linkedAt"
+        | "updatedAt"
+        | "deletedAt"
+        | "trashBatchId"
+        | "starred"
+      >;
     }) => {
-      const pair = where.imageId_applicationId;
-      const link = links.get(key(pair.imageId, pair.applicationId));
-      return link ? hydrateLink(link) : null;
+      const row = {
+        ...data,
+        id: `link-${++sequence}`,
+        linkedAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        trashBatchId: null,
+        starred: false,
+      };
+      links.set(row.id, row);
+      return hydrateLink(row);
     },
-    upsert: async ({
-      where,
-      create,
-      update,
-    }: {
-      where: {
-        imageId_applicationId: { imageId: string; applicationId: string };
-      };
-      create: Omit<Link, "id" | "linkedAt" | "updatedAt">;
-      update: Partial<Link>;
-    }) => {
-      const pair = where.imageId_applicationId,
-        id = key(pair.imageId, pair.applicationId),
-        old = links.get(id),
-        now = new Date();
-      links.set(
-        id,
-        old
-          ? { ...old, ...update }
-          : {
-              ...create,
-              id: `link-${++sequence}`,
-              linkedAt: now,
-              updatedAt: now,
-            },
-      );
+    findFirst: async ({ where }: { where: Parameters<typeof matches>[1] }) => {
+      const row = [...links.values()].find((link) => matches(link, where));
+      return row ? hydrateLink(row) : null;
     },
-    delete: async ({
-      where,
-    }: {
-      where: {
-        imageId_applicationId: { imageId: string; applicationId: string };
-      };
-    }) => {
-      const pair = where.imageId_applicationId;
-      links.delete(key(pair.imageId, pair.applicationId));
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      const row = [...links.values()].find((link) => link.id === where.id);
+      return row ? hydrateLink(row) : null;
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      for (const [key, row] of links)
+        if (row.id === where.id) links.delete(key);
     },
     count: async ({ where }: { where: Parameters<typeof matches>[1] }) =>
       [...links.values()].filter((link) => matches(link, where)).length,

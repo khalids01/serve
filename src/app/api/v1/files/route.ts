@@ -65,7 +65,7 @@ export const POST = withAuth("files:write", async (request, auth) => {
       auth.applicationId,
       input.tags,
     );
-    const link = await linkedFile(result.id, auth.applicationId);
+    const link = await linkedFile(result.entryId, auth.applicationId);
     if (!link) throw new Error("Upload link disappeared");
     return NextResponse.json({ data: serializeFile(link) }, { status: 201 });
   } catch (cause) {
