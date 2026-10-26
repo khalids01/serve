@@ -2,6 +2,7 @@
 import {
   CheckCircle2,
   Cloud,
+  FolderOpen,
   HardDrive,
   KeyRound,
   Loader2,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -159,15 +161,12 @@ export function StorageConnections() {
     }
   };
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="flex min-w-0 flex-col gap-6 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Storage connections
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Storage</h1>
           <p className="text-sm text-muted-foreground">
-            Choose where your applications store files. Credentials stay
-            encrypted on the server.
+            Open a drive to upload, organize, and manage your files.
           </p>
         </div>
         <Button
@@ -197,43 +196,93 @@ export function StorageConnections() {
           </button>
         </p>
       )}
-      {listing && !listing.encryptionReady && (
-        <output className="rounded-xl border bg-muted/40 p-4 text-sm">
-          <KeyRound className="mr-2 inline size-4" />
-          The operator must set <code>STORAGE_ENCRYPTION_KEY</code> to save S3
-          credentials. Generate a key with <code>openssl rand -base64 32</code>.
-          Default and Local storage can be used without this key.
-        </output>
+      {!listing && !error && (
+        <p
+          aria-live="polite"
+          className="flex items-center gap-2 py-8 text-sm text-muted-foreground"
+        >
+          <Loader2 className="size-4 animate-spin" />
+          Loading drives…
+        </p>
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {listing?.builtins.map((location) => (
-          <article key={location.id} className="rounded-xl border bg-card p-5">
+          <article
+            key={location.id}
+            className="relative min-w-0 rounded-xl border bg-card p-6 transition-colors hover:border-blue-500/40"
+          >
             <div className="mb-3 flex items-center gap-3">
               {location.id === "local" ? (
                 <HardDrive className="size-6 text-blue-500" />
               ) : (
                 <Cloud className="size-6 text-blue-500" />
               )}
-              <h2 className="font-semibold">{location.name}</h2>
+              <h2 className="font-semibold">
+                {location.enabled ? (
+                  <Link
+                    href={`/dashboard/storage/${location.id}`}
+                    className="hover:text-blue-500"
+                  >
+                    {location.name}
+                  </Link>
+                ) : (
+                  location.name
+                )}
+              </h2>
             </div>
             <p className="text-sm text-muted-foreground">
               {location.id === "local"
-                ? "Files live in this VPS’s persistent Docker volume at /uploads. They survive application redeployments."
-                : "Uses the host’s environment configuration. Keys are never exposed through this page."}
+                ? "Files on this server. Upload files and organize them into folders."
+                : "Your default storage drive, configured by the server administrator."}
             </p>
             <p className="mt-3 text-xs text-muted-foreground">
               {location.enabled
-                ? "Available for application defaults"
+                ? "Ready to use"
                 : "Not configured — select Local or configure the default S3 environment"}
             </p>
+            {location.enabled && (
+              <Button variant="outline" size="sm" className="mt-4" asChild>
+                <Link href={`/dashboard/storage/${location.id}`}>
+                  <FolderOpen className="mr-2 size-4" />
+                  Browse files
+                </Link>
+              </Button>
+            )}
           </article>
         ))}
       </div>
-      <div className="grid gap-4 xl:grid-cols-2">
+      {listing && !listing.encryptionReady && (
+        <details className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-medium">
+            Enable saved S3 connections
+          </summary>
+          <div className="mt-3 flex items-start gap-3">
+            <KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 space-y-1">
+              <p className="font-medium">
+                Set up encryption to add S3 connections
+              </p>
+              <p className="break-words leading-relaxed text-muted-foreground">
+                Set <code className="break-all">STORAGE_ENCRYPTION_KEY</code> on
+                the server to save S3 credentials. Generate a key with{" "}
+                <code className="break-all">openssl rand -base64 32</code>.
+                Default and Local storage can be used without this key.
+              </p>
+            </div>
+          </div>
+        </details>
+      )}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Connected buckets</h2>
+        <span className="text-xs text-muted-foreground">
+          {listing?.connections.length ?? 0} connections
+        </span>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2 empty:hidden">
         {listing?.connections.map((connection) => (
           <article
             key={connection.id}
-            className="rounded-xl border bg-card p-5"
+            className="relative min-w-0 rounded-xl border bg-card p-6 transition-colors hover:border-blue-500/40"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -248,136 +297,149 @@ export function StorageConnections() {
                 Credentials encrypted
               </span>
             </div>
-            <dl className="my-4 space-y-1 text-sm">
-              <div className="flex gap-2">
-                <dt className="text-muted-foreground">Bucket</dt>
-                <dd className="truncate font-mono">{connection.bucket}</dd>
-              </div>
-              <div className="flex gap-2">
-                <dt className="text-muted-foreground">Endpoint</dt>
-                <dd className="truncate" title={connection.endpoint}>
-                  {connection.endpoint}
-                </dd>
-              </div>
-              <div className="flex gap-2">
-                <dt className="text-muted-foreground">Region</dt>
-                <dd>{connection.region}</dd>
-              </div>
-            </dl>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!!busy}
-                onClick={() => {
-                  setEditing(connection);
-                  setForm({
-                    name: connection.name,
-                    provider: connection.provider,
-                    endpoint: connection.endpoint,
-                    bucket: connection.bucket,
-                    region: connection.region,
-                    forcePathStyle: connection.forcePathStyle,
-                    accessKeyId: "",
-                    secretAccessKey: "",
-                  });
-                  setOpen(true);
-                }}
+            <Button variant="outline" size="sm" className="mt-4" asChild>
+              <Link
+                href={`/dashboard/storage/${encodeURIComponent(connection.id)}`}
               >
-                <Pencil className="mr-1 size-3" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!!busy}
-                onClick={() =>
-                  void act(
-                    connection.id,
-                    () =>
-                      request(
-                        `/api/storage-connections/${connection.id}/test`,
-                        "POST",
-                      ),
-                    "Read/write/list/delete test passed",
-                  )
-                }
-              >
-                <RefreshCw
-                  className={`mr-1 size-3 ${busy === connection.id ? "animate-spin" : ""}`}
-                />
-                Test
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!!busy}
-                onClick={() =>
-                  void act(
-                    connection.id,
-                    () =>
-                      request(
-                        `/api/storage-connections/${connection.id}`,
-                        "PATCH",
-                        { enabled: !connection.enabled },
-                      ),
-                    "Connection updated",
-                  )
-                }
-              >
-                {connection.enabled ? "Disable" : "Enable"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!!busy}
-                onClick={() =>
-                  void act(
-                    connection.id,
-                    () =>
-                      request(
-                        `/api/storage-connections/${connection.id}/rotate-key`,
-                        "POST",
-                      ),
-                    "Credentials re-encrypted with the current host key",
-                  )
-                }
-              >
-                <KeyRound className="mr-1 size-3" />
-                Refresh encryption
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!!busy}
-                onClick={() => {
-                  if (
-                    confirm(
-                      `Remove connection “${connection.name}”? Connections used by files or applications cannot be removed.`,
+                <FolderOpen className="mr-2 size-4" />
+                Browse files
+              </Link>
+            </Button>
+            <details className="mt-4">
+              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                Connection settings
+              </summary>
+              <dl className="my-4 space-y-1 text-sm">
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground">Bucket</dt>
+                  <dd className="truncate font-mono">{connection.bucket}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground">Endpoint</dt>
+                  <dd className="truncate" title={connection.endpoint}>
+                    {connection.endpoint}
+                  </dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground">Region</dt>
+                  <dd>{connection.region}</dd>
+                </div>
+              </dl>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() => {
+                    setEditing(connection);
+                    setForm({
+                      name: connection.name,
+                      provider: connection.provider,
+                      endpoint: connection.endpoint,
+                      bucket: connection.bucket,
+                      region: connection.region,
+                      forcePathStyle: connection.forcePathStyle,
+                      accessKeyId: "",
+                      secretAccessKey: "",
+                    });
+                    setOpen(true);
+                  }}
+                >
+                  <Pencil className="mr-1 size-3" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void act(
+                      connection.id,
+                      () =>
+                        request(
+                          `/api/storage-connections/${connection.id}/test`,
+                          "POST",
+                        ),
+                      "Read/write/list/delete test passed",
                     )
-                  )
+                  }
+                >
+                  <RefreshCw
+                    className={`mr-1 size-3 ${busy === connection.id ? "animate-spin" : ""}`}
+                  />
+                  Test
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() =>
                     void act(
                       connection.id,
                       () =>
                         request(
                           `/api/storage-connections/${connection.id}`,
-                          "DELETE",
+                          "PATCH",
+                          { enabled: !connection.enabled },
                         ),
-                      "Connection removed",
-                    );
-                }}
-              >
-                <Trash2 className="mr-1 size-3" />
-                Remove
-              </Button>
-            </div>
+                      "Connection updated",
+                    )
+                  }
+                >
+                  {connection.enabled ? "Disable" : "Enable"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void act(
+                      connection.id,
+                      () =>
+                        request(
+                          `/api/storage-connections/${connection.id}/rotate-key`,
+                          "POST",
+                        ),
+                      "Credentials re-encrypted with the current host key",
+                    )
+                  }
+                >
+                  <KeyRound className="mr-1 size-3" />
+                  Refresh encryption
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!!busy}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `Remove connection “${connection.name}”? Connections used by files or applications cannot be removed.`,
+                      )
+                    )
+                      void act(
+                        connection.id,
+                        () =>
+                          request(
+                            `/api/storage-connections/${connection.id}`,
+                            "DELETE",
+                          ),
+                        "Connection removed",
+                      );
+                  }}
+                >
+                  <Trash2 className="mr-1 size-3" />
+                  Remove
+                </Button>
+              </div>
+            </details>
           </article>
         ))}
       </div>
       {listing?.connections.length === 0 && (
-        <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No saved S3 connections yet. You can already upload using Default or
-          Local storage.
+        <div className="rounded-xl border border-dashed px-6 py-6 text-center text-sm text-muted-foreground">
+          Connect an S3 bucket to add another drive. Your built-in drives are
+          ready to use.
         </div>
       )}
       <Dialog
