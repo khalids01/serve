@@ -99,10 +99,10 @@ export function ProfilePageClient() {
               <div>
                 <h4 className="font-medium mb-2">Authentication Method</h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  You&apos;re using magic link authentication. No password
+                  You&apos;re using email code or GitHub authentication. No password
                   required.
                 </p>
-                <Badge variant="outline">Magic Link</Badge>
+                <Badge variant="outline">Email code / GitHub</Badge>
               </div>
 
               <Separator />

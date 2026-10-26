@@ -1,8 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin, magicLink } from "better-auth/plugins";
+import { admin, emailOTP } from "better-auth/plugins";
 import { config } from "@/config";
-import { sendMagicLinkEmail } from "./email";
+import { sendSignInOTPEmail } from "./email";
 import { prisma } from "./prisma";
 
 export const auth = betterAuth({
@@ -13,29 +13,24 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: false,
   },
+  socialProviders: {
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+      ? { github: {
+          clientId: process.env.GITHUB_CLIENT_ID,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          disableSignUp: !config.auth.enableSignup,
+        } }
+      : {}),
+  },
   plugins: [
-    magicLink({
-      sendMagicLink: async ({ email, url }) => {
-        try {
-          const appUrl = config.app.url;
-          let finalUrl = url;
-          if (appUrl) {
-            try {
-              const targetOrigin = new URL(appUrl);
-              const u = new URL(url);
-              u.protocol = targetOrigin.protocol;
-              u.hostname = targetOrigin.hostname;
-              u.port = targetOrigin.port || "";
-              finalUrl = u.toString();
-            } catch {
-              // fall back to original url
-            }
-          }
-          await sendMagicLinkEmail(email, finalUrl);
-        } catch (e) {
-          throw e;
-        }
+    emailOTP({
+      async sendVerificationOTP({ email, otp }) {
+        await sendSignInOTPEmail(email, otp);
       },
+      otpLength: 6,
+      expiresIn: 600,
+      allowedAttempts: 3,
+      storeOTP: "hashed",
       disableSignUp: !config.auth.enableSignup,
     }),
     admin({

@@ -64,89 +64,18 @@ function createEmailTransporter(): Transporter | null {
 
 const transporter = createEmailTransporter()
 
-export async function sendMagicLinkEmail(email: string, magicLinkUrl: string): Promise<EmailResult> {
-  // Check if email is configured
+export async function sendSignInOTPEmail(email: string, otp: string): Promise<EmailResult> {
   if (!transporter) {
-    console.warn('Email not configured - magic link cannot be sent')
     throw new Error('Email service not configured. Please set up SMTP settings.')
   }
-
-  const mailOptions = {
+  const info = await transporter.sendMail({
     from: `"${config.email.from}" <${config.secrets.email}>`,
     to: email,
-    subject: 'Sign in to Serve - File Storage Server',
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Sign in to Serve</title>
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2563eb; margin: 0; font-size: 28px;">🚀 Serve</h1>
-            <p style="color: #6b7280; margin: 5px 0 0 0;">Open Source File Storage Server</p>
-          </div>
-          
-          <div style="background: #f8fafc; border-radius: 8px; padding: 30px; margin: 20px 0;">
-            <h2 style="color: #1f2937; margin-top: 0;">Sign in to your account</h2>
-            <p style="color: #4b5563; margin-bottom: 25px;">
-              Click the button below to securely sign in to your Serve account. This link will expire in 10 minutes.
-            </p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${magicLinkUrl}" 
-                 style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                Sign In to Serve
-              </a>
-            </div>
-            
-            <p style="color: #6b7280; font-size: 14px; margin-bottom: 0;">
-              If you didn't request this email, you can safely ignore it.
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-              This email was sent from Serve File Storage Server
-            </p>
-          </div>
-        </body>
-      </html>
-    `,
-    text: `
-      Sign in to Serve - File Storage Server
-      
-      Click the link below to sign in to your account:
-      ${magicLinkUrl}
-      
-      This link will expire in 10 minutes.
-      
-      If you didn't request this email, you can safely ignore it.
-    `
-  }
-
-  try {
-    const info = await transporter.sendMail(mailOptions)
-    console.log('Magic link email sent successfully to:', email)
-    console.log('Message ID:', info.messageId)
-    return { success: true, messageId: info.messageId }
-  } catch (error: unknown) {
-    console.error('Failed to send magic link email:', error)
-    
-    // Provide more specific error messages based on SMTP error codes
-    const emailError = isEmailError(error) ? error : undefined
-    if (emailError?.code === 'EAUTH') {
-      throw new Error('Email authentication failed. Please check your email credentials.')
-    } else if (emailError?.code === 'ECONNECTION') {
-      throw new Error('Cannot connect to email server. Please check your SMTP settings.')
-    } else if (emailError?.code === 'ETIMEDOUT') {
-      throw new Error('Email sending timed out. Please try again.')
-    } else {
-      throw new Error(`Failed to send email: ${emailError?.message || 'Unknown error'}`)
-    }
-  }
+    subject: 'Your Serve sign-in code',
+    text: `Your Serve sign-in code is ${otp}. It expires in 10 minutes. If you did not request this code, ignore this email.`,
+    html: `<h2>Sign in to Serve</h2><p>Your sign-in code is:</p><p style="font-size:32px;letter-spacing:6px;font-weight:bold">${otp}</p><p>This code expires in 10 minutes. If you did not request it, ignore this email.</p>`,
+  })
+  return { success: true, messageId: info.messageId }
 }
 
 // Test email configuration

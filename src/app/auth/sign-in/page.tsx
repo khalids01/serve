@@ -26,7 +26,7 @@ export default function SignInPage() {
             </Alert>
           )}
           
-          <SignInForm signupEnabled={signupEnabled} />
+          <SignInForm signupEnabled={signupEnabled} githubEnabled={Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET)} />
         </div>
       </main>
     </div>

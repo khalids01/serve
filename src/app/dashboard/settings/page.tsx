@@ -101,7 +101,7 @@ export default function SettingsPage() {
                 Email Configuration
               </CardTitle>
               <CardDescription>
-                Test and manage email settings for magic link authentication
+                Test and manage email settings for email code or GitHub authentication
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

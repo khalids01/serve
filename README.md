@@ -15,7 +15,7 @@ See [storage connections and file manager](docs/storage-and-file-manager.md) for
 
 ## ✨ Features
 
-- **🔐 Magic Link Authentication** - Passwordless authentication using better-auth
+- **🔐 Email OTP and GitHub Authentication** - Passwordless authentication using better-auth
 - **📁 Multi-Format Support** - Images, videos, audio, documents, and more
 - **🎨 Automatic Optimization** - Image variants and compression out of the box
 - **🏢 Multi-Tenant Architecture** - Organize files by applications and projects
@@ -41,7 +41,7 @@ See [storage connections and file manager](docs/storage-and-file-manager.md) for
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Database**: PostgreSQL (Prisma)
-- **Authentication**: Better-Auth with Magic Link
+- **Authentication**: Better-Auth with email OTP and GitHub OAuth
 - **File Storage**: Local filesystem or S3-compatible storage (R2, MinIO, AWS S3)
 - **UI Components**: Radix UI, Lucide Icons
 - **Deployment**: Vercel, Docker, or self-hosted
@@ -85,7 +85,7 @@ See [storage connections and file manager](docs/storage-and-file-manager.md) for
    # Dedicated browser-token secret; generate separately with openssl rand -base64 32
    FILE_SERVER_BROWSER_TOKEN_SECRET="your-separate-random-secret-at-least-32-characters"
 
-   # Email configuration for magic links (required for auth)
+   # Email configuration for sign-in codes (required for auth)
    EMAIL=your-email@gmail.com
    EMAIL_PASSWORD=your-app-password
    
@@ -234,13 +234,14 @@ API keys do not expire automatically. They remain valid until you revoke or dele
 ### Authentication
 
 ```typescript
-import { signIn } from '@/lib/auth-client';
+import { authClient } from '@/lib/auth-client';
 
-// Send magic link
-await signIn.magicLink({ 
-  email: 'user@example.com',
-  callbackURL: '/dashboard'
+await authClient.emailOtp.sendVerificationOtp({
+  email: 'user@example.com', type: 'sign-in'
 });
+await authClient.signIn.emailOtp({ email: 'user@example.com', otp: '123456' });
+// Alternatively:
+await authClient.signIn.social({ provider: 'github', callbackURL: '/dashboard' });
 ```
 
 ## 🛠️ Development
@@ -391,7 +392,7 @@ local setup. Production Compose settings are listed in [.env.production.example]
 | `STORAGE_PROVIDER` | `s3` (default) or `local` |
 | `UPLOAD_DIR` | Local storage root (`uploads` locally, `/uploads` in the image) |
 | `MAX_FILE_SIZE_MB`, `NEXT_PUBLIC_MAX_FILE_SIZE` | Server and browser upload limits in MB |
-| `EMAIL`, `EMAIL_PASSWORD` | Magic-link SMTP credentials |
+| `EMAIL`, `EMAIL_PASSWORD` | Email OTP SMTP credentials |
 
 The checked-in Prisma schema uses PostgreSQL. SQLite/MySQL URLs do not work with it.
 

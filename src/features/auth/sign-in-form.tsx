@@ -1,141 +1,88 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Github, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Loader2 } from "lucide-react"
-import { signIn } from "@/lib/auth-client"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { authClient } from "@/lib/auth-client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-export function SignInForm({ signupEnabled = true }: { signupEnabled?: boolean }) {
+export function SignInForm({ signupEnabled = true, githubEnabled = false }: { signupEnabled?: boolean; githubEnabled?: boolean }) {
+  const router = useRouter()
   const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isEmailSent, setIsEmailSent] = useState(false)
+  const [otp, setOtp] = useState("")
+  const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resendAt, setResendAt] = useState(0)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email) return
-
-    setIsLoading(true)
+  async function run(action: () => Promise<void>) {
+    setLoading(true)
     setError(null)
-    try {
-      const result: any = await signIn.magicLink({ 
-        email,
-        callbackURL: "/dashboard"
-      })
-
-      // better-auth client may not throw on 4xx; it can return a response-like object
-      const errMsg =
-        (result && (result.error?.message || result.error)) ||
-        (result && result.status && result.status >= 400 && (result.message || result.statusText))
-
-      if (errMsg) {
-        throw new Error(typeof errMsg === "string" ? errMsg : String(errMsg))
-      }
-
-      setIsEmailSent(true)
-    } catch (error: any) {
-      console.error("Failed to send magic link:", error)
-      const serverMessage = typeof error?.message === "string" ? error.message : null
-      // Show specific server message when available (e.g., "User not found")
-      setError(
-        serverMessage ||
-          (signupEnabled
-            ? "We couldn't send a magic link. Please try again."
-            : "New signups are disabled. If your email is not already registered, contact your administrator.")
-      )
-    } finally {
-      setIsLoading(false)
-    }
+    try { await action() }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to sign in. Please try again.") }
+    finally { setLoading(false) }
   }
 
-  if (isEmailSent) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
-          </div>
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
-            We've sent a magic link to <strong>{email}</strong>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center mb-4">
-            Click the link in the email to sign in. The link will expire in 10 minutes.
-          </p>
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => {
-              setIsEmailSent(false)
-              setEmail("")
-            }}
-          >
-            Use different email
-          </Button>
-        </CardContent>
-      </Card>
-    )
+  async function sendCode() {
+    if (Date.now() < resendAt) {
+      throw new Error("Please wait a minute before requesting another code.")
+    }
+    const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: "sign-in" })
+    if (result.error) throw new Error(result.error.message || "Unable to send code.")
+    setSent(true)
+    setOtp("")
+    setResendAt(Date.now() + 60_000)
   }
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle>Sign in to Serve</CardTitle>
+        <CardTitle>{sent ? "Check your email" : "Sign in to Serve"}</CardTitle>
         <CardDescription>
-          Enter your email address and we'll send you a magic link to sign in
+          {sent ? `Enter the 6-digit code sent to ${email.trim()}. It expires in 10 minutes.` : "Sign in with an email code or your GitHub account."}
         </CardDescription>
-        {!signupEnabled && (
-          <div className="mt-3">
-            <Alert>
-              <AlertTitle>New signups are disabled</AlertTitle>
-              <AlertDescription>
-                Only existing users can sign in.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
+        {!signupEnabled && <p className="text-sm text-muted-foreground">Only existing users can sign in.</p>}
       </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTitle>Unable to send magic link</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          
-          <Button type="submit" className="w-full" disabled={isLoading || !email}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending magic link...
-              </>
-            ) : (
-              <>
-                <Mail className="mr-2 h-4 w-4" />
-                Send magic link
-              </>
-            )}
+      <CardContent className="space-y-4">
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        <form className="space-y-4" onSubmit={(e) => {
+          e.preventDefault()
+          void run(async () => {
+            if (!sent) return sendCode()
+            const result = await authClient.signIn.emailOtp({ email: email.trim(), otp })
+            if (result.error) throw new Error(result.error.message || "Invalid or expired code.")
+            router.replace("/dashboard")
+            router.refresh()
+          })
+        }}>
+          {sent ? (
+            <div className="space-y-2">
+              <Label htmlFor="otp">Sign-in code</Label>
+              <Input id="otp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} required disabled={loading} autoFocus />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} placeholder="Enter your email" />
+            </div>
+          )}
+          <Button className="w-full" type="submit" disabled={loading || (sent ? otp.length !== 6 : !email.trim())}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {sent ? "Verify and sign in" : "Send sign-in code"}
           </Button>
         </form>
+        {sent && <>
+          <Button variant="outline" className="w-full" disabled={loading} onClick={() => void run(sendCode)}>Resend code</Button>
+          <Button variant="ghost" className="w-full" disabled={loading} onClick={() => { setSent(false); setOtp(""); setError(null) }}>Use a different email</Button>
+        </>}
+        {githubEnabled && <Button variant="outline" className="w-full" disabled={loading} onClick={() => void run(async () => {
+          const result = await authClient.signIn.social({ provider: "github", callbackURL: "/dashboard", errorCallbackURL: "/auth/sign-in" })
+          if (result.error) throw new Error(result.error.message || "Unable to sign in with GitHub.")
+        })}><Github className="mr-2 h-4 w-4" />Continue with GitHub</Button>}
       </CardContent>
     </Card>
   )

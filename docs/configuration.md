@@ -28,7 +28,7 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 | `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
 | `image.placeholderQuality` | `60` | Placeholder WebP quality |
 | `image.placeholderWidth` | `360` | Placeholder width (px) |
-| `auth.enableSignup` | `false` | Allow new magic-link signups |
+| `auth.enableSignup` | `false` | Allow new email-code and GitHub signups |
 | `backup.enabled` | `true` | Enable scheduled and manual backups |
 | `backup.basePrefix` | `"data-backup"` | Storage prefix for backup files |
 
@@ -161,8 +161,8 @@ Use PostgreSQL in production (required for SQL database backups).
 
 ## Authentication
 
-- Magic Link via Better Auth
-- Configure SMTP to send magic link emails in production
+- Email OTP and GitHub OAuth via Better Auth
+- Configure SMTP to send sign-in code emails in production
 - Disable new signups: set `auth.enableSignup: false` in `src/config.ts` or `ENABLE_SIGNUP=false`
 
 ## Image Processing
