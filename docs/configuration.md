@@ -174,5 +174,52 @@ Use PostgreSQL in production (required for SQL database backups).
 
 ## Audit Logging
 
-- Uploads and deletions are tracked with metadata, timestamp, IP, and user agent
+- Application-linked uploads and deletions are tracked with metadata, timestamp, IP, and user agent
 - View recent activity on each application's dashboard page
+
+### Storage file manager
+
+Open **Storage → Browse files** on any drive. Upload files or whole folders, drag
+files or folders into the current folder, create folders, rename, cut/copy/paste, and move or
+copy selections to another folder or drive. Uploads preserve original names and
+folder paths, stream to storage, show progress, and can be cancelled. Existing
+names are never overwritten; copy/paste in the same folder creates a numbered
+copy. Direct storage uploads are stored unchanged and are not application-linked
+or image-optimized; use the application's Files/Upload workflow for those features.
+
+Double-click to open folders or previews. Use breadcrumbs, the parent button, or
+browser Back to navigate. Right-click items or empty space for actions; the
+three-dot menus expose the same item actions on touch devices. Checkboxes and
+Ctrl/Cmd-click select multiple items, and Shift-click selects a range. Keyboard
+shortcuts include Ctrl/Cmd+A/C/X/V, F2, Delete, Enter, Escape, and Up/Down arrows.
+List/grid views, sorting, and name filtering are available; sorting and filtering
+apply to the current page. Listings load 100 items at a time. Local directory
+changes during pagination can shift entries; refresh from the first page.
+
+Delete moves items to a private Trash under `.serve-trash/<user>/`. Trash supports
+restore and permanent deletion with confirmation. Restore never overwrites an
+existing item. Folder transfers copy all destination items before deleting any
+source files, and failed copies clean up new destinations. Multi-item operations
+can partially complete if a provider fails; refresh and check both locations.
+Operations process at most 1,000 files/folders per request. S3 server-side copies
+support objects up to 5 GiB; larger objects require provider tooling.
+
+Administrators browse the entire configured upload directory or bucket, including
+files added outside Serve. Other users see only their private upload namespace.
+A saved connection must belong to the signed-in user, including administrators.
+Paths outside `UPLOAD_DIR`, symbolic links, internal blob/cache directories,
+backup paths, and application-managed files are protected from unsafe changes.
+Folders containing symlinks or managed objects cannot be moved or deleted here.
+
+Raster image previews are limited to 10 MiB; text to 1 MiB. HTML and code display
+as plain text; SVG and other active content are download-only. Listing, previews,
+and downloads require a session; writes also validate request origin. Private
+responses are not cached and storage credentials stay on the server.
+
+S3 listing uses delimiter-based `ListObjectsV2` pagination. The manager needs
+`s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject`; the provider
+must support conditional PutObject/CopyObject (`If-None-Match: *`) for exclusive
+writes. There is no recursive scan just to open a folder. Run
+`npm run test:storage-browser` for isolated browsing and mutation tests. They use
+temporary local storage and an S3 protocol test server, without a live database
+or bucket.

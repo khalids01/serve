@@ -18,6 +18,7 @@
     "db:seed": "tsx src/lib/seed.ts",
     "db:migrate:deploy": "prisma migrate deploy",
     "test:deploy": "node --test scripts/deploy-dokploy.test.mjs docker/validate-env.test.mjs",
+    "test:storage-browser": "tsx --test scripts/storage-browser.test.ts scripts/storage-manager.test.ts scripts/storage-drop.test.ts",
     "test:storage": "tsx scripts/test-storage-integration.ts"
   },
   "dependencies": {
