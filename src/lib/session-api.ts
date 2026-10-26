@@ -23,17 +23,29 @@ export async function requireOwnedApplication(
 }
 export function sessionApi(handler: () => Promise<Response>) {
   return handler().catch((cause) => {
-    const status =
-      cause instanceof StorageLocationError ||
-      cause instanceof UploadValidationError
+    const code =
+      cause && typeof cause === "object"
+        ? (cause.code ?? cause.name)
+        : undefined;
+    const conflict = [
+      "EEXIST",
+      "ENOTEMPTY",
+      "PreconditionFailed",
+      "ConditionalRequestConflict",
+    ].includes(String(code));
+    const status = conflict
+      ? 409
+      : cause instanceof StorageLocationError ||
+          cause instanceof UploadValidationError
         ? cause.status
         : cause instanceof StorageSecretError
           ? 503
           : cause instanceof ZodError || cause instanceof SyntaxError
             ? 400
             : 500;
-    const message =
-      status === 500
+    const message = conflict
+      ? "An item already exists or the folder changed. Refresh and choose another name."
+      : status === 500
         ? "The operation could not be completed. Check the connection and try again."
         : cause instanceof ZodError
           ? (cause.issues[0]?.message ?? "Invalid input.")

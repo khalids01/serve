@@ -1,4 +1,5 @@
 import type { StorageBackend, StorageByteRange } from "./backend";
+import { browsePath } from "./browse";
 export class PrefixedStorage implements StorageBackend {
   constructor(
     private readonly backend: StorageBackend,
@@ -6,6 +7,9 @@ export class PrefixedStorage implements StorageBackend {
   ) {
     if (!/^[a-zA-Z0-9/_:-]+\/$/.test(prefix) || prefix.includes(".."))
       throw new Error("Invalid storage namespace.");
+  }
+  get maxWriteBytes() {
+    return this.backend.maxWriteBytes;
   }
   private key(key: string) {
     if (
@@ -15,6 +19,40 @@ export class PrefixedStorage implements StorageBackend {
     )
       throw new Error("Invalid storage key.");
     return this.prefix + key;
+  }
+  createDirectory(key: string) {
+    return this.backend.createDirectory(this.key(key));
+  }
+  createFile(
+    key: string,
+    body: ReadableStream<Uint8Array>,
+    size: number,
+    contentType?: string,
+  ) {
+    return this.backend.createFile(this.key(key), body, size, contentType);
+  }
+  copyFile(source: string, target: string) {
+    return this.backend.copyFile(this.key(source), this.key(target));
+  }
+  removeDirectory(key: string) {
+    return this.backend.removeDirectory(this.key(key));
+  }
+  async stat(key: string) {
+    const info = await this.backend.stat(this.key(key));
+    return info ? { ...info, key } : null;
+  }
+  async browse(prefix: string, cursor?: string) {
+    browsePath.parse(prefix);
+    const page = await this.backend.browse(this.key(prefix), cursor);
+    return {
+      ...page,
+      entries: page.entries
+        .filter((entry) => entry.key.startsWith(this.prefix))
+        .map((entry) => ({
+          ...entry,
+          key: entry.key.slice(this.prefix.length),
+        })),
+    };
   }
   put(key: string, data: Buffer, options?: { contentType?: string }) {
     return this.backend.put(this.key(key), data, options);

@@ -1,3 +1,4 @@
+import type { BrowsePage } from "./browse";
 export interface StorageObjectInfo {
   key: string;
   sizeBytes: number;
@@ -17,6 +18,18 @@ export interface StorageReadStream {
 }
 
 export interface StorageBackend {
+  readonly maxWriteBytes?: number;
+  createDirectory(key: string): Promise<void>;
+  createFile(
+    key: string,
+    body: ReadableStream<Uint8Array>,
+    size: number,
+    contentType?: string,
+  ): Promise<void>;
+  copyFile(source: string, target: string): Promise<void>;
+  removeDirectory(key: string): Promise<void>;
+  stat(key: string): Promise<StorageObjectInfo | null>;
+  browse(prefix: string, cursor?: string): Promise<BrowsePage>;
   /** e.g. "my-app-slug/abc123.jpeg" */
   put(
     key: string,

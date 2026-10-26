@@ -1,6 +1,8 @@
 import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
+import { Readable } from "node:stream";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -17,6 +19,7 @@ import type {
   StorageObjectInfo,
   StorageReadStream,
 } from "./backend";
+import { BROWSE_PAGE_SIZE, type BrowsePage } from "./browse";
 import { safeStorageLookup } from "./endpoint";
 
 function streamToBuffer(body: unknown): Promise<Buffer> {
@@ -97,6 +100,7 @@ export type S3StorageOptions = {
   restrictNetwork?: boolean;
 };
 export class S3StorageBackend implements StorageBackend {
+  readonly maxWriteBytes = 5 * 1024 ** 3;
   private client: S3Client;
   private bucket: string;
 
@@ -119,6 +123,7 @@ export class S3StorageBackend implements StorageBackend {
     this.bucket = bucket;
     this.client = new S3Client({
       region,
+      requestChecksumCalculation: "WHEN_REQUIRED",
       ...(endpoint ? { endpoint } : {}),
       credentials: {
         accessKeyId,
@@ -210,9 +215,100 @@ export class S3StorageBackend implements StorageBackend {
         new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
       );
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if (isMissingObject(error)) return false;
+      throw error;
     }
+  }
+
+  async createDirectory(key: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: "",
+        IfNoneMatch: "*",
+      }),
+    );
+  }
+  async createFile(
+    key: string,
+    body: ReadableStream<Uint8Array>,
+    size: number,
+    contentType?: string,
+  ) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: Readable.fromWeb(
+          body as unknown as Parameters<typeof Readable.fromWeb>[0],
+        ),
+        ContentLength: size,
+        ContentType: contentType || "application/octet-stream",
+        IfNoneMatch: "*",
+      }),
+    );
+  }
+  async copyFile(source: string, target: string) {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: target,
+        CopySource: `${this.bucket}/${source.split("/").map(encodeURIComponent).join("/")}`,
+        IfNoneMatch: "*",
+      }),
+    );
+  }
+  async removeDirectory(key: string) {
+    await this.delete(key);
+  }
+  async stat(key: string): Promise<StorageObjectInfo | null> {
+    try {
+      const info = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return {
+        key,
+        sizeBytes: info.ContentLength ?? 0,
+        mtimeMs: info.LastModified?.getTime(),
+      };
+    } catch (error) {
+      if (isMissingObject(error)) return null;
+      throw error;
+    }
+  }
+
+  async browse(prefix: string, cursor?: string): Promise<BrowsePage> {
+    const page = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        Delimiter: "/",
+        MaxKeys: BROWSE_PAGE_SIZE,
+        ContinuationToken: cursor,
+      }),
+    );
+    return {
+      entries: [
+        ...(page.CommonPrefixes ?? []).flatMap((item) =>
+          item.Prefix ? [{ key: item.Prefix, kind: "folder" as const }] : [],
+        ),
+        ...(page.Contents ?? []).flatMap((item) =>
+          item.Key && item.Key !== prefix
+            ? [
+                {
+                  key: item.Key,
+                  kind: "file" as const,
+                  sizeBytes: item.Size ?? 0,
+                  modifiedAt: item.LastModified?.getTime(),
+                },
+              ]
+            : [],
+        ),
+      ],
+      nextCursor: page.IsTruncated ? page.NextContinuationToken : undefined,
+    };
   }
 
   async list(prefix: string): Promise<StorageObjectInfo[]> {

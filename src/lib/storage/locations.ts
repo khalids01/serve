@@ -6,6 +6,7 @@ import type { Prisma } from "@/lib/prisma-types";
 import type { StorageBackend } from "./backend";
 import { getStorage } from "./factory";
 import { LocalStorageBackend } from "./local";
+import { resolveBaseUploadDir } from "./paths";
 import { PrefixedStorage } from "./prefix";
 import { S3StorageBackend } from "./s3";
 import { decryptStorageCredentials } from "./secrets";
@@ -171,4 +172,59 @@ export function withOwnerStorageLock<T>(
 ) {
   // Folder transfers can span multiple sequential storage requests.
   return withBlobLock(`owner-files:${ownerId}`, async () => work(), 900_000);
+}
+
+/** Full-disk browsing is reserved for administrators; other users retain their upload namespace. */
+export async function resolveBrowseLocation(
+  user: { id: string; role?: string | null },
+  choice: string,
+) {
+  let storage: StorageBackend;
+  let prefix: string;
+  let disk: string;
+  let enabled = true;
+  if (choice === "local" || choice === "default") {
+    await assertLocationAccess(user.id, choice);
+    storage =
+      choice === "local"
+        ? new LocalStorageBackend(config.storage.local.uploadDir)
+        : getStorage();
+    disk =
+      choice === "local" || config.storage.provider === "local"
+        ? `local:${resolveBaseUploadDir()}`
+        : `s3:${config.storage.s3.endpoint ?? "aws"}:${config.storage.s3.bucket}`;
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify(defaultSnapshot()))
+      .digest("hex")
+      .slice(0, 16);
+    prefix = `owners/${user.id}/${choice}/${choice === "default" ? `${fingerprint}/` : ""}`;
+  } else {
+    const connection = await prisma.storageConnection.findFirst({
+      where: { id: choice, ownerId: user.id },
+    });
+    if (!connection)
+      throw new StorageLocationError(
+        "Storage connection is unavailable or does not belong to you.",
+        403,
+      );
+    enabled = connection.enabled !== false;
+    storage = new S3StorageBackend({
+      ...connection,
+      ...decryptStorageCredentials(
+        connection.encryptedCredentials,
+        user.id,
+        choice,
+      ),
+      restrictNetwork: true,
+    });
+    disk = `s3:${connection.endpoint || "aws"}:${connection.bucket}`;
+    prefix = `connections/${choice}/`;
+  }
+  const fullAccess = user.role === "admin";
+  return {
+    storage: fullAccess ? storage : new PrefixedStorage(storage, prefix),
+    identity: `${disk}:${fullAccess ? "" : prefix}`,
+    enabled,
+    scope: fullAccess ? ("disk" as const) : ("namespace" as const),
+  };
 }
