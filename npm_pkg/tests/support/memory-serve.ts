@@ -2,6 +2,10 @@ import type {
   StorageBackend,
   StorageByteRange,
 } from "../../../src/lib/storage/backend";
+import {
+  BROWSE_PAGE_SIZE,
+  type BrowseEntry,
+} from "../../../src/lib/storage/browse";
 
 type Variant = {
   id: string;
@@ -233,7 +237,64 @@ export const db = {
         .map(hydrateLink),
   },
 };
+function storageError(code: string) {
+  return Object.assign(new Error(code), { code });
+}
 export const storage: StorageBackend = {
+  createDirectory: async (key) => {
+    const folder = `${key.replace(/\/$/, "")}/`;
+    if (blobs.has(folder)) throw storageError("EEXIST");
+    blobs.set(folder, Buffer.alloc(0));
+  },
+  createFile: async (key, body, size) => {
+    if (blobs.has(key)) throw storageError("EEXIST");
+    const data = Buffer.from(await new Response(body).arrayBuffer());
+    if (data.length !== size) throw new Error("Incomplete upload");
+    blobs.set(key, data);
+  },
+  copyFile: async (source, target) => {
+    const data = blobs.get(source);
+    if (!data) throw storageError("ENOENT");
+    if (blobs.has(target)) throw storageError("EEXIST");
+    blobs.set(target, Buffer.from(data));
+  },
+  removeDirectory: async (key) => {
+    const folder = `${key.replace(/\/$/, "")}/`;
+    if (
+      [...blobs.keys()].some(
+        (item) => item !== folder && item.startsWith(folder),
+      )
+    )
+      throw storageError("ENOTEMPTY");
+    blobs.delete(folder);
+  },
+  stat: async (key) => {
+    const data = blobs.get(key);
+    if (data) return { key, sizeBytes: data.length };
+    return key.endsWith("/") &&
+      [...blobs.keys()].some((item) => item.startsWith(key))
+      ? { key, sizeBytes: 0 }
+      : null;
+  },
+  browse: async (prefix, cursor) => {
+    const entries = new Map<string, BrowseEntry>();
+    for (const [key, data] of blobs) {
+      if (!key.startsWith(prefix) || key === prefix) continue;
+      const slash = key.indexOf("/", prefix.length);
+      const folder = slash >= 0 ? key.slice(0, slash + 1) : undefined;
+      if (folder) entries.set(folder, { key: folder, kind: "folder" });
+      else entries.set(key, { key, kind: "file", sizeBytes: data.length });
+    }
+    const sorted = [...entries.values()].sort((a, b) =>
+      a.key.localeCompare(b.key),
+    );
+    const offset = Number(cursor ?? 0);
+    const end = offset + BROWSE_PAGE_SIZE;
+    return {
+      entries: sorted.slice(offset, end),
+      nextCursor: end < sorted.length ? String(end) : undefined,
+    };
+  },
   put: async (key, data) => {
     blobs.set(key, Buffer.from(data));
   },
