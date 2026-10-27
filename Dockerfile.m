@@ -44,9 +44,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
   openssl \
   libssl3 \
-  postgresql-client \
   ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+COPY docker/install-postgres-client.sh /tmp/install-postgres-client.sh
+RUN sh /tmp/install-postgres-client.sh && rm /tmp/install-postgres-client.sh
+ENV PG_DUMP_PATH=/usr/lib/postgresql/18/bin/pg_dump
+ENV PATH="/usr/lib/postgresql/18/bin:${PATH}"
 
 # ---- Non-root user ----
 RUN useradd -ms /bin/bash -u 10001 appuser

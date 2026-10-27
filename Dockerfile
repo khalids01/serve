@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Debian 13 supplies PostgreSQL 17 client tools for the optional SQL backups.
+# PostgreSQL client 18 is installed explicitly for SQL backups.
 ARG NODE_IMAGE=node:24-trixie-slim
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
@@ -38,9 +38,13 @@ COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
-FROM base AS app
-RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+FROM base AS postgres-client
+COPY docker/install-postgres-client.sh /tmp/install-postgres-client.sh
+RUN sh /tmp/install-postgres-client.sh && rm /tmp/install-postgres-client.sh
+ENV PG_DUMP_PATH=/usr/lib/postgresql/18/bin/pg_dump
+ENV PATH="/usr/lib/postgresql/18/bin:${PATH}"
+
+FROM postgres-client AS app
 ARG REVISION=development
 ARG NEXT_PUBLIC_APP_URL
 LABEL org.opencontainers.image.source="https://github.com/khalids01/serve" \

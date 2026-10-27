@@ -78,6 +78,15 @@ jobs:
             REVISION=${{ github.sha }}
           cache-from: type=gha,scope=serve
           cache-to: type=gha,mode=max,scope=serve
+      - name: Verify published PostgreSQL backup client
+        run: |
+          version="$(docker run --rm --entrypoint /bin/sh \
+            "$IMAGE_REPOSITORY:app-sha-$GITHUB_SHA" -c 'exec "${PG_DUMP_PATH:-pg_dump}" --version')"
+          printf '%s\n' "$version"
+          case "$version" in
+            "pg_dump (PostgreSQL) 18."*) ;;
+            *) echo 'Application image must include PostgreSQL client 18'; exit 1 ;;
+          esac
       - name: Publish migration image
         uses: docker/build-push-action@v6
         with:

@@ -68,10 +68,14 @@ Generate separate values for `BETTER_AUTH_SECRET` and
 when creating the initial account, then disable it if appropriate. Browser tokens
 can be disabled by omitting their secret, but the React SDK requires it.
 
-The runtime image includes PostgreSQL 17 `pg_dump` for SQL backups. This supports
-PostgreSQL servers up to major 17; a newer database requires an image with a
-compatible newer client. JSON backups do not use `pg_dump`. Configure backups and
-storage as described in [configuration.md](configuration.md).
+The runtime image installs PostgreSQL client 18 from the official PostgreSQL Apt
+repository and selects `/usr/lib/postgresql/18/bin/pg_dump` through `PG_DUMP_PATH`.
+It supports SQL backups from PostgreSQL servers up to major 18. Changing the
+Dokploy database image or installing tools on the VPS does not update this client:
+rebuild and publish the application image, then redeploy the Compose service.
+The app logs the selected client version at startup. For a custom installation,
+set `PG_DUMP_PATH` to its executable path. JSON backups do not use `pg_dump`.
+Configure backups and storage as described in [configuration.md](configuration.md).
 
 ## 3. Configure one deployment trigger
 

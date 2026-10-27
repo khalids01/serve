@@ -321,14 +321,15 @@ async function exportImageMetadataJson(): Promise<Buffer> {
   return Buffer.from(JSON.stringify(payload, null, 2));
 }
 
-async function runPgDump(): Promise<Buffer> {
+export async function runPgDump(): Promise<Buffer> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required for SQL backups");
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn("pg_dump", [
+    const binary = process.env.PG_DUMP_PATH?.trim() || "pg_dump";
+    const child = spawn(binary, [
       "--dbname",
       databaseUrl,
       "--format=plain",
@@ -340,14 +341,28 @@ async function runPgDump(): Promise<Buffer> {
 
     child.stdout.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     child.stderr.on("data", (chunk) => errorChunks.push(Buffer.from(chunk)));
-    child.on("error", reject);
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      reject(
+        new Error(
+          error.code === "ENOENT"
+            ? "SQL backup client was not found. Rebuild the app image with PostgreSQL client 18, or set PG_DUMP_PATH to the installed pg_dump binary."
+            : `SQL backup client could not start (${error.code ?? "unknown error"}).`,
+        ),
+      );
+    });
     child.on("close", (code) => {
       if (code === 0) {
         resolve(Buffer.concat(chunks));
         return;
       }
       const message = Buffer.concat(errorChunks).toString().trim();
-      reject(new Error(message || `pg_dump exited with code ${code}`));
+      reject(
+        new Error(
+          message.includes("server version mismatch")
+            ? `${message}\nThe app container needs a pg_dump client at least as new as the database server. Redeploy the rebuilt image with PostgreSQL client 18, or check PG_DUMP_PATH.`
+            : message || `pg_dump exited with code ${code}`,
+        ),
+      );
     });
   });
 }
