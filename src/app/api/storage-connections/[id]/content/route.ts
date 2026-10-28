@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { z } from "zod";
 import { maxFileSizeBytes } from "@/config";
+import { filePreview } from "@/lib/file-preview";
 import { requireSession, sessionApi } from "@/lib/session-api";
 import { browsePath } from "@/lib/storage/browse";
 import {
@@ -12,31 +13,7 @@ import {
   readTrash,
   storageUpload,
 } from "@/lib/storage/manager";
-
-const imageTypes = new Map([
-  ["png", "image/png"],
-  ["jpg", "image/jpeg"],
-  ["jpeg", "image/jpeg"],
-  ["gif", "image/gif"],
-  ["webp", "image/webp"],
-  ["avif", "image/avif"],
-]);
-const textTypes = new Set([
-  "txt",
-  "md",
-  "json",
-  "csv",
-  "log",
-  "yaml",
-  "yml",
-  "xml",
-  "html",
-  "css",
-  "js",
-  "ts",
-  "tsx",
-  "jsx",
-]);
+import { parseRange } from "@/lib/storage/range";
 
 export const runtime = "nodejs";
 export function GET(
@@ -59,7 +36,7 @@ export function GET(
     let key = requestedKey;
     if (trashId) {
       const record = await readTrash(storage, user.id, trashId);
-      if (record.kind !== "file")
+      if (record.kind !== "file" || record.key !== requestedKey)
         throw new StorageLocationError("Choose a file.");
       key = `.serve-trash/${user.id}/${trashId}/data`;
     } else if (key.split("/").includes(".serve-trash"))
@@ -71,30 +48,78 @@ export function GET(
       new URL(request.url).searchParams.get("thumbnail") === "1";
     const preview =
       thumbnail || new URL(request.url).searchParams.get("preview") === "1";
-    const extension = requestedKey.split(".").at(-1)?.toLowerCase() ?? "";
-    const imageType = imageTypes.get(extension);
-    const previewType =
-      imageType ??
-      (textTypes.has(extension) ? "text/plain; charset=utf-8" : undefined);
-    if (thumbnail && !imageType)
+    const type = filePreview(requestedKey);
+    const imageType = type?.kind === "image";
+    if (
+      thumbnail &&
+      (!imageType || !/\.(png|jpe?g|gif|webp|avif)$/i.test(requestedKey))
+    )
       throw new StorageLocationError(
-        "Thumbnails are available for supported images only.",
+        "Thumbnails are available for supported raster images only.",
         415,
       );
-    if (preview && !previewType)
+    if (preview && !type)
       throw new StorageLocationError(
         "Preview is unavailable for this file type.",
         415,
       );
-    const opened = await storage.open(key);
-    if (!opened) throw new StorageLocationError("File not found.", 404);
-    if (preview && opened.contentLength > (imageType ? 10 : 1) * 1024 * 1024) {
-      await opened.body.cancel();
+    const info = await storage.stat(key);
+    if (!info) throw new StorageLocationError("File not found.", 404);
+    if (
+      preview &&
+      (type?.kind === "image" || type?.kind === "text") &&
+      info.sizeBytes > (imageType ? 10 : 1) * 1024 * 1024
+    )
       throw new StorageLocationError(
         "This file is too large to preview. Download it instead.",
         413,
       );
-    }
+    const range = thumbnail
+      ? undefined
+      : parseRange(request.headers.get("range"), info.sizeBytes);
+    if (range === "invalid")
+      return new Response(null, {
+        status: 416,
+        headers: {
+          "Content-Range": `bytes */${info.sizeBytes}`,
+          "Accept-Ranges": "bytes",
+          "Cache-Control": "private, no-store",
+        },
+      });
+    const name = requestedKey.split("/").at(-1) ?? "download";
+    const encodedName = encodeURIComponent(name).replace(
+      /[!'()*]/g,
+      (char) => `%${char.charCodeAt(0).toString(16)}`,
+    );
+    const headers = new Headers({
+      "Accept-Ranges": "bytes",
+      "Content-Type": thumbnail
+        ? "image/webp"
+        : preview
+          ? (type?.contentType ?? "application/octet-stream")
+          : "application/octet-stream",
+      "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${name.replace(/[^a-zA-Z0-9._-]/g, "_")}"; filename*=UTF-8''${encodedName}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy":
+        type?.kind === "pdf"
+          ? "default-src 'none'; object-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'none'"
+          : "default-src 'none'; sandbox",
+    });
+    if (!thumbnail)
+      headers.set(
+        "Content-Length",
+        String(range ? range.end - range.start + 1 : info.sizeBytes),
+      );
+    if (range)
+      headers.set(
+        "Content-Range",
+        `bytes ${range.start}-${range.end}/${info.sizeBytes}`,
+      );
+    if (request.method === "HEAD")
+      return new Response(null, { status: range ? 206 : 200, headers });
+    const opened = await storage.open(key, range);
+    if (!opened) throw new StorageLocationError("File not found.", 404);
     if (thumbnail) {
       try {
         // Bound source bytes independently of metadata before decoding an untrusted image.
@@ -152,25 +177,19 @@ export function GET(
         );
       }
     }
-    const name = requestedKey.split("/").at(-1) ?? "download";
-    const encodedName = encodeURIComponent(name).replace(
-      /[!'()*]/g,
-      (char) => `%${char.charCodeAt(0).toString(16)}`,
-    );
-    return new Response(opened.body, {
-      headers: {
-        "Content-Type": preview
-          ? (previewType ?? "application/octet-stream")
-          : "application/octet-stream",
-        "Content-Length": String(opened.contentLength),
-        "Content-Disposition": `${preview ? "inline" : "attachment"}; filename="${name.replace(/[^a-zA-Z0-9._-]/g, "_")}"; filename*=UTF-8''${encodedName}`,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'; sandbox",
-      },
-    });
+    headers.set("Content-Length", String(opened.contentLength));
+    if (range && opened.contentLength !== range.end - range.start + 1) {
+      await opened.body.cancel();
+      throw new StorageLocationError(
+        "Storage did not return the requested byte range.",
+        502,
+      );
+    }
+    return new Response(opened.body, { status: range ? 206 : 200, headers });
   });
 }
+
+export const HEAD = GET;
 
 export function PUT(
   request: Request,

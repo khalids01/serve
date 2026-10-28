@@ -47,7 +47,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ImageCropDialog } from "@/features/applications/components/image-crop-dialog";
+import { DocumentPreview } from "@/features/media/components/document-preview";
 import { StorageLocationSelect } from "@/features/storage/location-select";
+import { filePreview } from "@/lib/file-preview";
 
 type Entry = {
   id: string;
@@ -1419,6 +1421,23 @@ export function FileManager() {
             ) : preview.kind === "audio" ? (
               // biome-ignore lint/a11y/useMediaCaption: Uploaded media may not have a caption track.
               <audio controls className="w-full" src={preview.urls.content} />
+            ) : preview.contentType === "application/pdf" ||
+              filePreview(preview.originalName)?.kind === "pdf" ? (
+              <DocumentPreview
+                kind="pdf"
+                url={preview.urls.content}
+                title={preview.originalName}
+              />
+            ) : preview.contentType.startsWith("text/") ||
+              ["application/json", "application/xml"].includes(
+                preview.contentType,
+              ) ||
+              filePreview(preview.originalName)?.kind === "text" ? (
+              <DocumentPreview
+                kind="text"
+                url={preview.urls.content}
+                title={preview.originalName}
+              />
             ) : (
               <div className="rounded border p-12 text-center text-muted-foreground">
                 Download this file to open it in your preferred application.

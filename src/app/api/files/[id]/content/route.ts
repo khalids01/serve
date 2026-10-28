@@ -1,40 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
-import type { StorageByteRange } from "@/lib/storage/backend";
 import { getStorageForImage } from "@/lib/storage/locations";
+import { parseRange } from "@/lib/storage/range";
 import { openBlobFileWithLegacy } from "@/lib/storage/read";
 
 export const runtime = "nodejs";
-
-type ParsedRange = StorageByteRange | "invalid" | undefined;
-
-function parseRange(header: string | null, size: number): ParsedRange {
-  if (!header) return undefined;
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
-  if (!match || (!match[1] && !match[2]) || size <= 0) return "invalid";
-
-  if (!match[1]) {
-    const suffixLength = Number(match[2]);
-    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0)
-      return "invalid";
-    return { start: Math.max(0, size - suffixLength), end: size - 1 };
-  }
-
-  const start = Number(match[1]);
-  const requestedEnd = match[2] ? Number(match[2]) : size - 1;
-  if (
-    !Number.isSafeInteger(start) ||
-    !Number.isSafeInteger(requestedEnd) ||
-    start < 0 ||
-    start >= size ||
-    requestedEnd < start
-  ) {
-    return "invalid";
-  }
-
-  return { start, end: Math.min(requestedEnd, size - 1) };
-}
 
 function contentHeaders(file: {
   contentType: string;

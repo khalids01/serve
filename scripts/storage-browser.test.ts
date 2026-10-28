@@ -391,6 +391,81 @@ test("storage browser security, streaming, and pagination", async (t) => {
       },
     );
     await t.test(
+      "media and PDF previews stream byte ranges with private headers",
+      async () => {
+        const { auth } = await import("../src/lib/auth");
+        const { GET, HEAD } = await import(
+          "../src/app/api/storage-connections/[id]/content/route"
+        );
+        const authMock = t.mock.method(auth.api, "getSession", async () => ({
+          user: { id: "alice", role: "user" },
+        }));
+        const home = path.join(root, "owners/alice/local");
+        const request = (key: string, range?: string, head = false) =>
+          (head ? HEAD : GET)(
+            new Request(
+              `http://localhost/api?${new URLSearchParams({ key, preview: "1" })}`,
+              {
+                method: head ? "HEAD" : "GET",
+                headers: range ? { range } : {},
+              },
+            ),
+            { params: Promise.resolve({ id: "local" }) },
+          );
+        try {
+          await writeFile(
+            path.join(home, "clip.webm"),
+            Buffer.alloc(12 * 1024 * 1024, 7),
+          );
+          const video = await request("clip.webm", "bytes=20-35");
+          assert.equal(video.status, 206);
+          assert.equal(video.headers.get("content-type"), "video/webm");
+          assert.equal(
+            video.headers.get("content-range"),
+            `bytes 20-35/${12 * 1024 * 1024}`,
+          );
+          assert.equal(video.headers.get("accept-ranges"), "bytes");
+          assert.equal(video.headers.get("cache-control"), "private, no-store");
+          assert.equal((await video.arrayBuffer()).byteLength, 16);
+          const suffix = await request("clip.webm", "bytes=-8");
+          assert.equal((await suffix.arrayBuffer()).byteLength, 8);
+          const invalid = await request("clip.webm", "bytes=999999999999-");
+          assert.equal(invalid.status, 416);
+          assert.equal(
+            (await request("clip.webm", "bytes=0-1,5-6")).status,
+            416,
+          );
+          const head = await request("clip.webm", undefined, true);
+          assert.equal(head.status, 200);
+          assert.equal((await head.arrayBuffer()).byteLength, 0);
+          assert.equal(
+            head.headers.get("content-length"),
+            String(12 * 1024 * 1024),
+          );
+          await writeFile(path.join(home, "manual.pdf"), "%PDF-1.4 example");
+          const pdf = await request("manual.pdf", "bytes=0-3");
+          assert.equal(pdf.status, 206);
+          assert.equal(pdf.headers.get("content-type"), "application/pdf");
+          assert.equal(await pdf.text(), "%PDF");
+          await writeFile(path.join(home, "sound.wav"), "RIFF audio bytes");
+          const audio = await request("sound.wav", "bytes=0-3");
+          assert.equal(audio.headers.get("content-type"), "audio/wav");
+          assert.equal(await audio.text(), "RIFF");
+          assert.equal((await request("../two/secret.txt")).status, 400);
+          authMock.mock.restore();
+          const denied = t.mock.method(
+            auth.api,
+            "getSession",
+            async () => null,
+          );
+          assert.equal((await request("clip.webm", "bytes=0-1")).status, 401);
+          denied.mock.restore();
+        } finally {
+          authMock.mock.restore();
+        }
+      },
+    );
+    await t.test(
       "saved S3 connections retain their owner binding and private prefix",
       async () => {
         const { auth } = await import("../src/lib/auth");

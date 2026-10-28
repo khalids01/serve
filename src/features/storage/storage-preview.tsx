@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DocumentPreview } from "@/features/media/components/document-preview";
+import { filePreview } from "@/lib/file-preview";
 import type { BrowseEntry } from "@/lib/storage/browse";
 
 export function storageLabel(entry: BrowseEntry) {
@@ -24,7 +26,7 @@ export function storageContentURL(id: string, entry: BrowseEntry) {
   return `/api/storage-connections/${encodeURIComponent(id)}/content?${new URLSearchParams({ key: entry.key, ...(entry.trashId ? { trashId: entry.trashId } : {}) })}`;
 }
 const imagePattern = /\.(png|jpe?g|gif|webp|avif)$/i;
-const textPattern = /\.(txt|md|json|csv|log|ya?ml|xml|html|css|[jt]sx?)$/i;
+
 export function StorageThumbnail({
   id,
   entry,
@@ -79,12 +81,13 @@ export function StoragePreview({
     : entry;
   const versions = [{ ...entry, label: "Original" }, ...(entry.variants ?? [])];
   const url = storageContentURL(id, activeEntry);
-  const supported =
-    entry.kind === "file" &&
-    (imagePattern.test(activeEntry.key) || textPattern.test(activeEntry.key));
+  const type = filePreview(activeEntry.key);
+  const streamed =
+    type?.kind === "video" || type?.kind === "audio" || type?.kind === "pdf";
+  const supported = entry.kind === "file" && Boolean(type);
   useEffect(() => {
     setPreview(undefined);
-    if (!supported) return;
+    if (!supported || streamed) return;
     const controller = new AbortController();
     let objectURL: string | undefined;
     void fetch(`${url}&preview=1`, {
@@ -96,7 +99,7 @@ export function StoragePreview({
           const data = await response.json();
           throw new Error(data.error ?? "Unable to preview file.");
         }
-        if (imagePattern.test(activeEntry.key)) {
+        if (filePreview(activeEntry.key)?.kind === "image") {
           const blob = await response.blob();
           if (controller.signal.aborted) return;
           objectURL = URL.createObjectURL(blob);
@@ -113,7 +116,7 @@ export function StoragePreview({
       controller.abort();
       if (objectURL) URL.revokeObjectURL(objectURL);
     };
-  }, [url, activeEntry.key, supported]);
+  }, [url, activeEntry.key, supported, streamed]);
   return (
     <Dialog
       open
@@ -141,7 +144,59 @@ export function StoragePreview({
             Managed by Serve
           </p>
         )}
-        {supported ? (
+        {streamed ? (
+          <div className="space-y-3">
+            {type?.kind === "video" ? (
+              // biome-ignore lint/a11y/useMediaCaption: User-provided videos do not have captions available.
+              <video
+                key={url}
+                src={`${url}&preview=1`}
+                controls
+                playsInline
+                preload="metadata"
+                className="max-h-[55vh] w-full rounded-lg bg-black"
+                onError={() =>
+                  setPreview({
+                    error:
+                      "Your browser cannot play this video format or codec. Download the file to open it in a video player.",
+                  })
+                }
+              />
+            ) : type?.kind === "audio" ? (
+              // biome-ignore lint/a11y/useMediaCaption: User-provided audio does not have transcripts available.
+              <audio
+                key={url}
+                src={`${url}&preview=1`}
+                controls
+                preload="metadata"
+                className="w-full"
+                onError={() =>
+                  setPreview({
+                    error:
+                      "Your browser cannot play this audio format. Download it to listen in another player.",
+                  })
+                }
+              />
+            ) : (
+              <DocumentPreview
+                kind="pdf"
+                url={`${url}&preview=1`}
+                title={storageLabel(activeEntry)}
+              />
+            )}
+            {preview?.error && (
+              <p role="alert" className="text-sm text-muted-foreground">
+                {preview.error}
+              </p>
+            )}
+            {type?.kind === "pdf" && (
+              <p className="text-xs text-muted-foreground">
+                If your browser cannot display the PDF here, use the download
+                button below.
+              </p>
+            )}
+          </div>
+        ) : supported ? (
           preview?.error ? (
             <p
               role="alert"
@@ -174,7 +229,8 @@ export function StoragePreview({
         ) : (
           entry.kind === "file" && (
             <p className="rounded-lg bg-muted p-8 text-center text-sm text-muted-foreground">
-              Download this file to open it.
+              This file type does not have a browser preview. Download it to
+              open in its application.
             </p>
           )
         )}
