@@ -20,22 +20,25 @@ model User {
 model Account {
     id                String   @id @default(cuid())
     userId            String
-    type              String
-    provider          String
-    providerAccountId String
-    refresh_token     String?
-    access_token      String?
+    type              String        @default("oauth")
+    providerId        String        @map("provider")
+    accountId         String        @map("providerAccountId")
+    refreshToken      String?       @map("refresh_token")
+    accessToken       String?       @map("access_token")
     expires_at        Int?
+    accessTokenExpiresAt DateTime?
+    refreshTokenExpiresAt DateTime?
+    password          String?
     token_type        String?
     scope             String?
-    id_token          String?
+    idToken           String?       @map("id_token")
     session_state     String?
     createdAt         DateTime @default(now())
     updatedAt         DateTime @updatedAt
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([provider, providerAccountId])
+    @@unique([providerId, accountId], map: "Account_provider_providerAccountId_key")
 }
 
 model Session {
