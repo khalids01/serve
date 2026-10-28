@@ -66,6 +66,7 @@ import {
   BROWSE_PAGE_SIZE,
   type BrowseEntry,
   type BrowsePage,
+  STORAGE_VIEW_PAGE_SIZE,
   storageClipboard,
 } from "@/lib/storage/browse";
 import { StorageDestinationDialog } from "./storage-destination-dialog";
@@ -77,6 +78,7 @@ import {
   storageLabel,
   storageSize,
 } from "./storage-preview";
+import { useStorageSelection } from "./use-storage-selection";
 
 const notice = {
   id: "storage-manager",
@@ -89,6 +91,7 @@ type Page = BrowsePage & {
   writable: boolean;
   enabled?: boolean;
   maxUploadBytes: number;
+  pageSize?: number;
 };
 type Clipboard = { mode: "copy" | "move"; keys: string[]; id: string };
 type DialogState = {
@@ -109,6 +112,50 @@ type ActionName =
   | "details";
 function entryId(entry: BrowseEntry) {
   return entry.trashId ?? entry.key;
+}
+function itemKeys(entries: BrowseEntry[]) {
+  return [
+    ...new Set(
+      entries.flatMap((entry) => [
+        entry.key,
+        ...(entry.variants?.map((variant) => variant.key) ?? []),
+      ]),
+    ),
+  ];
+}
+function SelectionCheckbox({
+  label,
+  checked,
+  visible,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  visible: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label
+      data-selection-control
+      className={`relative inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-opacity focus-within:opacity-100 focus-within:pointer-events-auto focus-within:ring-2 focus-within:ring-ring group-hover:opacity-100 group-hover:pointer-events-auto ${checked ? "border-blue-500/30 bg-blue-500/20 text-blue-500" : "border-border/60 bg-muted/80 text-muted-foreground"} ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === " " || event.key === "Enter") event.stopPropagation();
+      }}
+    >
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={checked}
+        onChange={onChange}
+        className="absolute inset-0 size-full cursor-pointer opacity-0"
+      />
+      <Check
+        aria-hidden="true"
+        className={`size-3.5 ${checked ? "opacity-100" : "opacity-0"}`}
+      />
+    </label>
+  );
 }
 function FileGlyph({
   entry,
@@ -193,6 +240,12 @@ export function StorageBrowser({
   const endpoint = `/api/storage-connections/${encodeURIComponent(id)}`;
   const locked = busy || Boolean(upload);
   const writable = Boolean(page?.writable && !trash);
+  const { rectangle, areaProps, touchSelection } = useStorageSelection({
+    selection,
+    setSelection,
+    enabled: !locked && !loading && !dialog && !preview,
+    scope: `${id}:${prefix}:${cursor ?? ""}:${trash}:${view}`,
+  });
   const parts = prefix.split("/").filter(Boolean);
   const parent = parts.slice(0, -1).join("/") + (parts.length > 1 ? "/" : "");
   const navigate = (folder: string, token?: string, toTrash = trash) => {
@@ -394,7 +447,7 @@ export function StorageBrowser({
     if (action === "cut" || action === "copy") {
       rememberClipboard({
         mode: action === "cut" ? "move" : "copy",
-        keys: items.map((entry) => entry.key),
+        keys: itemKeys(items),
         id,
       });
       toast.success(
@@ -438,7 +491,7 @@ export function StorageBrowser({
         action: "rename" as const,
         label: "Rename",
         icon: Pencil,
-        show: one && mutable && !trash,
+        show: one && mutable && !trash && !items[0].variants?.length,
         hint: "F2",
       },
       {
@@ -630,16 +683,15 @@ export function StorageBrowser({
   }
   function dragProps(entry: BrowseEntry) {
     return {
-      draggable: !trash && !entry.protected && !locked,
+      draggable:
+        selection.has(entryId(entry)) && !trash && !entry.protected && !locked,
       onDragStart(event: React.DragEvent<HTMLElement>) {
         const items = selection.has(entryId(entry)) ? selected : [entry];
         event.dataTransfer.setData(
           "application/x-serve-storage",
           JSON.stringify({
             id,
-            keys: items
-              .filter((item) => !item.protected)
-              .map((item) => item.key),
+            keys: itemKeys(items.filter((item) => !item.protected)),
           }),
         );
         event.dataTransfer.effectAllowed = "copyMove";
@@ -759,6 +811,7 @@ export function StorageBrowser({
     } else if (
       event.key === "F2" &&
       selected.length === 1 &&
+      !selected[0].variants?.length &&
       !selected[0].protected &&
       !trash
     ) {
@@ -1188,8 +1241,9 @@ export function StorageBrowser({
           <ContextMenuTrigger asChild>
             <fieldset
               aria-label="Files and upload drop area"
+              {...areaProps}
               onContextMenu={() => setSelection(new Set())}
-              className={`relative flex min-h-80 min-w-0 flex-1 flex-col ${dragging ? "bg-blue-500/5 ring-2 ring-inset ring-blue-500" : ""}`}
+              className={`relative flex select-none [-webkit-touch-callout:none] min-h-80 min-w-0 flex-1 flex-col ${dragging ? "bg-blue-500/5 ring-2 ring-inset ring-blue-500" : ""}`}
               onDragEnter={(event) => {
                 if (event.dataTransfer.types.includes("Files") && writable) {
                   event.preventDefault();
@@ -1244,16 +1298,20 @@ export function StorageBrowser({
                       ? "No matching items"
                       : trash
                         ? "Your trash is empty"
-                        : "This folder is empty"}
+                        : page?.nextCursor
+                          ? "More items are available"
+                          : "This folder is empty"}
                   </h2>
                   <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
                     {search
                       ? "Try a different name. The filter applies to this page."
                       : trash
                         ? "Deleted files and folders will appear here. You can restore them when you need them."
-                        : writable
-                          ? "Drop files here, upload a folder, or create a new folder to get started."
-                          : "Files stored in this folder will appear here."}
+                        : page?.nextCursor
+                          ? "Continue to the next page to see more images and files."
+                          : writable
+                            ? "Drop files here, upload a folder, or create a new folder to get started."
+                            : "Files stored in this folder will appear here."}
                   </p>
                   {writable && !search && (
                     <div className="mt-6 flex gap-2">
@@ -1281,12 +1339,12 @@ export function StorageBrowser({
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b text-left text-xs text-muted-foreground">
-                      <tr>
+                      <tr className="group">
                         <th className="w-10 pl-4 pr-2 py-3">
-                          <input
-                            type="checkbox"
-                            aria-label="Select all items on this page"
+                          <SelectionCheckbox
+                            label="Select all items on this page"
                             checked={allSelected}
+                            visible={selection.size > 0}
                             onChange={() =>
                               setSelection(
                                 allSelected
@@ -1294,7 +1352,6 @@ export function StorageBrowser({
                                   : new Set(entries.map(entryId)),
                               )
                             }
-                            className="size-4 accent-blue-500"
                           />
                         </th>
                         <th className="px-2 py-3 font-medium">Name</th>
@@ -1322,9 +1379,10 @@ export function StorageBrowser({
                                 if (
                                   event.ctrlKey ||
                                   event.metaKey ||
-                                  event.shiftKey
+                                  event.shiftKey ||
+                                  touchSelection()
                                 )
-                                  select(entry, event);
+                                  select(entry, event, touchSelection());
                                 else open(entry);
                               }}
                               onContextMenu={(event) => {
@@ -1334,13 +1392,11 @@ export function StorageBrowser({
                               }}
                             >
                               <td className="pl-4 pr-2 py-3">
-                                <input
-                                  type="checkbox"
-                                  aria-label={`Select ${storageLabel(entry)}`}
+                                <SelectionCheckbox
+                                  label={`Select ${storageLabel(entry)}`}
                                   checked={selection.has(entryId(entry))}
-                                  onClick={(event) => event.stopPropagation()}
+                                  visible={selection.size > 0}
                                   onChange={() => select(entry, {}, true)}
-                                  className="size-4 accent-blue-500"
                                 />
                               </td>
                               <td className="w-full max-w-0 px-2 py-3">
@@ -1361,14 +1417,20 @@ export function StorageBrowser({
                                       if (
                                         event.ctrlKey ||
                                         event.metaKey ||
-                                        event.shiftKey
+                                        event.shiftKey ||
+                                        touchSelection()
                                       )
-                                        select(entry, event);
+                                        select(entry, event, touchSelection());
                                       else open(entry);
                                     }}
                                   >
                                     {storageLabel(entry)}
                                   </button>
+                                  {entry.variants?.length ? (
+                                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                      {entry.variants.length + 1} versions
+                                    </span>
+                                  ) : null}
                                   {entry.protected && (
                                     <LockKeyhole
                                       className="size-3 shrink-0 text-muted-foreground"
@@ -1400,7 +1462,8 @@ export function StorageBrowser({
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="size-8"
+                                      className="hidden size-8 [@media(any-pointer:coarse)]:inline-flex"
+                                      data-selection-control
                                       aria-label={`Actions for ${storageLabel(entry)}`}
                                       onClick={(event) =>
                                         event.stopPropagation()
@@ -1458,19 +1521,19 @@ export function StorageBrowser({
                           }}
                         >
                           <div className="mb-5 flex items-start justify-between">
-                            <input
-                              type="checkbox"
-                              aria-label={`Select ${storageLabel(entry)}`}
+                            <SelectionCheckbox
+                              label={`Select ${storageLabel(entry)}`}
                               checked={selection.has(entryId(entry))}
+                              visible={selection.size > 0}
                               onChange={() => select(entry, {}, true)}
-                              className="size-4 accent-blue-500"
                             />
                             <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="-mr-2 -mt-2 size-7"
+                                  className="-mr-2 -mt-2 hidden size-7 [@media(any-pointer:coarse)]:inline-flex"
+                                  data-selection-control
                                   aria-label={`Actions for ${storageLabel(entry)}`}
                                 >
                                   <MoreHorizontal className="size-4" />
@@ -1500,13 +1563,15 @@ export function StorageBrowser({
                           <button
                             type="button"
                             className="flex w-full min-w-0 flex-col items-center gap-4 py-2"
+                            aria-label={storageLabel(entry)}
                             onClick={(event) => {
                               if (
                                 event.ctrlKey ||
                                 event.metaKey ||
-                                event.shiftKey
+                                event.shiftKey ||
+                                touchSelection()
                               )
-                                select(entry, event);
+                                select(entry, event, touchSelection());
                               else open(entry);
                             }}
                           >
@@ -1519,6 +1584,11 @@ export function StorageBrowser({
                                 fallback={<FileGlyph entry={entry} large />}
                               />
                             </div>
+                            {entry.variants?.length ? (
+                              <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                {entry.variants.length + 1} versions
+                              </span>
+                            ) : null}
                             <span
                               className="w-full truncate text-center text-sm font-medium"
                               title={storageLabel(entry)}
@@ -1539,6 +1609,19 @@ export function StorageBrowser({
                     </ContextMenu>
                   ))}
                 </div>
+              )}
+              {rectangle && (
+                <div
+                  aria-hidden="true"
+                  data-selection-rectangle
+                  className="pointer-events-none fixed z-40 border border-blue-500/70 bg-blue-500/15"
+                  style={{
+                    left: rectangle.x,
+                    top: rectangle.y,
+                    width: rectangle.width,
+                    height: rectangle.height,
+                  }}
+                />
               )}
               {dragging && (
                 <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-xl border-2 border-dashed border-blue-500 bg-background/90">
@@ -1602,54 +1685,60 @@ export function StorageBrowser({
           <span>
             {selected.length ? `${selected.length} selected · ` : ""}
             {entries.length} {entries.length === 1 ? "item" : "items"} on this
-            page · Up to {BROWSE_PAGE_SIZE} items per page
+            page ·{" "}
+            {page?.pageSize ??
+              (trash ? BROWSE_PAGE_SIZE : STORAGE_VIEW_PAGE_SIZE)}{" "}
+            items per page
             {page?.maxUploadBytes && writable
               ? ` · Up to ${storageSize(page.maxUploadBytes)} per file`
               : ""}
           </span>
-          <nav aria-label="Storage pagination" className="flex gap-2">
-            {currentPageIndex > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={locked || loading}
-                onClick={() => {
-                  navigate(prefix, pageHistory[currentPageIndex - 1]);
-                }}
-              >
-                Previous page
-              </Button>
-            )}
-            {cursor && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={locked}
-                onClick={() => navigate(prefix)}
-              >
-                First page
-              </Button>
-            )}
-            {page?.nextCursor && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={locked}
-                onClick={() => {
-                  setPageHistory((history) => {
-                    const index = history.indexOf(cursor);
-                    return [
-                      ...(index >= 0 ? history.slice(0, index + 1) : [cursor]),
-                      page.nextCursor,
-                    ];
-                  });
-                  navigate(prefix, page.nextCursor);
-                }}
-              >
-                Next page
-                <ChevronRight className="ml-1 size-3" />
-              </Button>
-            )}
+          <nav
+            aria-label="Storage pagination"
+            className="flex flex-wrap items-center gap-2"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={locked || loading || !cursor}
+              onClick={() => navigate(prefix)}
+            >
+              First page
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={locked || loading || currentPageIndex <= 0}
+              onClick={() =>
+                navigate(prefix, pageHistory[currentPageIndex - 1])
+              }
+            >
+              Previous page
+            </Button>
+            <span aria-current="page" className="px-2 tabular-nums">
+              {currentPageIndex >= 0
+                ? `Page ${currentPageIndex + 1}`
+                : "Current page"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={locked || loading || !page?.nextCursor}
+              onClick={() => {
+                if (!page?.nextCursor) return;
+                setPageHistory((history) => {
+                  const index = history.indexOf(cursor);
+                  return [
+                    ...(index >= 0 ? history.slice(0, index + 1) : [cursor]),
+                    page.nextCursor,
+                  ];
+                });
+                navigate(prefix, page.nextCursor);
+              }}
+            >
+              Next page
+              <ChevronRight className="ml-1 size-3" />
+            </Button>
           </nav>
         </footer>
       </div>
@@ -1657,8 +1746,9 @@ export function StorageBrowser({
         {page?.scope === "disk"
           ? "All files in this storage location."
           : "Your private storage space."}{" "}
-        Click to open. Use checkboxes to select. Right-click for actions.
-        Sorting and filtering apply to this page.
+        Click to open. Drag across items to select, or hold to select on touch
+        screens. Right-click for actions. Sorting and filtering apply to this
+        page.
       </p>
       {preview && (
         <StoragePreview
@@ -1681,7 +1771,7 @@ export function StorageBrowser({
             void perform(
               {
                 action: dialog.mode,
-                keys: dialog.entries.map((entry) => entry.key),
+                keys: itemKeys(dialog.entries),
                 destinationId,
                 destination,
               },
@@ -1714,7 +1804,7 @@ export function StorageBrowser({
                     : dialog.mode === "rename"
                       ? "Enter a new name for this file or folder."
                       : dialog.mode === "trash"
-                        ? `${dialog.entries.length} selected item(s) will move to Trash. You can restore them later.`
+                        ? `${dialog.entries.length} selected item(s), including their variants, will move to Trash. You can restore them later.`
                         : `${dialog.entries.length} selected item(s) will be permanently deleted. This cannot be undone.`}
                 </DialogDescription>
               </DialogHeader>
@@ -1733,7 +1823,7 @@ export function StorageBrowser({
                         : dialog.mode === "trash"
                           ? {
                               action: "trash",
-                              keys: dialog.entries.map((entry) => entry.key),
+                              keys: itemKeys(dialog.entries),
                             }
                           : {
                               action: "purge",

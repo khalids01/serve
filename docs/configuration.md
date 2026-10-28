@@ -187,14 +187,31 @@ names are never overwritten; copy/paste in the same folder creates a numbered
 copy. Direct storage uploads are stored unchanged and are not application-linked
 or image-optimized; use the application's Files/Upload workflow for those features.
 
-Click once to open folders or previews. Use checkboxes to select items. Use breadcrumbs, the parent button, or
+Click once to open folders or previews. Drag a rectangle across items to select them
+on desktop; Ctrl/Cmd or Shift preserves the current selection. Selected items
+remain draggable for file transfers. On touch screens, hold an item to enter
+selection mode, then tap other items to toggle them. Scrolling cancels a pending
+hold. Selection indicators are shaded circles, hidden until hover, keyboard focus,
+or selection. Item menus are hidden on desktop (use right-click) and visible on
+touch devices. Use breadcrumbs, the parent button, or
 browser Back to navigate. Right-click items or empty space for actions; the
-three-dot menus expose the same item actions on touch devices. Checkboxes and
+three-dot menus expose the same item actions on touch devices. Selection controls and
 Ctrl/Cmd-click select multiple items, and Shift-click selects a range. Keyboard
 shortcuts include Ctrl/Cmd+A/C/X/V, F2, Delete, Enter, Escape, and Up/Down arrows.
 List/grid views, sorting, and name filtering are available; sorting and filtering
-apply to the current page. Listings load 100 items at a time. Local directory
+apply to the current page. The storage view shows up to 24 logical items per page,
+with always-visible First, Previous, and Next controls. Listings read bounded
+100-object backend chunks, scanning at most four chunks per request; they never
+load the whole bucket to count pages. Local directory
 changes during pagination can shift entries; refresh from the first page.
+
+Generated image originals, WebP versions, and placeholders appear as one entry
+with a version count. Open it to switch between variants and download each one.
+Saved image metadata is preferred; strict content-ID filenames are the fallback.
+Grouping stays within the current storage namespace and folder and remains stable
+across page boundaries. Ordinary similar filenames stay separate. Group copy,
+move, and Trash actions include all variants; grouped rename is not offered to
+avoid partially renaming an image family. Trash lists individual stored files.
 
 Delete moves items to a private Trash under `.serve-trash/<user>/`. Trash supports
 restore and permanent deletion with confirmation. Restore never overwrites an
