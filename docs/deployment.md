@@ -64,8 +64,10 @@ switching deployments. Restored local files must be writable by UID 1000; the ap
 
 Generate separate values for `BETTER_AUTH_SECRET` and
 `FILE_SERVER_BROWSER_TOKEN_SECRET` with `openssl rand -base64 32`. Configure SMTP
-(`EMAIL`, `EMAIL_PASSWORD`) for email-code sign-in. Enable `ENABLE_SIGNUP=true`
-when creating the initial account, then disable it if appropriate. Browser tokens
+(`EMAIL`, `EMAIL_PASSWORD`) for email-code sign-in. Set `ADMIN_EMAIL` to your
+administrator's email; container startup creates or promotes that account after
+migrations. New signups default to disabled and are controlled by the admin's
+**Settings → Account registration** toggle. Browser tokens
 can be disabled by omitting their secret, but the React SDK requires it.
 
 The runtime image installs PostgreSQL client 18 from the official PostgreSQL Apt
@@ -253,5 +255,6 @@ in the runtime environment. Set its homepage to your public app URL and its
 authorization callback URL to `https://YOUR_HOST/api/auth/callback/github`
 (local development: `http://localhost:5000/api/auth/callback/github`).
 Restart after changing credentials. The GitHub button appears when both values
-are set. `ENABLE_SIGNUP=false` prevents new accounts through either sign-in method.
+are set. The admin's **Settings → Account registration** toggle controls new
+accounts through both sign-in methods. `ENABLE_SIGNUP` is no longer used.
 Email sign-in sends a six-digit code valid for 10 minutes, with three verification attempts.

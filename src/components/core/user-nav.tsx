@@ -1,6 +1,9 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
+import { LogOut, Settings, User } from "lucide-react";
+import Link from "next/link";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,27 +11,22 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { User, LogOut, Settings } from "lucide-react"
-import { useSession, signOut } from "@/lib/auth-client"
-import Link from "next/link"
+} from "@/components/ui/dropdown-menu";
+import { signOut, useSession } from "@/lib/auth-client";
 
 export function UserNav() {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   if (!session) {
     return (
       <Button asChild>
         <Link href="/auth/sign-in">Sign In</Link>
       </Button>
-    )
+    );
   }
 
-  const initials = session.user.email
-    ?.split('@')[0]
-    .slice(0, 2)
-    .toUpperCase() || 'U'
+  const initials =
+    session.user.email?.split("@")[0].slice(0, 2).toUpperCase() || "U";
 
   return (
     <DropdownMenu>
@@ -43,7 +41,7 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {session.user.email?.split('@')[0]}
+              {session.user.email?.split("@")[0]}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
               {session.user.email}
@@ -63,18 +61,20 @@ export function UserNav() {
             Profile
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
+        {session.user.role === "admin" && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
           onSelect={(event) => {
-            event.preventDefault()
-            signOut()
+            event.preventDefault();
+            signOut();
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />
@@ -82,5 +82,5 @@ export function UserNav() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

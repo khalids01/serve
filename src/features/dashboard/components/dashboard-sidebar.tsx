@@ -25,6 +25,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useSession } from "@/lib/auth-client";
 
 const navItems = [
   {
@@ -105,6 +106,7 @@ function DashboardSidebarLogo() {
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <Sidebar collapsible="icon">
@@ -115,27 +117,34 @@ export function DashboardSidebar() {
         <SidebarGroup className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:items-center">
-              {navItems.map((item) => (
-                <SidebarMenuItem
-                  key={item.href}
-                  className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"
-                >
-                  <SidebarMenuButton
-                    asChild
-                    size="lg"
-                    isActive={item.isActive(pathname)}
-                    tooltip={item.title}
-                    className="h-11 gap-3 px-3 text-base [&>svg]:size-5 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:gap-0! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>svg]:size-5"
+              {navItems
+                .filter(
+                  (item) =>
+                    !["/dashboard/settings", "/dashboard/data-backup"].includes(
+                      item.href,
+                    ) || session?.user.role === "admin",
+                )
+                .map((item) => (
+                  <SidebarMenuItem
+                    key={item.href}
+                    className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"
                   >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span className="group-data-[collapsible=icon]:hidden">
-                        {item.title}
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                    <SidebarMenuButton
+                      asChild
+                      size="lg"
+                      isActive={item.isActive(pathname)}
+                      tooltip={item.title}
+                      className="h-11 gap-3 px-3 text-base [&>svg]:size-5 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:gap-0! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>svg]:size-5"
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span className="group-data-[collapsible=icon]:hidden">
+                          {item.title}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

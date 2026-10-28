@@ -90,7 +90,7 @@ See [storage connections and file manager](docs/storage-and-file-manager.md) for
    EMAIL_PASSWORD=your-app-password
    
    # Enable initial account creation; disable afterwards if appropriate
-   ENABLE_SIGNUP=true
+   ADMIN_EMAIL=your-admin@example.com
    ```
 
 5. **Run database migrations**

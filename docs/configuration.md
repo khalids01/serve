@@ -28,7 +28,6 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 | `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
 | `image.placeholderQuality` | `60` | Placeholder WebP quality |
 | `image.placeholderWidth` | `360` | Placeholder width (px) |
-| `auth.enableSignup` | `false` | Allow new email-code and GitHub signups |
 | `backup.enabled` | `true` | Enable scheduled and manual backups |
 | `backup.basePrefix` | `"data-backup"` | Storage prefix for backup files |
 
@@ -43,7 +42,7 @@ Copy `.env.example` to `.env` and set values:
 | `BETTER_AUTH_URL` | Optional base URL behind proxy |
 | `NEXT_PUBLIC_APP_URL` | Public Serve origin used in returned URLs; local dev defaults to http://localhost:5000 |
 | `FILE_SERVER_BROWSER_TOKEN_SECRET` | Dedicated random secret of at least 32 characters; required for React browser management, configured only on the Serve host |
-| `ENABLE_SIGNUP` | Set true for initial account creation; default false |
+| `ADMIN_EMAIL` | Create or promote this account to admin on container startup |
 | `NEXT_PUBLIC_BASE_URL` | Optional API base for client |
 | `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
 | `EMAIL`, `EMAIL_PASSWORD` | SMTP credentials (secrets) |
@@ -163,7 +162,7 @@ Use PostgreSQL in production (required for SQL database backups).
 
 - Email OTP and GitHub OAuth via Better Auth
 - Configure SMTP to send sign-in code emails in production
-- Disable new signups: set `auth.enableSignup: false` in `src/config.ts` or `ENABLE_SIGNUP=false`
+- Enable or disable new email/GitHub accounts in **Settings → Account registration** (admin only). The database setting defaults to disabled; `ENABLE_SIGNUP` is no longer used.
 
 ## Image Processing
 
@@ -223,3 +222,22 @@ writes. There is no recursive scan just to open a folder. Run
 `npm run test:storage-browser` for isolated browsing and mutation tests. They use
 temporary local storage and an S3 protocol test server, without a live database
 or bucket.
+
+### Initial administrator
+
+Set `ADMIN_EMAIL` in Dokploy's runtime environment and redeploy. After migrations,
+the app creates this account if missing or promotes its existing account to admin.
+It does not mark the email verified; the administrator signs in with an emailed
+code or GitHub. Repeated startups preserve the account and existing settings.
+Changing `ADMIN_EMAIL` does not demote previously configured administrators.
+
+For local development or a manual setup, run `npm run admin:bootstrap` after
+`npm run db:migrate:deploy`. The script loads `.env`, validates `ADMIN_EMAIL`,
+and fails if it is missing or invalid. `npm run db:seed` is an alias for this setup.
+The shipped app image also supports `node /app/docker/bootstrap-admin.mjs`.
+
+Global settings, email administration, and backup APIs require an admin browser
+session. Application API keys cannot administer these settings. New-user creation
+checks the current signup setting for every OTP/OAuth attempt; existing accounts
+can still sign in while registration is disabled. No restart is needed after
+changing the toggle.
