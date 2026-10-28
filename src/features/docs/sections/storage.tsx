@@ -72,9 +72,11 @@ export function StorageSection() {
         <h3 className="text-lg font-semibold">Use Serve URLs</h3>
         <p>
           Save and render the returned Serve file URLs. Serve resolves each
-          file’s saved storage connection; consumers never need S3 keys or
-          bucket CORS settings. Files are publicly readable by URL; keep API
-          keys server-side.
+          file’s saved storage connection and redirects S3 media downloads
+          directly to storage. Consumers never need S3 keys. For JavaScript
+          fetch or canvas, allow your application origins and GET/HEAD with
+          Range in bucket CORS. Files remain publicly readable by known Serve
+          URL; keep API keys server-side.
         </p>
         <p>
           Local storage works in Dokploy because the production Compose file

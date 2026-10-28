@@ -30,9 +30,11 @@ export function HostingSection() {
         <p>
           Serve also needs its existing PostgreSQL, auth and storage
           configuration. Select local storage or configure the S3 bucket and
-          credentials on this host. Private S3 buckets work: delivery goes
-          through Serve, so consumers need no S3 CORS setup, endpoint or access
-          key.
+          credentials on this host. Buckets stay private: Serve signs
+          short-lived S3 media URLs after resolving the file. Native media
+          elements download directly; JavaScript fetch/canvas also needs bucket
+          CORS for your app origins, GET/HEAD and Range. Secret keys stay on
+          this host.
         </p>
         <p>
           For uploads, allow your configured maximum file size at the reverse

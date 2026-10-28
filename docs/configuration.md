@@ -298,3 +298,34 @@ Limits are the configured upload size (at most 500 MiB per file), 100 files,
 have a 64 MiB / 40-million-pixel processing limit. Temporary files are removed on
 success or failure. Partial failures are listed individually; retrying the original
 selection preserves folders and reuses existing application entries.
+
+### Direct S3 delivery and reusable previews
+
+HTTPS S3 media (including iDrive e2) uses 307 redirects to signed GET URLs valid for
+15 minutes. Stable Serve URLs remain unchanged, but file bytes go from S3 to the browser
+instead of passing through the app server. Redirect responses use private, no-store;
+S3 responses use private, max-age=300. Signed URLs are bearer links: do not log them.
+They reveal bucket/object paths and access-key IDs, never the secret key. Dashboard
+previews still require session/namespace authorization before signing; application
+content URLs retain the existing public-by-URL contract. Shared CDN caching is not enabled.
+
+Originals, stored variants, video/audio and PDFs are direct. A new image size still
+needs one server transform, which is saved under _blobs/_cache and reused directly.
+Thumbnail keys include source path, ETag/mtime and size; replacements generate a new key.
+Thumbnails are generated once on first access, with the existing 10 MiB/25M-pixel limits.
+Clear stored caches periodically if frequently replacing external source objects.
+Local files, HTTP S3 endpoints and active/text documents retain Serve delivery/security
+headers. Explicit download=1 can redirect non-media attachments too.
+
+Native img/video/audio/PDF display does not ordinarily need S3 CORS. For JavaScript
+fetch, canvas, or crossOrigin media, configure bucket CORS on the operator's bucket:
+allow only actual dashboard/client origins, GET and HEAD, request header Range, and
+expose Content-Length, Content-Range, Accept-Ranges and ETag. Do not make the bucket public.
+The application does not change bucket policies. Browser management tokens and API keys
+are sent to Serve only. With iDrive e2, use its HTTPS regional S3 endpoint; no CDN is
+required for direct delivery. Test a deployment with Network tools: the final media
+response should come from the storage host, not the Europe app server.
+
+Read-only storage can still preview: when cache writes are unavailable, newly generated
+thumbnails/transforms are returned through Serve without persistence. Stored originals and
+variants continue to use direct delivery.

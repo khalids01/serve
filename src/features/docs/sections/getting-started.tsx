@@ -77,10 +77,11 @@ export function GettingStartedSection({
           the asset ID in your app when you need to retrieve or delete it later.
         </p>
         <p>
-          Browsers request these URLs from Serve. Serve reads your configured
-          local or S3 storage and handles byte ranges and image transformations.
-          Do not construct bucket URLs or expose storage credentials. A CDN can
-          sit in front of the Serve domain later.
+          Keep these stable Serve URLs. For S3 media, Serve redirects the
+          browser to a short-lived signed URL so file bytes download directly
+          from storage. New image sizes are processed once and stored for reuse.
+          Local files and active documents stay on Serve. Never expose storage
+          secret keys.
         </p>
         <p className="text-sm text-muted-foreground">
           Delivered content is public. API keys and browser tokens protect

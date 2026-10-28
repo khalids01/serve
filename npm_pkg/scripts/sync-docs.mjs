@@ -75,11 +75,39 @@ Use asset.urls.content for downloads, video/audio and byte-range streaming.
 Use asset.urls.image or AdvancedImage for images and resizing. Persist asset.id
 when your app needs to retrieve/delete it. URLs are already absolute.
 
-The browser requests Serve; Serve reads local or S3 storage, creates transforms
-and handles ranges. S3 credentials, bucket names and paths stay on the Serve host.
-Public buckets and S3 CORS are unnecessary. A CDN may sit in front of the Serve
-origin later. Delivered content is public; tokens protect management, not a known
-content URL. Do not promise private/signed downloads in this version.
+The browser requests a stable Serve URL. For stored images, variants, video, audio and
+PDFs on HTTPS S3, Serve redirects to a 15-minute signed GET URL. File bytes download
+directly from S3, bypassing the Serve host. New image transforms are generated on Serve,
+persisted in storage, then redirected; subsequent requests reuse them. Local storage,
+HTTP storage endpoints and active/text documents retain Serve delivery. Download requests
+with download=1 also use direct S3 delivery. Redirects are never cached; signed responses
+use private five-minute caching. Keep stable Serve URLs, not expiring redirect targets.
+
+S3 buckets stay private; storage secret keys never leave Serve. Signed URLs expose the
+object path and access-key ID and grant temporary access to anyone holding the link.
+Do not log them. Native media elements can display directly. For JavaScript fetch/canvas,
+configure S3 CORS for your real app origins, GET/HEAD and Range, exposing Content-Length,
+Content-Range, Accept-Ranges and ETag. Management tokens must never be sent to S3.
+Delivered application content remains public by known Serve URL; tokens protect management.
+Dashboard storage previews separately require a session and namespace permissions.
+
+## Framework-independent JavaScript
+
+Install @skycanvasstudio/serve-client for vanilla JavaScript, Vue, Svelte or other frameworks.
+It has no React dependency. React hooks and AdvancedImage use this same client and URL helpers.
+
+\`\`\`ts
+import { createBrowserClient, createTokenProvider, imageUrl } from "@skycanvasstudio/serve-client";
+const files = createBrowserClient({
+  baseUrl: "https://files.example.com",
+  tokenProvider: createTokenProvider("/api/file-server/token"),
+});
+const page = await files.list({ page: 1, limit: 24 });
+const image = page.data.find((file) => file.kind === "image");
+if (image) console.log(imageUrl(image, { width: 640, format: "webp" }));
+\`\`\`
+
+Use the authenticated token route shown below; never give this client your API key.
 
 ## React / Next.js App Router
 
