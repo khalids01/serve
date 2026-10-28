@@ -11,6 +11,7 @@ import {
   Settings,
   Upload,
   User,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -80,6 +81,12 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/dashboard/profile"),
   },
   {
+    title: "Users",
+    href: "/dashboard/users",
+    icon: Users,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/users"),
+  },
+  {
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
@@ -120,9 +127,11 @@ export function DashboardSidebar() {
               {navItems
                 .filter(
                   (item) =>
-                    !["/dashboard/settings", "/dashboard/data-backup"].includes(
-                      item.href,
-                    ) || session?.user.role === "admin",
+                    ![
+                      "/dashboard/settings",
+                      "/dashboard/data-backup",
+                      "/dashboard/users",
+                    ].includes(item.href) || session?.user.role === "admin",
                 )
                 .map((item) => (
                   <SidebarMenuItem
