@@ -9,5 +9,11 @@ export default defineConfig({
   banner: { js: '"use client";' },
   splitting: false,
   noExternal: ["@file-server/contracts"],
-  external: ["react", "react-dom", "react/jsx-runtime", "zod"],
+  external: [
+    "react",
+    "react-dom",
+    "react/jsx-runtime",
+    "zod",
+    "@skycanvasstudio/serve-client",
+  ],
 });

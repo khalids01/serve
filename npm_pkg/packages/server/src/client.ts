@@ -148,6 +148,7 @@ export class FileServerClient {
         headers.set(key, value);
       const response = await this.fetchImpl(joinUrl(this.baseUrl, path), {
         method: options.method ?? "GET",
+        redirect: "error",
         body: options.body,
         headers,
         signal: timeout.signal,

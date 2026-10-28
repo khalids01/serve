@@ -3,14 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "../src/*"
-      ]
+      "@/*": ["../src/*"],
+      "@skycanvasstudio/serve-client": ["./packages/client/src/index.ts"]
     },
     "allowJs": true
   },
-  "include": [
-    "tests/**/*.ts",
-    "vitest.backend.config.ts"
-  ]
+  "include": ["tests/**/*.ts", "vitest.backend.config.ts"]
 }

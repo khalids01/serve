@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- Direct signed S3 delivery through stable Serve URLs; stored transforms are reused.
+- Framework-independent serve-client package; React hooks and image helpers use it.
+
+
 ## 0.1.0
 
 - Initial typed server SDK: upload/list/get/delete, crop-as-new, image URLs and browser-token minting.

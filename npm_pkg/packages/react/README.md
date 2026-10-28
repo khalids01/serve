@@ -101,3 +101,14 @@ scopes enforce access. Provide caption tracks for your audio/video when availabl
 Text preview is bounded and rendered as escaped text, never injected HTML.
 
 MIT licensed.
+
+## S3 delivery (0.2 backend)
+
+Stable Serve media URLs redirect to short-lived signed S3 GET URLs, so stored images,
+variants, cached transforms, video/audio and PDFs bypass the Serve host for file bytes.
+New transforms are processed once and saved. Local and active/text documents stay on Serve.
+Buckets remain private, but application content retains its existing public-by-URL policy.
+Signed URLs expose object paths and access-key IDs, never secret keys; do not persist or log them.
+For JavaScript fetch/canvas, configure bucket CORS for your actual application origins, GET/HEAD
+and Range, exposing Content-Length, Content-Range, Accept-Ranges and ETag. Native media display
+does not ordinarily need CORS. See [the client package](../client/README.md).

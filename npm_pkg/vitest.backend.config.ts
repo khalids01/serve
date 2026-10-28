@@ -5,6 +5,12 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@skycanvasstudio\/serve-client$/,
+        replacement: fileURLToPath(
+          new URL("./packages/client/src/index.ts", import.meta.url),
+        ),
+      },
+      {
         find: /^@skycanvasstudio\/serve-server$/,
         replacement: fileURLToPath(
           new URL("./packages/server/src/index.ts", import.meta.url),

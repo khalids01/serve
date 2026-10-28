@@ -10,6 +10,12 @@
 0.1.0 is already published. For future releases, increment the package versions
 and update the artifact filenames below before publishing; npm versions are immutable.
 
+## Next release (unpublished)
+
+Server and React are 0.2.0; the new framework-independent client is 0.1.0.
+Publish the verified serve-client artifact before serve-react, which depends on it.
+Run the verifier with all three tarballs. No packages are published automatically.
+
 ## Release procedure
 
 The scope owner confirmed the `@skycanvasstudio` organization and selected `serve-server` / `serve-react`. Registry availability and
@@ -28,13 +34,14 @@ workspace automatically publishes.
    blob shared by two applications, cross-origin token refresh and video seeking.
    Automated tests use mocks and clean consumers; they do not contact a live
    database/storage deployment. No staging server is started by verification.
-5. Confirm `npm whoami` has access to the scope and that version 0.1.0 is not
+5. Confirm `npm whoami` has access to the scope and that the intended package version is not
    already published. Obtain explicit approval to publish.
 6. Publish the **verified artifacts**, not a differently rebuilt working tree:
 
    ```sh
-   npm publish ./artifacts/skycanvasstudio-serve-server-0.1.0.tgz --access public
-   npm publish ./artifacts/skycanvasstudio-serve-react-0.1.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-server-0.2.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-client-0.1.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-react-0.2.0.tgz --access public
    ```
 
 7. Give the organization's existing file-server team publish access:

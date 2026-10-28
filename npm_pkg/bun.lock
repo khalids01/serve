@@ -23,9 +23,9 @@
     "examples/integrations": {
       "name": "file-server-integration-examples",
       "dependencies": {
+        "@nestjs/common": "^11.0.0",
         "@skycanvasstudio/serve-react": "workspace:*",
         "@skycanvasstudio/serve-server": "workspace:*",
-        "@nestjs/common": "^11.0.0",
         "@tanstack/react-start": "^1.168.0",
         "elysia": "^1.4.0",
         "express": "^5.1.0",
@@ -48,6 +48,13 @@
         "server-only": "^0.0.1",
       },
     },
+    "packages/client": {
+      "name": "@skycanvasstudio/serve-client",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
+    },
     "packages/contracts": {
       "name": "@file-server/contracts",
       "version": "0.1.0",
@@ -57,8 +64,9 @@
     },
     "packages/react": {
       "name": "@skycanvasstudio/serve-react",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
+        "@skycanvasstudio/serve-client": "0.1.0",
         "zod": "^4.3.6",
       },
       "peerDependencies": {
@@ -68,7 +76,7 @@
     },
     "packages/server": {
       "name": "@skycanvasstudio/serve-server",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "zod": "^4.3.6",
       },
@@ -195,10 +203,6 @@
 
     "@file-server/contracts": ["@file-server/contracts@workspace:packages/contracts"],
 
-    "@skycanvasstudio/serve-react": ["@skycanvasstudio/serve-react@workspace:packages/react"],
-
-    "@skycanvasstudio/serve-server": ["@skycanvasstudio/serve-server@workspace:packages/server"],
-
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
     "@jridgewell/remapping": ["@jridgewell/remapping@2.3.5", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-LI9u/+laYG4Ds1TDKSJW2YPrIlcVYOwi2fUC6xB43lueCjgxV4lffOCZCtYFiH6TNOX+tQKXx97T4IKHbhyHEQ=="],
@@ -308,6 +312,12 @@
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.63.1", "", { "os": "win32", "cpu": "x64" }, "sha512-at8QVep6S3h5Y6gSbdGU06bRY5WJkf6WUduM9YtvYMbYhB1MOFfUgc6kehitQXzOtMSaT70q7f9ydPhpqu821w=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.34.52", "", {}, "sha512-XiMQh7qqVlxZzcVD+kkGMNGMzcTrDMLWI7S4x7z1MkCkbDPrekpZXEUK0eZqZFMuHQg2a2DZOcDIh9o5v3Gonw=="],
+
+    "@skycanvasstudio/serve-client": ["@skycanvasstudio/serve-client@workspace:packages/client"],
+
+    "@skycanvasstudio/serve-react": ["@skycanvasstudio/serve-react@workspace:packages/react"],
+
+    "@skycanvasstudio/serve-server": ["@skycanvasstudio/serve-server@workspace:packages/server"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 

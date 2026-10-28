@@ -1,4 +1,10 @@
 "use client";
+
+export {
+  BrowserFileServerClient,
+  createBrowserClient,
+  imageUrl,
+} from "@skycanvasstudio/serve-client";
 export type { AdvancedImageProps } from "./components/advanced-image";
 export { AdvancedImage } from "./components/advanced-image";
 export type { FilePickerProps, FileRejection } from "./components/file-picker";

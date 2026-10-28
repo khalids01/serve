@@ -70,3 +70,13 @@ migration is introduced.
 
 Legacy `/api/*` endpoints remain available with their legacy shapes. Use v1 for
 application-scoped SDK operations.
+
+## Direct media delivery (0.2 backend)
+
+Media GET endpoints may return 307 Location to a short-lived signed HTTPS S3 URL.
+Follow redirects without forwarding API keys or browser tokens to storage. Redirects
+are private/no-store; signed GETs permit private browser caching for 300 seconds and
+expire after 900 seconds. Persist the stable Serve URL instead of Location. Range GETs
+are supported by S3; HEAD remains metadata from Serve. A first image transform runs
+on Serve and is stored; later requests redirect to the cached result. Local/HTTP
+storage and active/text documents keep their existing proxy/security behavior.

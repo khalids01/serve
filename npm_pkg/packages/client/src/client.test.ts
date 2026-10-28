@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BrowserFileServerClient } from "./client";
+import { createBrowserClient, imageUrl } from "./index";
 
 describe("BrowserFileServerClient", () => {
   it("uses a short-lived bearer token without accepting an API key", async () => {
@@ -78,4 +79,67 @@ it("does not retry an ordinary authorization failure", async () => {
     code: "SCOPE_DENIED",
   });
   expect(attempts).toBe(1);
+});
+
+it("works without React, shares a token cache, and sends uploads to Serve only", async () => {
+  let tokens = 0;
+  const client = createBrowserClient({
+    baseUrl: "https://files.example",
+    tokenProvider: async () => {
+      tokens++;
+      return {
+        token: "short-lived",
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+      };
+    },
+    fetch: async (input, init) => {
+      expect(String(input)).toBe("https://files.example/api/v1/files");
+      expect(init?.redirect).toBe("error");
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        "Bearer short-lived",
+      );
+      const form = init?.body as FormData;
+      expect((form.get("file") as File).name).toBe("note.txt");
+      expect(form.get("tags")).toBe('["notes"]');
+      return Response.json({
+        data: {
+          id: "one",
+          filename: "hash.txt",
+          originalName: "note.txt",
+          contentType: "text/plain",
+          kind: "document",
+          sizeBytes: 2,
+          width: null,
+          height: null,
+          tags: ["notes"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          urls: {
+            content: "https://files.example/api/v1/files/one/content",
+            image: null,
+            placeholder: null,
+          },
+          variants: [],
+        },
+      });
+    },
+  });
+  const file = new File(["hi"], "note.txt", { type: "text/plain" });
+  await Promise.all([
+    client.upload(file, { tags: ["notes"] }),
+    client.upload(file, { tags: ["notes"] }),
+  ]);
+  expect(tokens).toBe(1);
+  expect(
+    imageUrl(
+      {
+        urls: {
+          image: "https://files.example/api/img/one",
+          content: "https://files.example/content",
+          placeholder: null,
+        },
+      },
+      { width: 640, format: "webp", quality: 75 },
+    ),
+  ).toBe("https://files.example/api/img/one?w=640&q=75&f=webp");
 });

@@ -11,6 +11,9 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@skycanvasstudio/serve-client": ["./packages/client/src/index.ts"]
+    }
   }
 }

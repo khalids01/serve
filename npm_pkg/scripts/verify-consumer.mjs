@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -25,7 +26,7 @@ function run(command, args, cwd, extraEnv = {}) {
   });
 }
 const tarballs = [];
-for (const name of ["server", "react"]) {
+for (const name of ["client", "server", "react"]) {
   const manifest = JSON.parse(
     readFileSync(join(root, "packages", name, "package.json"), "utf8"),
   );
@@ -49,6 +50,38 @@ for (const name of ["server", "react"]) {
   console.log(
     `${manifest.name}: ${output.size} bytes packed, ${output.files.length} files`,
   );
+}
+const standalone = mkdtempSync(join(tmpdir(), "serve-client-consumer-"));
+try {
+  writeFileSync(
+    join(standalone, "package.json"),
+    JSON.stringify({ private: true, type: "module" }),
+  );
+  run(
+    "npm",
+    ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarballs[0]],
+    standalone,
+  );
+  assert(
+    !existsSync(join(standalone, "node_modules/react")),
+    "Standalone client must not depend on React",
+  );
+  writeFileSync(
+    join(standalone, "client.mjs"),
+    `import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { createBrowserClient, imageUrl } from '@skycanvasstudio/serve-client';
+const require=createRequire(import.meta.url); assert.equal(typeof require('@skycanvasstudio/serve-client').createBrowserClient,'function');
+const client=createBrowserClient({baseUrl:'https://files.example',tokenProvider:async()=>({token:'browser-only',expiresAt:new Date(Date.now()+300000).toISOString()}),fetch:async(input,init)=>{assert.equal(new Headers(init.headers).get('authorization'),'Bearer browser-only');assert.equal(init.redirect,'error');return Response.json({data:[],pagination:{page:1,limit:20,total:0,pages:0,hasNext:false,hasPrev:false}})}});
+assert.deepEqual((await client.list()).data,[]);assert.equal(typeof imageUrl,'function');`,
+  );
+  run("node", ["client.mjs"], standalone);
+  run("bun", ["client.mjs"], standalone);
+  console.log(
+    "Standalone JavaScript client: ESM/CJS and Node/Bun passed with no React installed",
+  );
+} finally {
+  rmSync(standalone, { recursive: true, force: true });
 }
 const consumer = mkdtempSync(join(tmpdir(), "serve-consumer-"));
 try {
@@ -74,7 +107,7 @@ try {
     ],
     consumer,
   );
-  for (const name of ["server", "react"]) {
+  for (const name of ["client", "server", "react"]) {
     const dist = join(
       consumer,
       "node_modules",
@@ -100,10 +133,12 @@ try {
   }
   writeFileSync(
     join(consumer, "consumer.mts"),
-    `import { createFileServer, type FileAsset } from '@skycanvasstudio/serve-server';
+    `import { createBrowserClient } from '@skycanvasstudio/serve-client';
+import { createFileServer, type FileAsset } from '@skycanvasstudio/serve-server';
 import { createBrowserTokenHandler } from '@skycanvasstudio/serve-server/adapters/fetch';
 import '@skycanvasstudio/serve-react/styles.css';
 import { AdvancedImage, FileUploader, MediaLibrary, FileServerProvider, useUpload, useFiles, useDeleteFile, UploadQueue } from '@skycanvasstudio/serve-react';
+void createBrowserClient;
 const client = createFileServer({baseUrl:'https://files.example',apiKey:'sk_test'});
 createBrowserTokenHandler({client, authorize:async()=>true,scopes:['files:read'],allowedOrigins:['https://consumer.example']});
 void [AdvancedImage,FileUploader,MediaLibrary,FileServerProvider,useUpload,useFiles,useDeleteFile,UploadQueue];

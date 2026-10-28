@@ -1,1 +1,1 @@
-export * from "../../contracts/src/index";
+export * from "@skycanvasstudio/serve-client";

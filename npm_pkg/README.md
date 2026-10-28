@@ -1,8 +1,8 @@
 # File Server packages
 
-Isolated Bun workspace for `@skycanvasstudio/serve-server` and `@skycanvasstudio/serve-react` 0.1.0.
+Isolated Bun workspace for `@skycanvasstudio/serve-server` , `@skycanvasstudio/serve-client` and `@skycanvasstudio/serve-react`.
 The root Next.js application stays in place. `@file-server/contracts` is private
-source bundled into both public packages; generated backend schemas live in
+source bundled into the server and client packages; generated backend schemas live in
 `src/lib/v1-contracts.ts`. No public tarball imports the private workspace.
 
 ```sh
@@ -20,6 +20,7 @@ changes the database or publishes packages.
 
 - [Exact /docs quickstart examples](examples/quickstart/README.md)
 - [Server SDK](packages/server/README.md)
+- [Framework-independent browser client](packages/client/README.md)
 - [React components and hooks](packages/react/README.md)
 - [Versioned API contract](API.md)
 - [Framework integrations](examples/integrations/README.md)
