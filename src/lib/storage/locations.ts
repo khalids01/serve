@@ -224,6 +224,7 @@ export async function resolveBrowseLocation(
   return {
     storage: fullAccess ? storage : new PrefixedStorage(storage, prefix),
     identity: `${disk}:${fullAccess ? "" : prefix}`,
+    namespacePrefix: fullAccess ? "" : prefix,
     enabled,
     scope: fullAccess ? ("disk" as const) : ("namespace" as const),
   };

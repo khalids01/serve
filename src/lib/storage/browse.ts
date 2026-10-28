@@ -21,8 +21,16 @@ export const browseQuery = z.object({
       (key) => !key || key.endsWith("/"),
       "Folder paths must end with /.",
     ),
-  cursor: z.string().max(4096).optional(),
+  cursor: z.string().max(8192).optional(),
 });
+export type StorageVariant = {
+  key: string;
+  label: string;
+  sizeBytes?: number;
+  modifiedAt?: number;
+  width?: number | null;
+  height?: number | null;
+};
 export type BrowseEntry = {
   key: string;
   kind: "folder" | "file";
@@ -31,6 +39,7 @@ export type BrowseEntry = {
   protected?: boolean;
   trashId?: string;
   deletedAt?: number;
+  variants?: StorageVariant[];
 };
 export type BrowsePage = {
   entries: BrowseEntry[];
@@ -38,6 +47,7 @@ export type BrowsePage = {
   hasUnsupportedEntries?: boolean;
 };
 export const BROWSE_PAGE_SIZE = 100;
+export const STORAGE_VIEW_PAGE_SIZE = 24;
 
 export const storageName = z
   .string()

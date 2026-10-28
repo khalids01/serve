@@ -1,5 +1,5 @@
 "use client";
-import { Download, Loader2, LockKeyhole } from "lucide-react";
+import { Download, FileImage, Loader2, LockKeyhole } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +44,7 @@ export function StorageThumbnail({
     <img
       src={`${storageContentURL(id, entry)}&thumbnail=1`}
       alt=""
+      draggable={false}
       loading="lazy"
       decoding="async"
       width={large ? 160 : 36}
@@ -71,11 +72,18 @@ export function StoragePreview({
     text?: string;
     error?: string;
   }>();
-  const url = storageContentURL(id, entry);
+  const [activeKey, setActiveKey] = useState(entry.key);
+  const selected = entry.variants?.find((variant) => variant.key === activeKey);
+  const activeEntry: BrowseEntry = selected
+    ? { ...entry, ...selected, variants: undefined }
+    : entry;
+  const versions = [{ ...entry, label: "Original" }, ...(entry.variants ?? [])];
+  const url = storageContentURL(id, activeEntry);
   const supported =
     entry.kind === "file" &&
-    (imagePattern.test(entry.key) || textPattern.test(entry.key));
+    (imagePattern.test(activeEntry.key) || textPattern.test(activeEntry.key));
   useEffect(() => {
+    setPreview(undefined);
     if (!supported) return;
     const controller = new AbortController();
     let objectURL: string | undefined;
@@ -88,7 +96,7 @@ export function StoragePreview({
           const data = await response.json();
           throw new Error(data.error ?? "Unable to preview file.");
         }
-        if (imagePattern.test(entry.key)) {
+        if (imagePattern.test(activeEntry.key)) {
           const blob = await response.blob();
           if (controller.signal.aborted) return;
           objectURL = URL.createObjectURL(blob);
@@ -105,7 +113,7 @@ export function StoragePreview({
       controller.abort();
       if (objectURL) URL.revokeObjectURL(objectURL);
     };
-  }, [url, entry.key, supported]);
+  }, [url, activeEntry.key, supported]);
   return (
     <Dialog
       open
@@ -119,7 +127,9 @@ export function StoragePreview({
             {storageLabel(entry)}
           </DialogTitle>
           <DialogDescription>
-            {entry.kind === "folder" ? "Folder" : storageSize(entry.sizeBytes)}
+            {entry.kind === "folder"
+              ? "Folder"
+              : `${selected?.label ?? (versions.length > 1 ? "Original" : "File")} · ${storageSize(activeEntry.sizeBytes)}`}
             {entry.modifiedAt
               ? ` · ${new Date(entry.modifiedAt).toLocaleString()}`
               : ""}
@@ -143,7 +153,7 @@ export function StoragePreview({
             // biome-ignore lint/performance/noImgElement: Private object URL cannot use Next Image optimization.
             <img
               src={preview.url}
-              alt={storageLabel(entry)}
+              alt={storageLabel(activeEntry)}
               className="max-h-[55vh] w-full rounded-lg bg-muted/40 object-contain"
               onError={() =>
                 setPreview({
@@ -168,9 +178,63 @@ export function StoragePreview({
             </p>
           )
         )}
+        {versions.length > 1 && (
+          <section aria-label="Image variants" className="space-y-3">
+            <h3 className="text-sm font-medium">
+              Image variants{" "}
+              <span className="text-muted-foreground">({versions.length})</span>
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {versions.map((version) => (
+                <div
+                  key={version.key}
+                  className={`flex min-w-0 items-center gap-2 rounded-lg border p-2 ${activeKey === version.key ? "border-blue-500 bg-blue-500/5" : ""}`}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={activeKey === version.key}
+                    onClick={() => setActiveKey(version.key)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded p-1 text-left focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <StorageThumbnail
+                      id={id}
+                      entry={{ ...version, kind: "file" }}
+                      large={false}
+                      fallback={
+                        <FileImage className="size-9 shrink-0 text-muted-foreground" />
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {version.label}
+                      </span>
+                      <span
+                        className="block truncate text-xs text-muted-foreground"
+                        title={version.key}
+                      >
+                        {version.key.split("/").at(-1)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {storageSize(version.sizeBytes)}
+                      </span>
+                    </span>
+                  </button>
+                  <Button variant="ghost" size="icon" asChild>
+                    <a
+                      href={storageContentURL(id, { ...version, kind: "file" })}
+                      aria-label={`Download ${version.label}`}
+                    >
+                      <Download className="size-4" />
+                    </a>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <dl className="grid gap-2 rounded-lg border p-4 text-sm">
           <dt className="text-xs text-muted-foreground">Location</dt>
-          <dd className="break-all font-mono text-xs">/{entry.key}</dd>
+          <dd className="break-all font-mono text-xs">/{activeEntry.key}</dd>
           {entry.deletedAt && (
             <>
               <dt className="mt-2 text-xs text-muted-foreground">
@@ -184,7 +248,9 @@ export function StoragePreview({
           <Button asChild>
             <a href={url}>
               <Download className="mr-2 size-4" />
-              Download file
+              {versions.length > 1
+                ? "Download selected variant"
+                : "Download file"}
             </a>
           </Button>
         )}

@@ -21,7 +21,7 @@
     "test:deploy": "node --test scripts/deploy-dokploy.test.mjs docker/validate-env.test.mjs",
     "test:auth": "tsx scripts/test-auth-integration.ts",
     "test:backups": "tsx --test scripts/pg-dump.test.ts",
-    "test:storage-browser": "tsx --test scripts/storage-browser.test.ts scripts/storage-manager.test.ts scripts/storage-drop.test.ts",
+    "test:storage-browser": "tsx --test scripts/storage-browser.test.ts scripts/storage-groups.test.ts scripts/storage-manager.test.ts scripts/storage-drop.test.ts",
     "test:storage": "tsx scripts/test-storage-integration.ts"
   },
   "dependencies": {

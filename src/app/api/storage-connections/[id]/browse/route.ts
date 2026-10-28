@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { maxFileSizeBytes } from "@/config";
 import { requireSession, sessionApi } from "@/lib/session-api";
-import { browseQuery } from "@/lib/storage/browse";
+import {
+  BROWSE_PAGE_SIZE,
+  browseQuery,
+  STORAGE_VIEW_PAGE_SIZE,
+} from "@/lib/storage/browse";
+import { browseImageGroups } from "@/lib/storage/grouped-browse";
 import {
   resolveBrowseLocation,
   StorageLocationError,
@@ -31,10 +36,14 @@ export function GET(
         403,
       );
     const trash = new URL(request.url).searchParams.get("trash") === "1";
-    const { storage, scope, enabled } = await resolveBrowseLocation(user, id);
+    const { storage, scope, enabled, namespacePrefix } =
+      await resolveBrowseLocation(user, id);
     const page = trash
       ? await browseTrash(storage, user.id, cursor)
-      : await storage.browse(prefix, cursor);
+      : await browseImageGroups(storage, prefix, cursor, {
+          namespacePrefix,
+          ownerId: scope === "namespace" ? user.id : undefined,
+        });
     page.entries = page.entries
       .filter((entry) => !entry.key.split("/").includes(".serve-trash"))
       .map((entry) => ({
@@ -45,6 +54,7 @@ export function GET(
       {
         ...page,
         scope,
+        pageSize: trash ? BROWSE_PAGE_SIZE : STORAGE_VIEW_PAGE_SIZE,
         enabled,
         writable: enabled && !trash && !protectedStoragePath(prefix, scope),
         maxUploadBytes: Math.min(
