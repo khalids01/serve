@@ -65,9 +65,10 @@ switching deployments. Restored local files must be writable by UID 1000; the ap
 Generate separate values for `BETTER_AUTH_SECRET` and
 `FILE_SERVER_BROWSER_TOKEN_SECRET` with `openssl rand -base64 32`. Configure SMTP
 (`EMAIL`, `EMAIL_PASSWORD`) for email-code sign-in. Set `ADMIN_EMAIL` to your
-administrator's email; container startup creates or promotes that account after
-migrations. New signups default to disabled and are controlled by the admin's
-**Settings → Account registration** toggle. Browser tokens
+administrator's email. Sign up normally, then open the app container terminal
+and run `node /app/docker/bootstrap-admin.mjs` to promote that existing account.
+Startup never creates or promotes users. Fresh installations allow signup;
+after promotion, control it with **Settings → Account registration**. Browser tokens
 can be disabled by omitting their secret, but the React SDK requires it.
 
 The runtime image installs PostgreSQL client 18 from the official PostgreSQL Apt

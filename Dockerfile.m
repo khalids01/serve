@@ -73,4 +73,4 @@ USER appuser
 EXPOSE 3002
 
 # ---- Runtime: DB exists here ----
-CMD ["sh", "-ec", "if [ -n \"${ADMIN_EMAIL:-}\" ]; then node /app/docker/bootstrap-admin.mjs; fi; exec node server.js"]
+CMD ["node", "server.js"]

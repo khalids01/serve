@@ -20,7 +20,7 @@ async function main() {
   process.env.GITHUB_CLIENT_SECRET = "test-github-secret";
   process.env.EMAIL = "sender@example.test";
   process.env.EMAIL_PASSWORD = "smtp-test-only";
-  process.env.ENABLE_SIGNUP = "true"; // Legacy environment configuration must have no effect.
+  process.env.ENABLE_SIGNUP = "false"; // Legacy environment configuration must have no effect.
   const mail: { to: string; text: string }[] = [];
   const nodemailer = (await import("nodemailer")).default;
   const originalTransport = nodemailer.createTransport;
@@ -35,19 +35,61 @@ async function main() {
   try {
     const suffix = randomUUID();
     const adminEmail = `admin-${suffix}@example.test`;
+    await assert.rejects(
+      () => bootstrapAdmin(prisma, adminEmail),
+      /Sign up with that email first/,
+    );
+    assert.equal(
+      await prisma.user.findUnique({ where: { email: adminEmail } }),
+      null,
+    );
+    const missingCli = spawnSync(
+      process.execPath,
+      ["scripts/bootstrap-admin.mjs"],
+      {
+        env: { ...process.env, ADMIN_EMAIL: adminEmail },
+        encoding: "utf8",
+      },
+    );
+    assert.equal(missingCli.status, 1);
+    assert.match(missingCli.stderr, /Sign up with that email first/);
+
+    const { auth } = await import("../src/lib/auth");
+    const { getSignupEnabled } = await import("../src/lib/auth-settings");
+    assert.equal(
+      await getSignupEnabled(),
+      true,
+      "Fresh installations allow signup regardless of legacy ENABLE_SIGNUP",
+    );
+    const context = await auth.$context;
+    const registered = await context.internalAdapter.createOAuthUser(
+      { email: adminEmail, name: "First registered user", emailVerified: true },
+      { providerId: "github", accountId: `admin-${suffix}` },
+    );
+    assert.equal(
+      (
+        await prisma.user.findUniqueOrThrow({
+          where: { id: registered.user.id },
+        })
+      ).role,
+      "user",
+    );
     const admin = await bootstrapAdmin(
       prisma,
       `  ${adminEmail.toUpperCase()}  `,
     );
-    assert.equal(admin.email, adminEmail);
+    assert.equal(admin.id, registered.user.id);
     assert.equal(admin.role, "admin");
+    assert.equal((await bootstrapAdmin(prisma, adminEmail)).id, admin.id);
     assert.equal(
       (await prisma.user.findUniqueOrThrow({ where: { id: admin.id } }))
         .emailVerified,
-      false,
-      "Bootstrap cannot bypass email verification",
+      true,
     );
-    assert.equal((await bootstrapAdmin(prisma, adminEmail)).id, admin.id);
+    assert.equal(
+      await prisma.account.count({ where: { userId: admin.id } }),
+      1,
+    );
     const existing = await prisma.user.create({
       data: {
         email: `PROMOTE-${suffix}@EXAMPLE.TEST`,
@@ -65,6 +107,11 @@ async function main() {
         .name,
       "Keep this name",
     );
+    const preserved = await prisma.user.findUniqueOrThrow({
+      where: { id: existing.id },
+    });
+    assert.equal(preserved.email, existing.email);
+    assert.equal(preserved.emailVerified, false);
     await assert.rejects(
       () => bootstrapAdmin(prisma, "invalid"),
       /ADMIN_EMAIL/,
@@ -76,13 +123,10 @@ async function main() {
     assert.equal(cli.status, 0, cli.stderr);
     assert.match(cli.stdout, /Admin account ready/);
 
-    const { auth } = await import("../src/lib/auth");
-    const { getSignupEnabled } = await import("../src/lib/auth-settings");
-    assert.equal(
-      await getSignupEnabled(),
-      false,
-      "Missing settings and ENABLE_SIGNUP=true must still default to disabled",
-    );
+    await prisma.authSettings.create({
+      data: { id: "default", signupEnabled: false },
+    });
+    assert.equal(await getSignupEnabled(), false);
     const headers = new Headers({ origin: "https://files.example" });
     const requestCode = async (email: string) => {
       const response = await auth.api.sendVerificationOTP({
@@ -117,7 +161,6 @@ async function main() {
       !mail.some((message) => message.to === unknown),
       "Disabled signup must not email unregistered users",
     );
-    const context = await auth.$context;
     await assert.rejects(
       () =>
         context.internalAdapter.createOAuthUser(
@@ -261,7 +304,7 @@ async function main() {
         { mode: 0o600 },
       );
     console.log(
-      "Auth integration passed: admin creation/promotion/idempotency, OTP and OAuth signup policy, persisted settings, issued-code recheck, role checks, and existing-user sign-in.",
+      "Auth integration passed: regular signup, existing-account promotion/idempotency, missing-account refusal, OTP and OAuth signup policy, persisted settings, issued-code recheck, role checks, and existing-user sign-in.",
     );
   } finally {
     nodemailer.createTransport = originalTransport;

@@ -10,39 +10,27 @@ export async function bootstrapAdmin(prisma, adminEmail) {
   ) {
     throw new Error("Set ADMIN_EMAIL to a valid administrator email address.");
   }
-  return prisma.$transaction(async (tx) => {
-    // Serialize startup across replicas; never create a second account for a case variant.
-    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${`bootstrap-admin:${email}`}, 0))`;
-    const matches = await tx.user.findMany({
-      where: { email: { equals: email, mode: "insensitive" } },
-      select: { id: true, email: true, role: true },
-      take: 2,
-    });
-    if (matches.length > 1)
-      throw new Error(
-        "Multiple accounts match ADMIN_EMAIL. Resolve the duplicate email addresses before continuing.",
-      );
-    if (matches[0]) {
-      return matches[0].role === "admin" && matches[0].email === email
-        ? matches[0]
-        : tx.user.update({
-            where: { id: matches[0].id },
-            data: { role: "admin", email },
-            select: { id: true, email: true, role: true },
-          });
-    }
-    return tx.user.upsert({
-      where: { email },
-      update: { role: "admin" },
-      create: {
-        email,
-        name: email.split("@")[0],
-        role: "admin",
-        emailVerified: false,
-      },
-      select: { id: true, email: true, role: true },
-    });
+  const matches = await prisma.user.findMany({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true, email: true, role: true },
+    take: 2,
   });
+  if (matches.length > 1)
+    throw new Error(
+      "Multiple accounts match ADMIN_EMAIL. Resolve the duplicate email addresses before continuing.",
+    );
+  const user = matches[0];
+  if (!user)
+    throw new Error(
+      "No account matches ADMIN_EMAIL. Sign up with that email first, then run this command again.",
+    );
+  return user.role === "admin"
+    ? user
+    : prisma.user.update({
+        where: { id: user.id },
+        data: { role: "admin" },
+        select: { id: true, email: true, role: true },
+      });
 }
 
 if (

@@ -6,7 +6,7 @@ export async function getSignupEnabled(): Promise<boolean> {
     where: { id: "default" },
     select: { signupEnabled: true },
   });
-  return settings?.signupEnabled ?? false;
+  return settings?.signupEnabled ?? true;
 }
 
 // Both OTP and OAuth user creation pass through this hook, including codes issued before a policy change.
