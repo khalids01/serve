@@ -17,12 +17,15 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 
 export function SignInForm({
-  signupEnabled = false,
+  signupEnabled = true,
   githubEnabled = false,
+  mode = "sign-in",
 }: {
   signupEnabled?: boolean;
   githubEnabled?: boolean;
+  mode?: "sign-in" | "sign-up";
 }) {
+  const signingUp = mode === "sign-up";
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -63,11 +66,19 @@ export function SignInForm({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle>{sent ? "Check your email" : "Sign in to Serve"}</CardTitle>
+        <CardTitle>
+          {sent
+            ? "Check your email"
+            : signingUp
+              ? "Create your Serve account"
+              : "Sign in to Serve"}
+        </CardTitle>
         <CardDescription>
           {sent
             ? `Enter the 6-digit code sent to ${email.trim()}. It expires in 10 minutes.`
-            : "Sign in with an email code or your GitHub account."}
+            : signingUp
+              ? "Sign up with an email code or your GitHub account."
+              : "Sign in with an email code or your GitHub account."}
         </CardDescription>
         {!signupEnabled && (
           <p className="text-sm text-muted-foreground">
@@ -102,7 +113,7 @@ export function SignInForm({
         >
           {sent ? (
             <div className="space-y-2">
-              <Label htmlFor="otp">Sign-in code</Label>
+              <Label htmlFor="otp">Verification code</Label>
               <Input
                 id="otp"
                 inputMode="numeric"
@@ -137,7 +148,13 @@ export function SignInForm({
             disabled={loading || (sent ? otp.length !== 6 : !email.trim())}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {sent ? "Verify and sign in" : "Send sign-in code"}
+            {sent
+              ? signingUp
+                ? "Verify and continue"
+                : "Verify and sign in"
+              : signingUp
+                ? "Send verification code"
+                : "Send sign-in code"}
           </Button>
         </form>
         {sent && (
@@ -174,7 +191,9 @@ export function SignInForm({
                 const result = await authClient.signIn.social({
                   provider: "github",
                   callbackURL: "/dashboard",
-                  errorCallbackURL: "/auth/sign-in",
+                  errorCallbackURL: signingUp
+                    ? "/auth/sign-up"
+                    : "/auth/sign-in",
                 });
                 if (result.error)
                   throw new Error(

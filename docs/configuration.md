@@ -42,7 +42,7 @@ Copy `.env.example` to `.env` and set values:
 | `BETTER_AUTH_URL` | Optional base URL behind proxy |
 | `NEXT_PUBLIC_APP_URL` | Public Serve origin used in returned URLs; local dev defaults to http://localhost:5000 |
 | `FILE_SERVER_BROWSER_TOKEN_SECRET` | Dedicated random secret of at least 32 characters; required for React browser management, configured only on the Serve host |
-| `ADMIN_EMAIL` | Create or promote this account to admin on container startup |
+| `ADMIN_EMAIL` | Existing account to promote when running the admin command |
 | `NEXT_PUBLIC_BASE_URL` | Optional API base for client |
 | `NEXT_PUBLIC_MAX_FILE_SIZE` | Client upload limit (MB); sync with `config.upload.publicMaxFileSizeMb` |
 | `EMAIL`, `EMAIL_PASSWORD` | SMTP credentials (secrets) |
@@ -162,7 +162,7 @@ Use PostgreSQL in production (required for SQL database backups).
 
 - Email OTP and GitHub OAuth via Better Auth
 - Configure SMTP to send sign-in code emails in production
-- Enable or disable new email/GitHub accounts in **Settings → Account registration** (admin only). The database setting defaults to disabled; `ENABLE_SIGNUP` is no longer used.
+- Enable or disable new email/GitHub accounts in **Settings → Account registration** (admin only). Fresh installations allow signup until an administrator disables it; `ENABLE_SIGNUP` is no longer used.
 
 ## Image Processing
 
@@ -225,16 +225,28 @@ or bucket.
 
 ### Initial administrator
 
-Set `ADMIN_EMAIL` in Dokploy's runtime environment and redeploy. After migrations,
-the app creates this account if missing or promotes its existing account to admin.
-It does not mark the email verified; the administrator signs in with an emailed
-code or GitHub. Repeated startups preserve the account and existing settings.
+Set `ADMIN_EMAIL` to your email, then sign up normally with an email code or
+GitHub. Every new account starts as a regular user. Setting the environment
+variable or restarting the app does not create accounts or change roles.
+
+After signing up, open the app container's terminal and run:
+
+```sh
+node /app/docker/bootstrap-admin.mjs
+```
+
+Locally, run `npm run admin:bootstrap` (`npm run db:seed` is an alias).
+The command reads `ADMIN_EMAIL` from the environment (or local `.env`) and
+promotes the existing account. It fails if no matching account exists and never
+creates users, changes emails, or bypasses verification. Repeated runs are safe.
 Changing `ADMIN_EMAIL` does not demote previously configured administrators.
 
-For local development or a manual setup, run `npm run admin:bootstrap` after
-`npm run db:migrate:deploy`. The script loads `.env`, validates `ADMIN_EMAIL`,
-and fails if it is missing or invalid. `npm run db:seed` is an alias for this setup.
-The shipped app image also supports `node /app/docker/bootstrap-admin.mjs`.
+The `/auth/sign-up` page shows registration availability and offers email-code
+and GitHub signup when enabled. The sign-in page links to it while signup is open.
+
+Fresh installations allow signup so you can create the first account. After
+promotion, use **Settings → Account registration** to disable signup if desired.
+Existing saved signup settings are preserved when upgrading.
 
 Global settings, email administration, and backup APIs require an admin browser
 session. Application API keys cannot administer these settings. New-user creation

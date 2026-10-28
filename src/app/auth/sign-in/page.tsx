@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PublicHeader } from "@/components/core/public-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SignInForm } from "@/features/auth/sign-in-form";
@@ -35,6 +36,17 @@ export default async function SignInPage() {
               process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
             )}
           />
+          {signupEnabled && (
+            <p className="text-sm text-muted-foreground">
+              New to Serve?{" "}
+              <Link
+                href="/auth/sign-up"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Create an account
+              </Link>
+            </p>
+          )}
         </div>
       </main>
     </div>
