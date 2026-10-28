@@ -41,7 +41,7 @@ export default async function ApplicationDetailsPage(props: {
   });
 
   const activityRaw = await prisma.auditLog.findMany({
-    where: { applicationId: app.id, deletedAt: null },
+    where: { applicationId: app.id },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
@@ -92,7 +92,7 @@ export default async function ApplicationDetailsPage(props: {
     targetId: a.targetId ?? null,
     ip: a.ip ?? null,
     userAgent: a.userAgent ?? null,
-    metadata: a.metadata as any,
+    metadata: a.metadata,
     createdAt: a.createdAt.toISOString(),
   }));
 
