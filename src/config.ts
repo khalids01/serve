@@ -44,8 +44,8 @@ export const config = {
       /** true for R2/MinIO; false for native AWS S3. */
       forcePathStyle: true,
     },
-    /** Store on-demand resize cache under {tenant}/_cache/ in the active backend. */
-    cacheInStorage: false,
+    /** Reuse on-demand image transforms under _blobs/_cache/ in the active backend. */
+    cacheInStorage: true,
   },
 
   upload: {

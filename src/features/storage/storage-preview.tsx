@@ -70,7 +70,6 @@ export function StoragePreview({
   onClose: () => void;
 }) {
   const [preview, setPreview] = useState<{
-    url?: string;
     text?: string;
     error?: string;
   }>();
@@ -87,9 +86,8 @@ export function StoragePreview({
   const supported = entry.kind === "file" && Boolean(type);
   useEffect(() => {
     setPreview(undefined);
-    if (!supported || streamed) return;
+    if (!supported || streamed || type?.kind === "image") return;
     const controller = new AbortController();
-    let objectURL: string | undefined;
     void fetch(`${url}&preview=1`, {
       signal: controller.signal,
       cache: "no-store",
@@ -99,24 +97,16 @@ export function StoragePreview({
           const data = await response.json();
           throw new Error(data.error ?? "Unable to preview file.");
         }
-        if (filePreview(activeEntry.key)?.kind === "image") {
-          const blob = await response.blob();
-          if (controller.signal.aborted) return;
-          objectURL = URL.createObjectURL(blob);
-          setPreview({ url: objectURL });
-        } else {
-          const text = await response.text();
-          if (!controller.signal.aborted) setPreview({ text });
-        }
+        const text = await response.text();
+        if (!controller.signal.aborted) setPreview({ text });
       })
       .catch((cause) => {
         if (!controller.signal.aborted) setPreview({ error: cause.message });
       });
     return () => {
       controller.abort();
-      if (objectURL) URL.revokeObjectURL(objectURL);
     };
-  }, [url, activeEntry.key, supported, streamed]);
+  }, [url, supported, streamed, type?.kind]);
   return (
     <Dialog
       open
@@ -204,10 +194,10 @@ export function StoragePreview({
             >
               {preview.error}
             </p>
-          ) : preview?.url ? (
-            // biome-ignore lint/performance/noImgElement: Private object URL cannot use Next Image optimization.
+          ) : type?.kind === "image" ? (
+            // biome-ignore lint/performance/noImgElement: Direct authenticated storage delivery bypasses Next Image optimization.
             <img
-              src={preview.url}
+              src={`${url}&preview=1`}
               alt={storageLabel(activeEntry)}
               className="max-h-[55vh] w-full rounded-lg bg-muted/40 object-contain"
               onError={() =>

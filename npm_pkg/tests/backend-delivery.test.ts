@@ -90,6 +90,29 @@ describe("public delivery", () => {
     expect(head.headers.get("content-length")).toBe("10");
     expect(await head.text()).toBe("");
   });
+  it("sandboxes active content while allowing the native PDF viewer", async () => {
+    const context = { params: Promise.resolve({ id: "file" }) };
+    mocks.find.mockResolvedValue({ ...file, contentType: "text/html" });
+    const html = await HEAD(
+      new NextRequest("https://files.example/api/v1/files/file/content", {
+        method: "HEAD",
+      }),
+      context,
+    );
+    expect(html.headers.get("content-security-policy")).toContain("sandbox");
+    mocks.find.mockResolvedValue({ ...file, contentType: "application/pdf" });
+    const pdf = await HEAD(
+      new NextRequest("https://files.example/api/v1/files/file/content", {
+        method: "HEAD",
+      }),
+      context,
+    );
+    expect(pdf.headers.get("content-security-policy")).toContain(
+      "object-src 'self'",
+    );
+    expect(pdf.headers.get("content-security-policy")).not.toContain("sandbox");
+    expect(pdf.headers.get("x-content-type-options")).toBe("nosniff");
+  });
   it("rejects invalid ranges before opening storage and normalizes not-found errors", async () => {
     const context = { params: Promise.resolve({ id: "file" }) };
     const response = await GET(

@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { z } from "zod";
 import { maxFileSizeBytes } from "@/config";
 import { filePreview } from "@/lib/file-preview";
 import { requireSession, sessionApi } from "@/lib/session-api";
 import { browsePath } from "@/lib/storage/browse";
+import { canDeliverInline, directResponse } from "@/lib/storage/delivery";
+import { blobCacheKey } from "@/lib/storage/keys";
 import {
   resolveBrowseLocation,
   StorageLocationError,
@@ -118,6 +121,41 @@ export function GET(
       );
     if (request.method === "HEAD")
       return new Response(null, { status: range ? 206 : 200, headers });
+    // The source is authorized and statted before any cache or signed URL is exposed.
+    const thumbnailKey =
+      thumbnail && (info.etag || info.mtimeMs !== undefined)
+        ? blobCacheKey(
+            `thumb-v1-${createHash("sha256")
+              .update(
+                JSON.stringify([key, info.etag, info.mtimeMs, info.sizeBytes]),
+              )
+              .digest("hex")}.webp`,
+          )
+        : undefined;
+    if (thumbnailKey && (await storage.stat(thumbnailKey).catch(() => null))) {
+      const direct = await directResponse(storage, thumbnailKey, {
+        contentType: "image/webp",
+      });
+      if (direct) return direct;
+      const cached = await storage.open(thumbnailKey);
+      if (cached)
+        return new Response(cached.body, {
+          headers: {
+            "Content-Type": "image/webp",
+            "Content-Length": String(cached.contentLength),
+            "Cache-Control": "private, max-age=300",
+            "X-Content-Type-Options": "nosniff",
+          },
+        });
+    }
+    if (!thumbnail && (!preview || canDeliverInline(type?.contentType ?? ""))) {
+      const direct = await directResponse(storage, key, {
+        contentType: headers.get("Content-Type") ?? "application/octet-stream",
+        disposition: headers.get("Content-Disposition") ?? "attachment",
+        cacheControl: "private, max-age=300",
+      });
+      if (direct) return direct;
+    }
     const opened = await storage.open(key, range);
     if (!opened) throw new StorageLocationError("File not found.", 404);
     if (thumbnail) {
@@ -160,6 +198,20 @@ export function GET(
           .webp({ quality: 75 })
           .timeout({ seconds: 5 })
           .toBuffer();
+        if (thumbnailKey) {
+          const stored = await storage
+            .put(thumbnailKey, output, { contentType: "image/webp" })
+            .then(
+              () => true,
+              () => false,
+            );
+          if (stored) {
+            const direct = await directResponse(storage, thumbnailKey, {
+              contentType: "image/webp",
+            });
+            if (direct) return direct;
+          }
+        }
         return new Response(new Uint8Array(output), {
           headers: {
             "Content-Type": "image/webp",

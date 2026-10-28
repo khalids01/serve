@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
+import { canDeliverInline, directBlobResponse } from "@/lib/storage/delivery";
 import { getStorageForImage } from "@/lib/storage/locations";
 import { parseRange } from "@/lib/storage/range";
 import { openBlobFileWithLegacy } from "@/lib/storage/read";
@@ -19,6 +20,10 @@ function contentHeaders(file: {
     "Content-Type": file.contentType || "application/octet-stream",
     ETag: `"${file.hash}"`,
     "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy":
+      file.contentType === "application/pdf"
+        ? "default-src 'none'; object-src 'self'; frame-src 'self'; base-uri 'none'"
+        : "sandbox; default-src 'none'",
   };
 }
 
@@ -74,6 +79,26 @@ export async function GET(
     }
 
     const storage = await getStorageForImage(file);
+    const download = request.nextUrl.searchParams.get("download") === "1";
+    const disposition = `attachment; filename*=UTF-8''${encodeURIComponent(file.downloadName).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16)}`)}`;
+    const direct =
+      canDeliverInline(file.contentType) || download
+        ? await directBlobResponse(
+            storage,
+            file.filename,
+            getLegacyTenantKeys(file),
+            {
+              contentType: canDeliverInline(file.contentType)
+                ? file.contentType
+                : "application/octet-stream",
+              disposition:
+                download || !canDeliverInline(file.contentType)
+                  ? disposition
+                  : "inline",
+            },
+          )
+        : null;
+    if (direct) return direct;
     const opened = await openBlobFileWithLegacy(
       storage,
       file.filename,

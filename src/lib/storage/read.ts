@@ -64,9 +64,14 @@ export async function readBlobCacheWithLegacy(
   legacyTenantKeys: string[] = [],
 ): Promise<Buffer | null> {
   if (!config.storage.cacheInStorage) return null;
-  const cached = await readBlobCache(storage, cacheName);
-  if (cached) return cached;
-  return readTenantCache(storage, legacyTenantKeys, cacheName);
+  // Cache permissions/availability must not prevent reading the source image.
+  try {
+    const cached = await readBlobCache(storage, cacheName);
+    if (cached) return cached;
+    return await readTenantCache(storage, legacyTenantKeys, cacheName);
+  } catch {
+    return null;
+  }
 }
 
 export async function writeBlobCache(
@@ -74,9 +79,15 @@ export async function writeBlobCache(
   cacheName: string,
   data: Buffer,
   contentType?: string,
-): Promise<void> {
-  if (!config.storage.cacheInStorage) return;
-  await storage.put(blobCacheKey(cacheName), data, { contentType });
+): Promise<boolean> {
+  if (!config.storage.cacheInStorage) return false;
+  try {
+    await storage.put(blobCacheKey(cacheName), data, { contentType });
+    return true;
+  } catch {
+    // Read-only connections can still preview; persistence is an optimization.
+    return false;
+  }
 }
 
 export async function deleteBlobCacheByBase(

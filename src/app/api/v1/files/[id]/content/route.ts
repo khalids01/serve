@@ -7,10 +7,11 @@ import { error } from "@/lib/v1-api";
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
 function secure(response: Response) {
-  response.headers.set(
-    "Content-Security-Policy",
-    "sandbox; default-src 'none'",
-  );
+  if (!response.headers.has("Content-Security-Policy"))
+    response.headers.set(
+      "Content-Security-Policy",
+      "sandbox; default-src 'none'",
+    );
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Access-Control-Allow-Origin", "*");
   return response;

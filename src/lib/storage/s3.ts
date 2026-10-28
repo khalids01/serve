@@ -11,9 +11,11 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { config } from "@/config";
 import type {
+  SignedReadOptions,
   StorageBackend,
   StorageByteRange,
   StorageObjectInfo,
@@ -141,6 +143,27 @@ export class S3StorageBackend implements StorageBackend {
           }
         : {}),
     });
+  }
+
+  async signedRead(key: string, options: SignedReadOptions) {
+    const url = await getSignedUrl(
+      this.client,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ResponseContentType: options.contentType,
+        ResponseContentDisposition: options.disposition ?? "inline",
+        ResponseCacheControl: options.cacheControl ?? "private, max-age=300",
+      }),
+      {
+        expiresIn: 900,
+        // Stable targets within five minutes make private browser caching useful.
+        // Actual validity is 10–15 minutes; every Serve redirect still checks access.
+        signingDate: new Date(Math.floor(Date.now() / 300_000) * 300_000),
+      },
+    );
+    // Private/local HTTP endpoints stay behind Serve; never send signed credentials over HTTP.
+    return new URL(url).protocol === "https:" ? url : null;
   }
 
   async put(
@@ -272,6 +295,7 @@ export class S3StorageBackend implements StorageBackend {
         key,
         sizeBytes: info.ContentLength ?? 0,
         mtimeMs: info.LastModified?.getTime(),
+        etag: info.ETag,
       };
     } catch (error) {
       if (isMissingObject(error)) return null;

@@ -1,4 +1,8 @@
-import type { StorageBackend, StorageByteRange } from "./backend";
+import type {
+  SignedReadOptions,
+  StorageBackend,
+  StorageByteRange,
+} from "./backend";
 import { browsePath } from "./browse";
 export class PrefixedStorage implements StorageBackend {
   constructor(
@@ -19,6 +23,11 @@ export class PrefixedStorage implements StorageBackend {
     )
       throw new Error("Invalid storage key.");
     return this.prefix + key;
+  }
+  signedRead(key: string, options: SignedReadOptions) {
+    return (
+      this.backend.signedRead?.(this.key(key), options) ?? Promise.resolve(null)
+    );
   }
   createDirectory(key: string) {
     return this.backend.createDirectory(this.key(key));

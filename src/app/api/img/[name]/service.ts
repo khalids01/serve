@@ -3,7 +3,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
+import {
+  canDeliverInline,
+  directBlobResponse,
+  directResponse,
+} from "@/lib/storage/delivery";
 import { isSharpResizable } from "@/lib/storage/image";
+import { blobCacheKey } from "@/lib/storage/keys";
 import { getStorageForImage } from "@/lib/storage/locations";
 import {
   readBlobCacheWithLegacy,
@@ -87,8 +93,8 @@ export async function serveImage(request: NextRequest, rawName: string) {
       url.searchParams.get("format") || url.searchParams.get("f");
     const qParam = url.searchParams.get("quality") || url.searchParams.get("q");
 
-    const width = clamp(wParam ? parseInt(wParam, 10) : null);
-    const height = clamp(hParam ? parseInt(hParam, 10) : null);
+    let width = clamp(wParam ? parseInt(wParam, 10) : null);
+    let height = clamp(hParam ? parseInt(hParam, 10) : null);
     const quality = clampQuality(qParam ? parseInt(qParam, 10) : null);
 
     const PLACEHOLDER_SUFFIX = "-placeholder";
@@ -144,6 +150,15 @@ export async function serveImage(request: NextRequest, rawName: string) {
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
+    // withoutEnlargement would return the existing full-size variant in this case.
+    if (
+      (width || height) &&
+      (!width || (image.width && width >= image.width)) &&
+      (!height || (image.height && height >= image.height))
+    ) {
+      width = null;
+      height = null;
+    }
     const storage = await getStorageForImage(image);
     const legacyTenantKeys = getLegacyTenantKeys(image);
 
@@ -179,6 +194,13 @@ export async function serveImage(request: NextRequest, rawName: string) {
         );
       }
       const placeholderFilename = `${base}-placeholder.${targetExt}`;
+      const direct = await directBlobResponse(
+        storage,
+        placeholderFilename,
+        legacyTenantKeys,
+        { contentType: getContentTypeByExt(targetExt) },
+      );
+      if (direct) return direct;
       const buf = await readBlobFileWithLegacy(
         storage,
         placeholderFilename,
@@ -194,6 +216,15 @@ export async function serveImage(request: NextRequest, rawName: string) {
     }
 
     if (!width && !height && !quality && targetExt === normalizedOrigExt) {
+      if (canDeliverInline(image.contentType)) {
+        const direct = await directBlobResponse(
+          storage,
+          image.filename,
+          legacyTenantKeys,
+          { contentType: image.contentType },
+        );
+        if (direct) return direct;
+      }
       const buf = await readBlobFileWithLegacy(
         storage,
         image.filename,
@@ -213,6 +244,15 @@ export async function serveImage(request: NextRequest, rawName: string) {
 
     if (!width && !height && !quality && targetExt !== normalizedOrigExt) {
       const variantFilename = `${base}.${targetExt}`;
+      if (canDeliverInline(getContentTypeByExt(targetExt))) {
+        const direct = await directBlobResponse(
+          storage,
+          variantFilename,
+          legacyTenantKeys,
+          { contentType: getContentTypeByExt(targetExt) },
+        );
+        if (direct) return direct;
+      }
       const buf = await readBlobFileWithLegacy(
         storage,
         variantFilename,
@@ -239,8 +279,26 @@ export async function serveImage(request: NextRequest, rawName: string) {
       );
     }
 
+    if (
+      !VALID_TARGETS.includes(targetExt) &&
+      !["gif", "tiff", "tif"].includes(targetExt)
+    ) {
+      return NextResponse.json(
+        { error: "Unsupported output format" },
+        { status: 400 },
+      );
+    }
     const cacheName = `${base}${width ? `_w${width}` : ""}${height ? `_h${height}` : ""}${quality ? `_q${quality}` : ""}.${targetExt}`;
 
+    if (
+      storage.signedRead &&
+      (await storage.stat(blobCacheKey(cacheName)).catch(() => null))
+    ) {
+      const direct = await directResponse(storage, blobCacheKey(cacheName), {
+        contentType: getContentTypeByExt(targetExt),
+      });
+      if (direct) return direct;
+    }
     const cached = await readBlobCacheWithLegacy(
       storage,
       cacheName,
@@ -262,7 +320,9 @@ export async function serveImage(request: NextRequest, rawName: string) {
       );
     }
 
-    let pipeline = sharp(original);
+    let pipeline = sharp(original, { limitInputPixels: 40_000_000 }).timeout({
+      seconds: 10,
+    });
     if (width || height) {
       pipeline = pipeline.resize(width || undefined, height || undefined, {
         fit: "inside",
@@ -286,14 +346,19 @@ export async function serveImage(request: NextRequest, rawName: string) {
     else pipeline = pipeline.jpeg({ quality: quality ?? 85, mozjpeg: true });
 
     const out = await pipeline.toBuffer();
-    await writeBlobCache(
+    const stored = await writeBlobCache(
       storage,
       cacheName,
       out,
       getContentTypeByExt(targetExt),
     );
 
-    return bufferResponse(out, getContentTypeByExt(targetExt));
+    const direct = stored
+      ? await directResponse(storage, blobCacheKey(cacheName), {
+          contentType: getContentTypeByExt(targetExt),
+        })
+      : null;
+    return direct ?? bufferResponse(out, getContentTypeByExt(targetExt));
   } catch (error) {
     console.error("Public image serve error:", error);
     return NextResponse.json(

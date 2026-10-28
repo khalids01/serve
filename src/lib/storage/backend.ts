@@ -3,6 +3,7 @@ export interface StorageObjectInfo {
   key: string;
   sizeBytes: number;
   mtimeMs?: number;
+  etag?: string;
 }
 
 export interface StorageByteRange {
@@ -17,7 +18,15 @@ export interface StorageReadStream {
   contentType?: string;
 }
 
+export type SignedReadOptions = {
+  contentType: string;
+  disposition?: string;
+  cacheControl?: string;
+};
+
 export interface StorageBackend {
+  /** Short-lived GET only. Never exposes a storage secret. Null keeps proxy delivery. */
+  signedRead?(key: string, options: SignedReadOptions): Promise<string | null>;
   readonly maxWriteBytes?: number;
   createDirectory(key: string): Promise<void>;
   createFile(
