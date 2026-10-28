@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { z } from "zod";
 import { maxFileSizeBytes } from "@/config";
 import { requireSession, sessionApi } from "@/lib/session-api";
@@ -66,12 +67,20 @@ export function GET(
         "Use the Trash view to access deleted items.",
         403,
       );
-    const preview = new URL(request.url).searchParams.get("preview") === "1";
+    const thumbnail =
+      new URL(request.url).searchParams.get("thumbnail") === "1";
+    const preview =
+      thumbnail || new URL(request.url).searchParams.get("preview") === "1";
     const extension = requestedKey.split(".").at(-1)?.toLowerCase() ?? "";
     const imageType = imageTypes.get(extension);
     const previewType =
       imageType ??
       (textTypes.has(extension) ? "text/plain; charset=utf-8" : undefined);
+    if (thumbnail && !imageType)
+      throw new StorageLocationError(
+        "Thumbnails are available for supported images only.",
+        415,
+      );
     if (preview && !previewType)
       throw new StorageLocationError(
         "Preview is unavailable for this file type.",
@@ -85,6 +94,63 @@ export function GET(
         "This file is too large to preview. Download it instead.",
         413,
       );
+    }
+    if (thumbnail) {
+      try {
+        // Bound source bytes independently of metadata before decoding an untrusted image.
+        const reader = opened.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            received += value.byteLength;
+            if (received > 10 * 1024 * 1024)
+              throw new StorageLocationError(
+                "This image is too large to thumbnail.",
+                413,
+              );
+            chunks.push(value);
+          }
+        } finally {
+          await reader.cancel().catch(() => {});
+        }
+        const image = sharp(Buffer.concat(chunks), {
+          limitInputPixels: 25_000_000,
+        });
+        const metadata = await image.metadata();
+        if (
+          !["png", "jpeg", "gif", "webp", "heif", "avif"].includes(
+            metadata.format ?? "",
+          )
+        )
+          throw new StorageLocationError(
+            "This image format cannot be thumbnailed.",
+            415,
+          );
+        const output = await image
+          .rotate()
+          .resize(320, 240, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 75 })
+          .timeout({ seconds: 5 })
+          .toBuffer();
+        return new Response(new Uint8Array(output), {
+          headers: {
+            "Content-Type": "image/webp",
+            "Content-Length": String(output.length),
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+          },
+        });
+      } catch (cause) {
+        if (cause instanceof StorageLocationError) throw cause;
+        throw new StorageLocationError(
+          "This image cannot be previewed. Download it instead.",
+          415,
+        );
+      }
     }
     const name = requestedKey.split("/").at(-1) ?? "download";
     const encodedName = encodeURIComponent(name).replace(

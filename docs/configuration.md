@@ -66,7 +66,8 @@ SMTP host/port/from and image settings remain in [`src/config.ts`](../src/config
 
 | Page | Path | Purpose |
 | --- | --- | --- |
-| Profile | `/dashboard/profile` | Account info and security |
+| Profile | `/dashboard/profile` | Editable display name, account role, and security |
+| Users (admin) | `/dashboard/users` | Searchable user directory, 25 accounts per page |
 | Settings | `/dashboard/settings` | System configuration and live stats |
 | Data Backup | `/dashboard/data-backup` | Schedule backups, scan storage, restore metadata, download files |
 | Cache | `/dashboard/cache` | View and clear on-demand resize cache |
@@ -186,7 +187,7 @@ names are never overwritten; copy/paste in the same folder creates a numbered
 copy. Direct storage uploads are stored unchanged and are not application-linked
 or image-optimized; use the application's Files/Upload workflow for those features.
 
-Double-click to open folders or previews. Use breadcrumbs, the parent button, or
+Click once to open folders or previews. Use checkboxes to select items. Use breadcrumbs, the parent button, or
 browser Back to navigate. Right-click items or empty space for actions; the
 three-dot menus expose the same item actions on touch devices. Checkboxes and
 Ctrl/Cmd-click select multiple items, and Shift-click selects a range. Keyboard
@@ -209,6 +210,10 @@ A saved connection must belong to the signed-in user, including administrators.
 Paths outside `UPLOAD_DIR`, symbolic links, internal blob/cache directories,
 backup paths, and application-managed files are protected from unsafe changes.
 Folders containing symlinks or managed objects cannot be moved or deleted here.
+
+Raster thumbnails load lazily through the authenticated content route and are resized
+to fit 320 × 240 pixels. Source images are limited to 10 MiB and 25 million pixels;
+invalid images fall back to file icons.
 
 Raster image previews are limited to 10 MiB; text to 1 MiB. HTML and code display
 as plain text; SVG and other active content are download-only. Listing, previews,

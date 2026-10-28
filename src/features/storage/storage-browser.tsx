@@ -63,6 +63,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  BROWSE_PAGE_SIZE,
   type BrowseEntry,
   type BrowsePage,
   storageClipboard,
@@ -71,6 +72,7 @@ import { StorageDestinationDialog } from "./storage-destination-dialog";
 import { readDroppedFiles } from "./storage-drop";
 import {
   StoragePreview,
+  StorageThumbnail,
   storageContentURL,
   storageLabel,
   storageSize,
@@ -154,6 +156,10 @@ export function StorageBrowser({
 }) {
   const router = useRouter();
   const [page, setPage] = useState<Page>();
+  const [pageHistory, setPageHistory] = useState<(string | undefined)[]>([
+    undefined,
+  ]);
+  const currentPageIndex = pageHistory.indexOf(cursor);
   const [error, setError] = useState("");
   const [operationError, setOperationError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -193,6 +199,8 @@ export function StorageBrowser({
     setSelection(new Set());
     setPreview(undefined);
     setSearch("");
+    if (!token || folder !== prefix || toTrash !== trash)
+      setPageHistory([undefined]);
     router.push(
       `/dashboard/storage/${encodeURIComponent(id)}?${new URLSearchParams({ prefix: folder, ...(token ? { cursor: token } : {}), ...(toTrash ? { trash: "1" } : {}) })}`,
     );
@@ -719,6 +727,11 @@ export function StorageBrowser({
 
   function keyDown(event: React.KeyboardEvent) {
     if (
+      event.key === "Enter" &&
+      (event.target as HTMLElement).closest("button, a")
+    )
+      return;
+    if (
       locked ||
       dialog ||
       preview ||
@@ -874,7 +887,10 @@ export function StorageBrowser({
                 <ChevronDown className="ml-2 size-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              onClick={(event) => event.stopPropagation()}
+            >
               <DropdownMenuItem onSelect={() => filesInput.current?.click()}>
                 <Upload className="mr-2 size-4" />
                 Upload files
@@ -1301,9 +1317,16 @@ export function StorageBrowser({
                               data-entry-id={entryId(entry)}
                               aria-selected={selection.has(entryId(entry))}
                               {...dragProps(entry)}
-                              className={`group cursor-default transition-colors ${selection.has(entryId(entry)) ? "bg-blue-500/10 hover:bg-blue-500/15" : "hover:bg-muted/50"} ${clipboard?.id === id && clipboard.mode === "move" && clipboard.keys.includes(entry.key) ? "opacity-50" : ""}`}
-                              onClick={(event) => select(entry, event)}
-                              onDoubleClick={() => open(entry)}
+                              className={`group cursor-pointer transition-colors ${selection.has(entryId(entry)) ? "bg-blue-500/10 hover:bg-blue-500/15" : "hover:bg-muted/50"} ${clipboard?.id === id && clipboard.mode === "move" && clipboard.keys.includes(entry.key) ? "opacity-50" : ""}`}
+                              onClick={(event) => {
+                                if (
+                                  event.ctrlKey ||
+                                  event.metaKey ||
+                                  event.shiftKey
+                                )
+                                  select(entry, event);
+                                else open(entry);
+                              }}
                               onContextMenu={(event) => {
                                 event.stopPropagation();
                                 if (!selection.has(entryId(entry)))
@@ -1322,25 +1345,26 @@ export function StorageBrowser({
                               </td>
                               <td className="w-full max-w-0 px-2 py-3">
                                 <div className="flex items-center gap-3">
-                                  <FileGlyph entry={entry} />
+                                  <StorageThumbnail
+                                    key={`${id}:${entry.key}:${entry.modifiedAt ?? ""}`}
+                                    id={id}
+                                    entry={entry}
+                                    large={false}
+                                    fallback={<FileGlyph entry={entry} />}
+                                  />
                                   <button
                                     type="button"
                                     className="truncate text-left hover:underline"
                                     title={storageLabel(entry)}
                                     onClick={(event) => {
+                                      event.stopPropagation();
                                       if (
-                                        window.matchMedia("(pointer: coarse)")
-                                          .matches
-                                      ) {
-                                        event.stopPropagation();
-                                        open(entry);
-                                      }
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key === "Enter") {
-                                        event.stopPropagation();
-                                        open(entry);
-                                      }
+                                        event.ctrlKey ||
+                                        event.metaKey ||
+                                        event.shiftKey
+                                      )
+                                        select(entry, event);
+                                      else open(entry);
                                     }}
                                   >
                                     {storageLabel(entry)}
@@ -1385,7 +1409,10 @@ export function StorageBrowser({
                                       <MoreHorizontal className="size-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
+                                  <DropdownMenuContent
+                                    align="end"
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
                                     {actions(contextItems(entry)).map(
                                       ({ action, label, icon: Icon }) => (
                                         <DropdownMenuItem
@@ -1475,14 +1502,23 @@ export function StorageBrowser({
                             className="flex w-full min-w-0 flex-col items-center gap-4 py-2"
                             onClick={(event) => {
                               if (
-                                window.matchMedia("(pointer: coarse)").matches
+                                event.ctrlKey ||
+                                event.metaKey ||
+                                event.shiftKey
                               )
-                                open(entry);
-                              else select(entry, event);
+                                select(entry, event);
+                              else open(entry);
                             }}
-                            onDoubleClick={() => open(entry)}
                           >
-                            <FileGlyph entry={entry} large />
+                            <div className="flex h-28 w-full items-center justify-center">
+                              <StorageThumbnail
+                                key={`${id}:${entry.key}:${entry.modifiedAt ?? ""}`}
+                                id={id}
+                                entry={entry}
+                                large
+                                fallback={<FileGlyph entry={entry} large />}
+                              />
+                            </div>
                             <span
                               className="w-full truncate text-center text-sm font-medium"
                               title={storageLabel(entry)}
@@ -1566,12 +1602,24 @@ export function StorageBrowser({
           <span>
             {selected.length ? `${selected.length} selected · ` : ""}
             {entries.length} {entries.length === 1 ? "item" : "items"} on this
-            page
+            page · Up to {BROWSE_PAGE_SIZE} items per page
             {page?.maxUploadBytes && writable
               ? ` · Up to ${storageSize(page.maxUploadBytes)} per file`
               : ""}
           </span>
-          <div className="flex gap-2">
+          <nav aria-label="Storage pagination" className="flex gap-2">
+            {currentPageIndex > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={locked || loading}
+                onClick={() => {
+                  navigate(prefix, pageHistory[currentPageIndex - 1]);
+                }}
+              >
+                Previous page
+              </Button>
+            )}
             {cursor && (
               <Button
                 variant="ghost"
@@ -1587,21 +1635,30 @@ export function StorageBrowser({
                 variant="outline"
                 size="sm"
                 disabled={locked}
-                onClick={() => navigate(prefix, page.nextCursor)}
+                onClick={() => {
+                  setPageHistory((history) => {
+                    const index = history.indexOf(cursor);
+                    return [
+                      ...(index >= 0 ? history.slice(0, index + 1) : [cursor]),
+                      page.nextCursor,
+                    ];
+                  });
+                  navigate(prefix, page.nextCursor);
+                }}
               >
                 Next page
                 <ChevronRight className="ml-1 size-3" />
               </Button>
             )}
-          </div>
+          </nav>
         </footer>
       </div>
       <p className="text-xs text-muted-foreground">
         {page?.scope === "disk"
           ? "All files in this storage location."
           : "Your private storage space."}{" "}
-        Double-click to open. Right-click for actions. Sorting and filtering
-        apply to this page.
+        Click to open. Use checkboxes to select. Right-click for actions.
+        Sorting and filtering apply to this page.
       </p>
       {preview && (
         <StoragePreview

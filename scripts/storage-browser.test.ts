@@ -326,6 +326,71 @@ test("storage browser security, streaming, and pagination", async (t) => {
       },
     );
     await t.test(
+      "thumbnails resize private images and reject invalid or oversized sources",
+      async () => {
+        const { auth } = await import("../src/lib/auth");
+        const sharp = (await import("sharp")).default;
+        const { GET } = await import(
+          "../src/app/api/storage-connections/[id]/content/route"
+        );
+        const authMock = t.mock.method(auth.api, "getSession", async () => ({
+          user: { id: "alice", role: "user" },
+        }));
+        const thumbnail = (key: string) =>
+          GET(
+            new Request(
+              `http://localhost/api?${new URLSearchParams({ key, thumbnail: "1" })}`,
+            ),
+            { params: Promise.resolve({ id: "local" }) },
+          );
+        try {
+          const home = path.join(root, "owners/alice/local");
+          await writeFile(
+            path.join(home, "photo.png"),
+            await sharp({
+              create: {
+                width: 1600,
+                height: 1200,
+                channels: 3,
+                background: "#2480ff",
+              },
+            })
+              .png()
+              .toBuffer(),
+          );
+          const response = await thumbnail("photo.png");
+          assert.equal(response.status, 200);
+          assert.equal(response.headers.get("content-type"), "image/webp");
+          assert.equal(
+            response.headers.get("cache-control"),
+            "private, no-store",
+          );
+          const metadata = await sharp(
+            Buffer.from(await response.arrayBuffer()),
+          ).metadata();
+          assert.equal(metadata.width, 320);
+          assert.equal(metadata.height, 240);
+          assert.equal(metadata.exif, undefined);
+          assert.equal((await thumbnail("two/secret.png")).status, 404);
+          assert.equal((await thumbnail("one/image.svg")).status, 415);
+          await writeFile(path.join(home, "invalid.png"), "not an image");
+          assert.equal((await thumbnail("invalid.png")).status, 415);
+          await writeFile(
+            path.join(home, "disguised.png"),
+            '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" /></svg>',
+          );
+          assert.equal((await thumbnail("disguised.png")).status, 415);
+          await writeFile(
+            path.join(home, "oversized.png"),
+            Buffer.alloc(10 * 1024 * 1024 + 1),
+          );
+          assert.equal((await thumbnail("oversized.png")).status, 413);
+        } finally {
+          authMock.mock.restore();
+        }
+      },
+    );
+    await t.test(
       "saved S3 connections retain their owner binding and private prefix",
       async () => {
         const { auth } = await import("../src/lib/auth");

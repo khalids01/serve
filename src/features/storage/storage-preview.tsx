@@ -25,6 +25,38 @@ export function storageContentURL(id: string, entry: BrowseEntry) {
 }
 const imagePattern = /\.(png|jpe?g|gif|webp|avif)$/i;
 const textPattern = /\.(txt|md|json|csv|log|ya?ml|xml|html|css|[jt]sx?)$/i;
+export function StorageThumbnail({
+  id,
+  entry,
+  large,
+  fallback,
+}: {
+  id: string;
+  entry: BrowseEntry;
+  large: boolean;
+  fallback: React.ReactNode;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed || entry.kind !== "file" || !imagePattern.test(entry.key))
+    return fallback;
+  return (
+    // biome-ignore lint/performance/noImgElement: Authenticated, lazy, server-sized thumbnail.
+    <img
+      src={`${storageContentURL(id, entry)}&thumbnail=1`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      width={large ? 160 : 36}
+      height={large ? 112 : 36}
+      className={
+        large
+          ? "h-28 w-full rounded-md object-contain"
+          : "size-9 shrink-0 rounded object-cover"
+      }
+      onError={() => setFailed(true)}
+    />
+  );
+}
 export function StoragePreview({
   id,
   entry,
