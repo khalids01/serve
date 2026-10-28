@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, emailOTP } from "better-auth/plugins";
 import { config } from "@/config";
+import { enforceSignupPolicy, getSignupEnabled } from "./auth-settings";
 import { sendSignInOTPEmail } from "./email";
 import { prisma } from "./prisma";
 
@@ -13,25 +14,42 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: false,
   },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          await enforceSignupPolicy();
+          return { data: user };
+        },
+      },
+    },
+  },
   socialProviders: {
     ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ? { github: {
-          clientId: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
-          disableSignUp: !config.auth.enableSignup,
-        } }
+      ? {
+          github: {
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          },
+        }
       : {}),
   },
   plugins: [
     emailOTP({
-      async sendVerificationOTP({ email, otp }) {
+      async sendVerificationOTP({ email, otp, type }) {
+        if (type === "sign-in" && !(await getSignupEnabled())) {
+          const existing = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+            select: { id: true },
+          });
+          if (!existing) return;
+        }
         await sendSignInOTPEmail(email, otp);
       },
       otpLength: 6,
       expiresIn: 600,
       allowedAttempts: 3,
       storeOTP: "hashed",
-      disableSignUp: !config.auth.enableSignup,
     }),
     admin({
       defaultRole: "user",

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { protect } from "@/features/auth/guard";
+import { protectAdmin } from "@/features/auth/guard";
 import { getBackupFileForDownload } from "@/lib/backups";
 
 function sanitizeFilename(filename: string) {
@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await protect(request);
+    const auth = await protectAdmin(request);
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;

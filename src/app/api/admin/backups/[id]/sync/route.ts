@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { protect } from "@/features/auth/guard";
+import { protectAdmin } from "@/features/auth/guard";
 import { syncImageMetadataFromBackup } from "@/lib/backups";
 
 export async function POST(
@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await protect(request);
+    const auth = await protectAdmin(request);
     if (auth instanceof NextResponse) return auth;
     const { id } = await params;
     const result = await syncImageMetadataFromBackup(id);

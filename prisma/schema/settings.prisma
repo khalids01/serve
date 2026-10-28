@@ -1,0 +1,5 @@
+model AuthSettings {
+  id            String   @id @default("default")
+  signupEnabled Boolean  @default(false)
+  updatedAt     DateTime @default(now()) @updatedAt
+}

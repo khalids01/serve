@@ -61,6 +61,8 @@ COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
 COPY --from=builder --chown=appuser:appuser /app/public ./public
 COPY --from=builder --chown=appuser:appuser /app/prisma ./prisma
 
+COPY --chown=appuser:appuser scripts/bootstrap-admin.mjs ./docker/bootstrap-admin.mjs
+
 # ---- Uploads ----
 ENV UPLOAD_DIR=/uploads
 ENV PORT=3002
@@ -71,4 +73,4 @@ USER appuser
 EXPOSE 3002
 
 # ---- Runtime: DB exists here ----
-CMD ["node", "server.js"]
+CMD ["sh", "-ec", "if [ -n \"${ADMIN_EMAIL:-}\" ]; then node /app/docker/bootstrap-admin.mjs; fi; exec node server.js"]

@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { protect } from "@/features/auth/guard";
-import { listBackupsPaginated, type BackupListParams } from "@/lib/backups";
+import { protectAdmin } from "@/features/auth/guard";
+import { type BackupListParams, listBackupsPaginated } from "@/lib/backups";
 import type { BackupPeriod, BackupType } from "@/lib/prisma-types";
 
-function parseBackupListParams(searchParams: URLSearchParams): BackupListParams {
+function parseBackupListParams(
+  searchParams: URLSearchParams,
+): BackupListParams {
   const type = searchParams.get("type");
   const period = searchParams.get("period");
   const status = searchParams.get("status");
@@ -13,12 +15,8 @@ function parseBackupListParams(searchParams: URLSearchParams): BackupListParams 
 
   return {
     page: Math.max(1, Number(searchParams.get("page") || 1)),
-    limit: Math.min(
-      100,
-      Math.max(5, Number(searchParams.get("limit") || 20)),
-    ),
-    type:
-      type === "json" || type === "sql" ? (type as BackupType) : undefined,
+    limit: Math.min(100, Math.max(5, Number(searchParams.get("limit") || 20))),
+    type: type === "json" || type === "sql" ? (type as BackupType) : undefined,
     period:
       period === "daily" || period === "weekly" || period === "monthly"
         ? (period as BackupPeriod)
@@ -42,7 +40,7 @@ function parseBackupListParams(searchParams: URLSearchParams): BackupListParams 
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await protect(request);
+    const auth = await protectAdmin(request);
     if (auth instanceof NextResponse) return auth;
 
     const { searchParams } = new URL(request.url);

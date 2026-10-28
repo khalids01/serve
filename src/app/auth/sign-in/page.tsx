@@ -1,14 +1,16 @@
-import { SignInForm } from "@/features/auth/sign-in-form"
-import { PublicHeader } from "@/components/core/public-header"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { config } from "@/config"
+import { PublicHeader } from "@/components/core/public-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SignInForm } from "@/features/auth/sign-in-form";
+import { getSignupEnabled } from "@/lib/auth-settings";
 
-export default function SignInPage() {
-  const signupEnabled = config.auth.enableSignup
+export const dynamic = "force-dynamic";
+
+export default async function SignInPage() {
+  const signupEnabled = await getSignupEnabled();
   return (
     <div className="min-h-screen">
       <PublicHeader />
-      
+
       <main className="container mx-auto py-24">
         <div className="flex flex-col items-center justify-center space-y-8">
           <div className="text-center space-y-2">
@@ -21,14 +23,20 @@ export default function SignInPage() {
             <Alert className="max-w-md">
               <AlertTitle>New signups are disabled</AlertTitle>
               <AlertDescription>
-                Only existing users can sign in. Contact your administrator to request access.
+                Only existing users can sign in. Contact your administrator to
+                request access.
               </AlertDescription>
             </Alert>
           )}
-          
-          <SignInForm signupEnabled={signupEnabled} githubEnabled={Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET)} />
+
+          <SignInForm
+            signupEnabled={signupEnabled}
+            githubEnabled={Boolean(
+              process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
+            )}
+          />
         </div>
       </main>
     </div>
-  )
+  );
 }

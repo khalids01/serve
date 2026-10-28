@@ -78,10 +78,6 @@ export const config = {
     },
   },
 
-  auth: {
-    enableSignup: process.env.ENABLE_SIGNUP === "true",
-  },
-
   email: {
     host: "smtp.gmail.com",
     port: 465,

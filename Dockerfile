@@ -55,6 +55,7 @@ COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/prisma/generated ./prisma/generated
+COPY --chown=node:node scripts/bootstrap-admin.mjs ./docker/bootstrap-admin.mjs
 COPY --chown=node:node docker/validate-env.mjs ./docker/validate-env.mjs
 COPY --chown=node:node --chmod=755 docker/entrypoint.sh ./docker/entrypoint.sh
 RUN mkdir -p /uploads && chown node:node /uploads
