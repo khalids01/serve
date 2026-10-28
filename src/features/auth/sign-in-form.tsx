@@ -16,14 +16,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 
+const oauthErrors: Record<string, string> = {
+  account_not_linked:
+    "An account with this email already exists, but GitHub is not linked. Sign in once using an emailed code for the same address, then try GitHub again. Make sure that email is verified on GitHub too.",
+  signup_disabled:
+    "New signups are disabled. Existing users can still sign in.",
+  access_denied:
+    "GitHub authorization was cancelled or denied. Please try again.",
+  state_mismatch:
+    "Your sign-in attempt expired or could not be verified. Please try again from this page.",
+};
+
 export function SignInForm({
   signupEnabled = true,
   githubEnabled = false,
   mode = "sign-in",
+  oauthError,
 }: {
   signupEnabled?: boolean;
   githubEnabled?: boolean;
   mode?: "sign-in" | "sign-up";
+  oauthError?: string;
 }) {
   const signingUp = mode === "sign-up";
   const router = useRouter();
@@ -31,7 +44,13 @@ export function SignInForm({
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    oauthError
+      ? Object.hasOwn(oauthErrors, oauthError)
+        ? oauthErrors[oauthError]
+        : "GitHub sign-in failed. Please try again or sign in using an emailed code."
+      : null,
+  );
   const [resendAt, setResendAt] = useState(0);
 
   async function run(action: () => Promise<void>) {
@@ -88,7 +107,7 @@ export function SignInForm({
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

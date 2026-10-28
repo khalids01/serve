@@ -6,7 +6,12 @@ import { getSignupEnabled } from "@/lib/auth-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const { error } = await searchParams;
   const signupEnabled = await getSignupEnabled();
   return (
     <div className="min-h-screen">
@@ -31,6 +36,7 @@ export default async function SignInPage() {
           )}
 
           <SignInForm
+            oauthError={typeof error === "string" ? error : undefined}
             signupEnabled={signupEnabled}
             githubEnabled={Boolean(
               process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,

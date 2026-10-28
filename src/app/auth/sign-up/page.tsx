@@ -6,7 +6,12 @@ import { getSignupEnabled } from "@/lib/auth-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const { error } = await searchParams;
   const signupEnabled = await getSignupEnabled();
   return (
     <div className="min-h-screen">
@@ -23,6 +28,7 @@ export default async function SignUpPage() {
           </div>
           {signupEnabled ? (
             <SignInForm
+              oauthError={typeof error === "string" ? error : undefined}
               mode="sign-up"
               signupEnabled={signupEnabled}
               githubEnabled={Boolean(
