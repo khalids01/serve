@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -195,8 +195,168 @@ async function main() {
       await prisma.imageApplication.findUnique({ where: { id: a.entryId } }),
       null,
     );
+    const { importStorageItems } = await import("../src/lib/storage/import");
+    const { maxFileSizeBytes } = await import("../src/config");
+    const sharp = (await import("sharp")).default;
+    const incoming = path.join(directory, `owners/${ownerId}/local/incoming`);
+    await mkdir(path.join(incoming, "kit/nested"), { recursive: true });
+    await writeFile(
+      path.join(incoming, "clip.webm"),
+      Buffer.from("webm streaming test"),
+    );
+    await writeFile(
+      path.join(incoming, "manual.pdf"),
+      Buffer.from("%PDF-1.4 import test"),
+    );
+    await writeFile(
+      path.join(incoming, "kit/nested/note.txt"),
+      "imported from storage",
+    );
+    const picture = await sharp({
+      create: { width: 64, height: 48, channels: 3, background: "#4488ff" },
+    })
+      .png()
+      .toBuffer();
+    const webp = await sharp(picture).webp().toBuffer();
+    for (const suffix of [
+      ".png",
+      ".webp",
+      "-placeholder.png",
+      "-placeholder.webp",
+    ])
+      await writeFile(
+        path.join(incoming, `kit/000000000000aaaa${suffix}`),
+        suffix.endsWith("webp") ? webp : picture,
+      );
+    const user = { id: ownerId, role: "user" };
+    const imported = await importStorageItems(user, "local", {
+      applicationId: app.id,
+      keys: ["incoming/clip.webm", "incoming/manual.pdf", "incoming/kit/"],
+    });
+    assert.equal(imported.failed, 0, JSON.stringify(imported));
+    assert.equal(
+      imported.imported,
+      4,
+      "An image family imports as one image, and folders retain nested files",
+    );
+    const importedLinks = await prisma.imageApplication.findMany({
+      where: {
+        id: { in: imported.results.map((result) => result.entryId ?? "") },
+      },
+      include: { image: { include: { variants: true } }, folder: true },
+    });
+    assert.equal(importedLinks.length, 4);
+    assert.equal(
+      importedLinks.find((link) => link.originalName === "note.txt")?.folder
+        ?.name,
+      "nested",
+    );
+    assert.equal(
+      importedLinks.find((link) => link.originalName.endsWith("aaaa.png"))
+        ?.image.variants.length,
+      3,
+    );
+    for (const link of importedLinks.filter((link) =>
+      ["clip.webm", "manual.pdf"].includes(link.originalName),
+    )) {
+      const backend = await getStorageForImage(link.image);
+      assert.deepEqual(
+        await backend.get(blobKey(link.image.filename)),
+        await (await import("node:fs/promises")).readFile(
+          path.join(incoming, link.originalName),
+        ),
+      );
+    }
+    const beforeRetry = await prisma.imageApplication.count({
+      where: { applicationId: app.id },
+    });
+    const retry = await importStorageItems(user, "local", {
+      applicationId: app.id,
+      keys: ["incoming/clip.webm", "incoming/manual.pdf", "incoming/kit/"],
+    });
+    assert.equal(retry.failed, 0);
+    assert.equal(
+      await prisma.imageApplication.count({ where: { applicationId: app.id } }),
+      beforeRetry,
+      "Retry reuses application entries instead of duplicating files",
+    );
+    const foreign = await prisma.application.create({
+      data: {
+        ownerId: "other-owner",
+        name: "Foreign application",
+        slug: `foreign-${randomUUID()}`,
+        storageDir: "unused",
+        defaultStorageLocationId: "local",
+      },
+    });
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "local", {
+          applicationId: foreign.id,
+          keys: ["incoming/clip.webm"],
+        }),
+      /Application not found/,
+    );
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "foreign-connection", {
+          applicationId: app.id,
+          keys: ["incoming/clip.webm"],
+        }),
+      /does not belong/,
+    );
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "local", {
+          applicationId: app.id,
+          keys: ["owners/other-owner/local/secret.txt"],
+        }),
+      /no longer exists/,
+    );
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "local", {
+          applicationId: app.id,
+          keys: [".serve-trash/secret"],
+        }),
+      /Restore deleted/,
+    );
+    await assert.rejects(() =>
+      importStorageItems(user, "local", {
+        applicationId: app.id,
+        keys: ["../secret"],
+      }),
+    );
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "local", {
+          applicationId: app.id,
+          keys: ["missing-folder/"],
+        }),
+      /no longer exists/,
+    );
+    await writeFile(path.join(incoming, "too-large.bin"), "");
+    await truncate(
+      path.join(incoming, "too-large.bin"),
+      maxFileSizeBytes() + 1,
+    );
+    await assert.rejects(
+      () =>
+        importStorageItems(user, "local", {
+          applicationId: app.id,
+          keys: ["incoming/too-large.bin"],
+        }),
+      /upload limit/,
+    );
+    await writeFile(path.join(incoming, "invalid.png"), "not an image");
+    const partial = await importStorageItems(user, "local", {
+      applicationId: app.id,
+      keys: ["incoming/clip.webm", "incoming/invalid.png"],
+    });
+    assert.equal(partial.imported, 1);
+    assert.equal(partial.failed, 1);
     console.log(
-      "Storage integration passed: migrations, deduplication, verified moves, stable URLs, aliases, folder cycles, copy, Trash/restore, ownership, and purge.",
+      "Storage integration passed: migrations, deduplication, verified moves, stable URLs, aliases, folder cycles, copy, Trash/restore, ownership, purge, storage imports, streamed media copies, grouped image imports, retry deduplication, and import access limits.",
     );
   } finally {
     await prisma.$disconnect();

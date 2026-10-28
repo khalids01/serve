@@ -232,7 +232,13 @@ Raster thumbnails load lazily through the authenticated content route and are re
 to fit 320 × 240 pixels. Source images are limited to 10 MiB and 25 million pixels;
 invalid images fall back to file icons.
 
-Raster image previews are limited to 10 MiB; text to 1 MiB. HTML and code display
+Raster image previews are limited to 10 MiB; text to 1 MiB. Videos, audio,
+and PDFs stream directly through the authenticated content route with byte-range
+support, so playback and seeking do not buffer the whole file. MP4/WebM/QuickTime
+video, MP3/WAV/M4A/Ogg/FLAC audio, PDFs, common raster images, and text/code/CSV/JSON
+files can be previewed when supported by the browser. Unsupported formats and
+codecs offer a download fallback. PDFs and text can also be previewed in the
+application file manager. HTML and code display
 as plain text; SVG and other active content are download-only. Listing, previews,
 and downloads require a session; writes also validate request origin. Private
 responses are not cached and storage credentials stay on the server.
@@ -275,3 +281,20 @@ session. Application API keys cannot administer these settings. New-user creatio
 checks the current signup setting for every OTP/OAuth attempt; existing accounts
 can still sign in while registration is disabled. No restart is needed after
 changing the toggle.
+
+### Add storage items to an application
+
+Select one or more files or folders in Storage, then choose **Add to application**
+from the toolbar, right-click menu, or touch menu. Pick an existing application
+from the searchable, paginated list. This copies into that application's configured
+storage and creates entries in its Files view; the source is never moved or deleted.
+Both source-storage access and destination-application ownership are checked.
+
+Folder structure is preserved, and image families import once with generated
+WebP/placeholder variants. Copies run sequentially; videos and other non-optimized
+files stream through private temporary files rather than full in-memory buffers.
+Limits are the configured upload size (at most 500 MiB per file), 100 files,
+500 MiB total, and 1,000 files/folders per operation. Optimized image imports also
+have a 64 MiB / 40-million-pixel processing limit. Temporary files are removed on
+success or failure. Partial failures are listed individually; retrying the original
+selection preserves folders and reuses existing application entries.

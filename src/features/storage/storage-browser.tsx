@@ -71,6 +71,7 @@ import {
 } from "@/lib/storage/browse";
 import { StorageDestinationDialog } from "./storage-destination-dialog";
 import { readDroppedFiles } from "./storage-drop";
+import { StorageImportDialog } from "./storage-import-dialog";
 import {
   StoragePreview,
   StorageThumbnail,
@@ -99,6 +100,7 @@ type DialogState = {
   entries: BrowseEntry[];
 };
 type ActionName =
+  | "add-to-application"
   | "open"
   | "download"
   | "rename"
@@ -152,7 +154,7 @@ function SelectionCheckbox({
       />
       <Check
         aria-hidden="true"
-        className={`size-3.5 ${checked ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none size-3.5 ${checked ? "opacity-100" : "opacity-0"}`}
       />
     </label>
   );
@@ -222,6 +224,7 @@ export function StorageBrowser({
   const [dialogError, setDialogError] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<BrowseEntry>();
+  const [importEntries, setImportEntries] = useState<BrowseEntry[]>();
   const [dragging, setDragging] = useState(false);
   const [upload, setUpload] = useState<{
     name: string;
@@ -243,7 +246,7 @@ export function StorageBrowser({
   const { rectangle, areaProps, touchSelection } = useStorageSelection({
     selection,
     setSelection,
-    enabled: !locked && !loading && !dialog && !preview,
+    enabled: !locked && !loading && !dialog && !preview && !importEntries,
     scope: `${id}:${prefix}:${cursor ?? ""}:${trash}:${view}`,
   });
   const parts = prefix.split("/").filter(Boolean);
@@ -438,6 +441,10 @@ export function StorageBrowser({
   }
   function handleAction(action: ActionName, items: BrowseEntry[]) {
     if (!items.length || locked) return;
+    if (action === "add-to-application") {
+      setImportEntries(items);
+      return;
+    }
     if (action === "open") return open(items[0]);
     if (action === "details") return setPreview(items[0]);
     if (action === "download") {
@@ -475,6 +482,12 @@ export function StorageBrowser({
       items.length > 0 &&
       items.every((entry) => !entry.protected);
     return [
+      {
+        action: "add-to-application" as const,
+        label: "Add to application",
+        icon: FolderPlus,
+        show: !trash,
+      },
       {
         action: "open" as const,
         label: "Open",
@@ -1079,6 +1092,15 @@ export function StorageBrowser({
                   </>
                 ) : (
                   <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={locked}
+                      onClick={() => setImportEntries(selected)}
+                    >
+                      <FolderPlus className="mr-2 size-4" />
+                      Add to application
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1750,6 +1772,13 @@ export function StorageBrowser({
         screens. Right-click for actions. Sorting and filtering apply to this
         page.
       </p>
+      {importEntries && (
+        <StorageImportDialog
+          id={id}
+          entries={importEntries}
+          onClose={() => setImportEntries(undefined)}
+        />
+      )}
       {preview && (
         <StoragePreview
           key={entryId(preview)}

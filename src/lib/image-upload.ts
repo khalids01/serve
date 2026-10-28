@@ -68,7 +68,11 @@ export async function processImageUpload(
   contentType: string,
   applicationId: string,
   tags?: string[] | null,
-  options: { folderId?: string | null; storageLocationId?: string } = {},
+  options: {
+    folderId?: string | null;
+    storageLocationId?: string;
+    reuseEntry?: boolean;
+  } = {},
 ) {
   const application = await prisma.application.findUniqueOrThrow({
     where: { id: applicationId },
@@ -95,15 +99,26 @@ export async function processImageUpload(
       });
       let entryId: string;
       if (image) {
-        const entry = await db.imageApplication.create({
-          data: {
-            imageId: image.id,
-            applicationId,
-            originalName,
-            tags: tags ?? undefined,
-            folderId: options.folderId ?? null,
-          },
-        });
+        const entry =
+          (options.reuseEntry &&
+            (await db.imageApplication.findFirst({
+              where: {
+                imageId: image.id,
+                applicationId,
+                originalName,
+                folderId: options.folderId ?? null,
+                deletedAt: null,
+              },
+            }))) ||
+          (await db.imageApplication.create({
+            data: {
+              imageId: image.id,
+              applicationId,
+              originalName,
+              tags: tags ?? undefined,
+              folderId: options.folderId ?? null,
+            },
+          }));
         entryId = entry.id;
         image = await db.image.findUniqueOrThrow({
           where: { id: image.id },

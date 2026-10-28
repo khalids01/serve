@@ -75,6 +75,23 @@ export async function parseUpload(
   }
   const contentType = file.type || "application/octet-stream";
   const buffer = Buffer.from(await file.arrayBuffer());
+  await validateUploadImage(buffer, name, contentType);
+  return {
+    buffer,
+    filename: name,
+    contentType,
+    tags,
+    saveMode: form.get("saveMode"),
+    folderId: form.get("folderId"),
+    storageLocationId: form.get("storageLocationId"),
+  };
+}
+
+export async function validateUploadImage(
+  buffer: Buffer,
+  name: string,
+  contentType: string,
+) {
   if (contentType.startsWith("image/") && contentType !== "image/svg+xml") {
     try {
       const metadata = await sharp(buffer, {
@@ -116,13 +133,4 @@ export async function parseUpload(
       );
     }
   }
-  return {
-    buffer,
-    filename: name,
-    contentType,
-    tags,
-    saveMode: form.get("saveMode"),
-    folderId: form.get("folderId"),
-    storageLocationId: form.get("storageLocationId"),
-  };
 }
