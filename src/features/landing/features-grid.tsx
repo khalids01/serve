@@ -1,13 +1,13 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  ShieldCheck,
-  Zap,
+  Globe2,
   Layers3,
   Lock,
-  Globe2,
   ServerCog,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
   {
@@ -53,8 +53,8 @@ const items = [
     accent: "text-sky-500",
   },
   {
-    title: "Data backup & restore",
-    desc: "Scheduled JSON/SQL backups with scan-from-storage disaster recovery.",
+    title: "Local file protection",
+    desc: "Background S3 copies of new local uploads with file and application JSON metadata.",
     Icon: ServerCog,
     accent: "text-orange-500",
   },
@@ -64,7 +64,9 @@ export function FeaturesGrid() {
   return (
     <section className="container mx-auto py-16 md:py-24">
       <div className="mx-auto max-w-3xl text-center space-y-3">
-        <Badge variant="outline" className="mx-auto">Features</Badge>
+        <Badge variant="outline" className="mx-auto">
+          Features
+        </Badge>
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
           Simple, powerful storage
         </h2>

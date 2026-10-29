@@ -91,7 +91,7 @@ type QueueItem = {
   error?: string;
   applicationId: string;
   folderId: string | null;
-  location: string;
+  location?: string;
 };
 const bytes = (value: number) =>
   value < 1024
@@ -148,6 +148,7 @@ export function FileManager() {
     [target, setTarget] = useState(""),
     [targetStorage, setTargetStorage] = useState(""),
     [location, setLocation] = useState("default"),
+    [uploadDestination, setUploadDestination] = useState(""),
     [queue, setQueue] = useState<QueueItem[]>([]);
   const requests = useRef(new Map<string, XMLHttpRequest>()),
     fileInput = useRef<HTMLInputElement>(null),
@@ -389,7 +390,7 @@ export function FileManager() {
       };
       const form = new FormData();
       form.set("file", item.file);
-      form.set("storageLocationId", item.location);
+      if (item.location) form.set("storageLocationId", item.location);
       if (item.folderId) form.set("folderId", item.folderId);
       xhr.send(form);
     }
@@ -413,7 +414,7 @@ export function FileManager() {
           progress: 0,
           applicationId,
           folderId: position.folderId,
-          location,
+          location: uploadDestination || undefined,
         })),
     ]);
   };
@@ -568,6 +569,7 @@ export function FileManager() {
               </label>
               <StorageLocationSelect
                 value={location}
+                defaultLabel="System default upload destination"
                 disabled={busy}
                 onChange={(value) =>
                   void act({ action: "set-storage", storageLocationId: value })
@@ -664,6 +666,12 @@ export function FileManager() {
             <div className="flex flex-wrap items-center gap-2 border-b p-3">
               {position.view === "files" && (
                 <>
+                  <StorageLocationSelect
+                    value={uploadDestination}
+                    onChange={setUploadDestination}
+                    inheritedLabel="Upload to application default"
+                    disabled={busy || !applicationId}
+                  />
                   <Button
                     size="sm"
                     disabled={busy || !applicationId}

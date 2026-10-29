@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardData } from "@/features/dashboard/hooks/use-dashboard";
 import { useEmailConfig } from "@/features/settings/hooks/use-email-config";
+import { StorageDefaultsForm } from "@/features/storage/storage-policies";
 
 export function SettingsPage({
   initialSignupEnabled,
@@ -70,6 +71,7 @@ export function SettingsPage({
         </div>
 
         <div className="space-y-6">
+          <StorageDefaultsForm />
           <Card>
             <CardHeader>
               <CardTitle>Account registration</CardTitle>

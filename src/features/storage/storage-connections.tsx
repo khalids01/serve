@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  LocalBackupSettings,
+  type StorageDefaults,
+  StorageDefaultsForm,
+} from "./storage-policies";
 
 type Connection = {
   id: string;
@@ -35,9 +40,13 @@ type Connection = {
   forcePathStyle: boolean;
   enabled: boolean;
   credentialsConfigured: boolean;
+  deliveryMode: "proxy" | "direct";
 };
 type Listing = {
   encryptionReady: boolean;
+  canManageDefaults: boolean;
+  storageSettings: StorageDefaults;
+  defaultProvider: string;
   builtins: { id: string; name: string; enabled: boolean }[];
   connections: Connection[];
 };
@@ -85,6 +94,7 @@ const blank = {
   forcePathStyle: true,
   accessKeyId: "",
   secretAccessKey: "",
+  deliveryMode: "proxy" as "proxy" | "direct",
 };
 async function request(url: string, method = "GET", body?: unknown) {
   const response = await fetch(url, {
@@ -205,6 +215,28 @@ export function StorageConnections() {
           Loading drives…
         </p>
       )}
+      {listing?.canManageDefaults && (
+        <StorageDefaultsForm
+          initial={listing.storageSettings}
+          onSaved={() => void load()}
+        />
+      )}
+      {listing && (
+        <LocalBackupSettings
+          connections={listing.connections}
+          defaultS3={Boolean(
+            listing.defaultProvider === "s3" && listing.builtins[0]?.enabled,
+          )}
+        />
+      )}
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/storage-jobs">Transfers and file backups</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <a href="/api/file-manifest">Export file metadata JSON</a>
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         {listing?.builtins.map((location) => (
           <article
@@ -305,6 +337,30 @@ export function StorageConnections() {
                 Browse files
               </Link>
             </Button>
+            <div className="mt-4 space-y-2">
+              <Label htmlFor={`delivery-${connection.id}`}>Delivery mode</Label>
+              <select
+                id={`delivery-${connection.id}`}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={connection.deliveryMode}
+                disabled={!!busy}
+                onChange={(event) =>
+                  void act(
+                    connection.id,
+                    () =>
+                      request(
+                        `/api/storage-connections/${connection.id}`,
+                        "PATCH",
+                        { deliveryMode: event.target.value },
+                      ),
+                    "Delivery mode saved",
+                  )
+                }
+              >
+                <option value="proxy">Proxy — through Serve</option>
+                <option value="direct">Direct — signed S3 URLs</option>
+              </select>
+            </div>
             <details className="mt-4">
               <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
                 Connection settings
@@ -341,6 +397,7 @@ export function StorageConnections() {
                       forcePathStyle: connection.forcePathStyle,
                       accessKeyId: "",
                       secretAccessKey: "",
+                      deliveryMode: connection.deliveryMode,
                     });
                     setOpen(true);
                   }}

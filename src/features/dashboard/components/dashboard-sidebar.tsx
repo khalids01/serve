@@ -67,12 +67,11 @@ const navItems = [
     isActive: (pathname: string) => pathname.startsWith("/dashboard/cache"),
   },
   {
-    title: "Data Backup",
-    href: "/dashboard/data-backup",
+    title: "Storage jobs",
+    href: "/dashboard/storage-jobs",
     icon: Archive,
     isActive: (pathname: string) =>
-      pathname.startsWith("/dashboard/data-backup") ||
-      pathname.startsWith("/dashboard/backups"),
+      pathname.startsWith("/dashboard/storage-jobs"),
   },
   {
     title: "Profile",
@@ -127,11 +126,9 @@ export function DashboardSidebar() {
               {navItems
                 .filter(
                   (item) =>
-                    ![
-                      "/dashboard/settings",
-                      "/dashboard/data-backup",
-                      "/dashboard/users",
-                    ].includes(item.href) || session?.user.role === "admin",
+                    !["/dashboard/settings", "/dashboard/users"].includes(
+                      item.href,
+                    ) || session?.user.role === "admin",
                 )
                 .map((item) => (
                   <SidebarMenuItem

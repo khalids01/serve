@@ -6,11 +6,15 @@ export function StorageLocationSelect({
   onChange,
   disabled = false,
   className = "",
+  inheritedLabel,
+  defaultLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   className?: string;
+  inheritedLabel?: string;
+  defaultLabel?: string;
 }) {
   const [options, setOptions] = useState<LocationOption[]>([]);
   useEffect(() => {
@@ -32,6 +36,7 @@ export function StorageLocationSelect({
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
     >
+      {inheritedLabel && <option value="">{inheritedLabel}</option>}
       {!options.length && (
         <>
           <option value="default">Default storage</option>
@@ -39,9 +44,17 @@ export function StorageLocationSelect({
         </>
       )}
       {options.map((option) => (
-        <option key={option.id} value={option.id} disabled={!option.enabled}>
-          {option.name}
-          {!option.enabled ? " — unavailable" : ""}
+        <option
+          key={option.id}
+          value={option.id}
+          disabled={
+            !option.enabled && !(option.id === "default" && defaultLabel)
+          }
+        >
+          {option.id === "default" && defaultLabel ? defaultLabel : option.name}
+          {!option.enabled && !(option.id === "default" && defaultLabel)
+            ? " — unavailable"
+            : ""}
         </option>
       ))}
     </select>

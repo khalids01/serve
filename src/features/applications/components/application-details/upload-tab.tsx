@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Application } from "@/features/applications/hooks/use-application-data";
+import { StorageLocationSelect } from "@/features/storage/location-select";
 import type { Image, ImageVariant } from "@/lib/prisma-types";
 
 type UploadSuccess = {
@@ -134,6 +135,7 @@ export function UploadPanel({
 }: UploadPanelProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [tags, setTags] = useState("");
+  const [storageLocationId, setStorageLocationId] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const uploadingIdsRef = useRef(new Set<string>());
   const previewUrlsRef = useRef(new Set<string>());
@@ -240,6 +242,8 @@ export function UploadPanel({
     const formData = new FormData();
     formData.append("file", fileData.file);
     formData.append("applicationId", applicationId);
+    if (storageLocationId)
+      formData.append("storageLocationId", storageLocationId);
     if (tags) {
       formData.append(
         "tags",
@@ -578,6 +582,15 @@ export function UploadPanel({
             <CardDescription>Configure your upload preferences</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Upload destination</Label>
+              <StorageLocationSelect
+                value={storageLocationId}
+                onChange={setStorageLocationId}
+                inheritedLabel="Use application default"
+                className="w-full"
+              />
+            </div>
             {showAppSelector && (
               <div>
                 <div className="flex items-center justify-between mb-2">
