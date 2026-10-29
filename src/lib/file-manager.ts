@@ -1,11 +1,13 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
 import { withBlobLock } from "@/lib/blob-lock";
 import { collectUnusedImages, purgeFileEntry } from "@/lib/file-deletion";
-import { imageInclude } from "@/lib/image-response";
+import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/prisma-types";
+import { copyVerified } from "@/lib/storage/copy-verified";
+import { assertBackupFinished } from "@/lib/storage/jobs";
 import { blobKey } from "@/lib/storage/keys";
 import {
   assertLocationAccess,
@@ -222,9 +224,11 @@ async function copyBlob(
   entry: Awaited<ReturnType<typeof selected>>["files"][number],
   applicationId: string,
   locationChoice: string,
+  moving = false,
 ) {
   const target = await resolveUploadLocation(applicationId, locationChoice);
   if (target.id === entry.image.storageLocationId) return entry.imageId;
+  if (moving) await assertBackupFinished(target.ownerId, entry.imageId);
   const source = await getStorageForImage(entry.image);
   return withBlobLock(`${target.id}:${entry.image.hash}`, async (tx) => {
     const existing = await tx.image.findUnique({
@@ -245,26 +249,30 @@ async function copyBlob(
           : entry.image.contentType,
       })),
     ]) {
-      const data = await source.get(blobKey(item.filename));
-      if (!data)
+      const candidates = [
+        blobKey(item.filename),
+        ...getLegacyTenantKeys(entry.image).map(
+          (tenant) => `${tenant}/${item.filename}`,
+        ),
+      ];
+      let sourceKey: string | undefined;
+      for (const candidate of candidates)
+        if (await source.stat(candidate)) {
+          sourceKey = candidate;
+          break;
+        }
+      if (!sourceKey)
         throw new StorageLocationError(
           "Source file is missing from storage.",
           409,
         );
-      if (!existing)
-        await target.storage.put(blobKey(item.filename), data, {
-          contentType: item.contentType,
-        });
-      const verified = await target.storage.get(blobKey(item.filename));
-      if (
-        !verified ||
-        createHash("sha256").update(data).digest("hex") !==
-          createHash("sha256").update(verified).digest("hex")
-      )
-        throw new StorageLocationError(
-          "Copy verification failed. The original file has been retained.",
-          502,
-        );
+      await copyVerified(
+        source,
+        target.storage,
+        sourceKey,
+        blobKey(item.filename),
+        item.contentType,
+      );
     }
     if (existing) return existing.id;
     const image = await tx.image.create({
@@ -588,6 +596,7 @@ async function performOperation(
             entry,
             applicationId,
             input.storageLocationId,
+            true,
           );
           const result = await prisma.imageApplication.updateMany({
             where: {
@@ -613,7 +622,12 @@ async function performOperation(
       (entry) => !entry.folderId || !subtree.includes(entry.folderId),
     )) {
       const imageId = input.storageLocationId
-        ? await copyBlob(entry, applicationId, input.storageLocationId)
+        ? await copyBlob(
+            entry,
+            applicationId,
+            input.storageLocationId,
+            input.action === "move",
+          )
         : entry.imageId;
       if (input.action === "copy") {
         const ext = path.extname(entry.originalName),

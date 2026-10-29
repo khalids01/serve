@@ -3,6 +3,7 @@ import { FileStorageService } from "@/lib/file-storage";
 import { formatImageResponse, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/lib/prisma-types";
+import { queueImageBackup } from "@/lib/storage/backup-queue";
 import { contentHash16 } from "@/lib/storage/hash";
 import {
   resolveUploadLocation,
@@ -145,6 +146,7 @@ export async function processImageUpload(
             data: { folderId: options.folderId },
           });
       }
+      await queueImageBackup(db, image.id, location);
       return { ...formatImageResponse(image, applicationId, entryId), entryId };
     });
   });

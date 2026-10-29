@@ -4,6 +4,6 @@ export async function register() {
     process.env.NEXT_PHASE === "phase-production-build"
   )
     return;
-  const { startBackupScheduler } = await import("@/lib/backup-scheduler");
-  await startBackupScheduler();
+  const { startStorageWorker } = await import("@/lib/storage/jobs");
+  startStorageWorker();
 }

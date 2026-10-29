@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), startBackup: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), startWorker: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { application: { findFirst: mocks.findFirst } },
 }));
-vi.mock("@/lib/backup-scheduler", () => ({
-  startBackupScheduler: mocks.startBackup,
+vi.mock("@/lib/storage/jobs", () => ({
+  startStorageWorker: mocks.startWorker,
 }));
 
 import { GET } from "../../src/app/api/health/route";
@@ -33,15 +33,15 @@ it("health fails closed without leaking database errors", async () => {
   expect(response.status).toBe(503);
   expect(await response.json()).toEqual({ status: "unavailable" });
 });
-it("production builds do not start the backup scheduler", async () => {
+it("production builds do not start the storage worker", async () => {
   vi.stubEnv("NEXT_RUNTIME", "nodejs");
   vi.stubEnv("NEXT_PHASE", "phase-production-build");
   await register();
-  expect(mocks.startBackup).not.toHaveBeenCalled();
+  expect(mocks.startWorker).not.toHaveBeenCalled();
 });
-it("the Node server still starts its backup scheduler at runtime", async () => {
+it("the Node server still starts its storage worker at runtime", async () => {
   vi.stubEnv("NEXT_RUNTIME", "nodejs");
   vi.stubEnv("NEXT_PHASE", "phase-production-server");
   await register();
-  expect(mocks.startBackup).toHaveBeenCalledTimes(1);
+  expect(mocks.startWorker).toHaveBeenCalledTimes(1);
 });

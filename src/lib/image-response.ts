@@ -6,7 +6,9 @@ export const imageInclude = {
   variants: true,
   applications: {
     include: {
-      application: { select: { id: true, name: true, slug: true } },
+      application: {
+        select: { id: true, name: true, slug: true, ownerId: true },
+      },
     },
   },
 } satisfies Prisma.ImageInclude;

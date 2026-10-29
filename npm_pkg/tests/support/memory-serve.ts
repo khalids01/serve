@@ -112,6 +112,9 @@ function matches(
   );
 }
 export const db = {
+  storageSettings: { findUnique: async () => null },
+  storagePreference: { findUnique: async () => null, count: async () => 0 },
+  storageJob: { count: async () => 0 },
   $queryRaw: async () => [{ locked: 1 }],
   $transaction: async (work: unknown) =>
     typeof work === "function"

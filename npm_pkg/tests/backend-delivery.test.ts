@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    storageSettings: { findUnique: async () => null },
+    storagePreference: { findUnique: async () => null, count: async () => 0 },
+    storageJob: { count: async () => 0 },
     imageApplication: { findUnique: async () => null },
     image: { findUnique: mocks.find },
   },

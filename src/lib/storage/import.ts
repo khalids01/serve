@@ -13,6 +13,7 @@ import { importContentType } from "@/lib/file-preview";
 import { processImageUpload } from "@/lib/image-upload";
 import { prisma } from "@/lib/prisma";
 import { validateUploadImage } from "@/lib/v1-upload";
+import { queueImageBackup } from "./backup-queue";
 import { type BrowseEntry, storageItem } from "./browse";
 import { browseImageGroups } from "./grouped-browse";
 import { blobKey } from "./keys";
@@ -293,7 +294,7 @@ export async function importStorageItems(
                   deletedAt: null,
                 },
               });
-              return (
+              const entry =
                 existing ??
                 (await tx.imageApplication.create({
                   data: {
@@ -302,8 +303,9 @@ export async function importStorageItems(
                     originalName: name,
                     folderId,
                   },
-                }))
-              ).id;
+                }));
+              await queueImageBackup(tx, image.id, target);
+              return entry.id;
             });
           });
         }

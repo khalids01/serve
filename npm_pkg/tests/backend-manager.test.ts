@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    storageJob: { count: async () => 0 },
     folder: {
       findMany: async () => mocks.folders,
       findFirst: mocks.folderFind,
@@ -61,9 +62,28 @@ vi.mock("@/lib/storage/locations", async (importOriginal) => {
       id: "target",
       ownerId: "owner",
       snapshot: undefined,
-      storage: { get: async () => mocks.targetData, put: mocks.write },
+      storage: {
+        stat: async () =>
+          (await mocks.findTarget.mock.results.at(-1)?.value)
+            ? { sizeBytes: mocks.targetData.length }
+            : null,
+        open: async () => ({
+          body: new Blob([mocks.targetData]).stream(),
+          contentLength: mocks.targetData.length,
+        }),
+        createFile: async (_key: string, body: ReadableStream) => {
+          const bytes = Buffer.from(await new Response(body).arrayBuffer());
+          await mocks.write(_key, bytes, { contentType: "text/plain" });
+        },
+      },
     }),
-    getStorageForImage: async () => ({ get: async () => mocks.sourceData }),
+    getStorageForImage: async () => ({
+      stat: async () => ({ contentLength: mocks.sourceData.length }),
+      open: async () => ({
+        body: new Blob([mocks.sourceData]).stream(),
+        contentLength: mocks.sourceData.length,
+      }),
+    }),
   };
 });
 
@@ -92,6 +112,7 @@ const entry = () => ({
     width: null,
     height: null,
     variants: [],
+    applications: [],
   },
 });
 beforeEach(() => {
@@ -130,7 +151,7 @@ describe("file-manager mutations", () => {
         fileIds: ["entry"],
         storageLocationId: "target",
       }),
-    ).rejects.toThrow(/verification/);
+    ).rejects.toThrow(/verification|different file/);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.imageDelete).not.toHaveBeenCalled();
   });
@@ -143,7 +164,7 @@ describe("file-manager mutations", () => {
         fileIds: ["entry"],
         storageLocationId: "target",
       }),
-    ).rejects.toThrow(/verification/);
+    ).rejects.toThrow(/verification|different file/);
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.write).not.toHaveBeenCalled();
   });

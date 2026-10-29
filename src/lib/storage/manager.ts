@@ -4,6 +4,7 @@ import { config } from "@/config";
 import { withBlobLock } from "@/lib/blob-lock";
 import { prisma } from "@/lib/prisma";
 import type { StorageBackend } from "./backend";
+import { queueRawBackup } from "./backup-queue";
 import {
   type BrowseEntry,
   type BrowsePage,
@@ -11,6 +12,7 @@ import {
   storageAction,
   storageItem,
 } from "./browse";
+import { assertBackupFinished } from "./jobs";
 import { resolveBrowseLocation, StorageLocationError } from "./locations";
 
 type User = { id: string; role?: string | null };
@@ -28,13 +30,17 @@ function fail(message: string, status = 400): never {
 export function protectedStoragePath(key: string, scope: "disk" | "namespace") {
   const parts = key.split("/");
   return (
-    parts.some((part) => ["_blobs", "_cache", ".serve-trash"].includes(part)) ||
-    (scope === "disk" &&
+    parts.some((part) =>
       [
-        "owners",
-        "connections",
-        config.backup.basePrefix.split("/")[0],
-      ].includes(parts[0]))
+        "_blobs",
+        "_cache",
+        ".serve-trash",
+        ".serve-backups",
+        ".serve-transfers",
+      ].includes(part),
+    ) ||
+    (scope === "disk" &&
+      ["owners", "connections", "data-backup"].includes(parts[0]))
   );
 }
 function writable(key: string, scope: "disk" | "namespace") {
@@ -161,20 +167,10 @@ async function protectTree(
         (await prisma.imageVariant.findFirst({
           where: { filename: { in: names } },
           select: { id: true },
-        })) ||
-        (await prisma.backupRecord.findFirst({
-          where: {
-            storageKey: {
-              in: entries
-                .filter((entry) => entry.kind === "file")
-                .map((entry) => entry.key),
-            },
-          },
-          select: { id: true },
         })))
     )
       fail(
-        "This selection includes application files or backups managed by Serve. Use the Files or Data Backup page to manage them.",
+        "This selection includes application files or backups managed by Serve. Use the Files or Storage jobs page to manage them.",
         403,
       );
   }
@@ -309,10 +305,8 @@ export async function storageOperation(
 ) {
   const action = storageAction.parse(input);
   const budget = { items: 0, pages: 0 };
-  const { storage, scope, identity, enabled } = await resolveBrowseLocation(
-    user,
-    location,
-  );
+  const { storage, scope, identity, enabled, namespacePrefix } =
+    await resolveBrowseLocation(user, location);
   const targetId =
     action.action === "copy" || action.action === "move"
       ? (action.destinationId ?? location)
@@ -353,6 +347,12 @@ export async function storageOperation(
       writable(key, scope);
       const entries = await tree(storage, key, budget);
       await protectTree(entries, scope);
+      if (action.action !== "copy")
+        await assertBackupFinished(user.id, undefined, {
+          source: location,
+          key,
+          namespacePrefix,
+        });
       if (action.action === "trash") {
         const base = `${trashRoot}${user.id}/${randomUUID()}/`;
         const data = `${base}data${key.endsWith("/") ? "/" : ""}`;
@@ -427,10 +427,8 @@ export async function storageUpload(
   contentType?: string,
 ) {
   browsePath.parse(key);
-  const { storage, scope, identity, enabled } = await resolveBrowseLocation(
-    user,
-    location,
-  );
+  const { storage, scope, identity, enabled, namespacePrefix } =
+    await resolveBrowseLocation(user, location);
   if (!enabled) fail("Enable the storage connection before uploading.", 403);
   if (size > (storage.maxWriteBytes ?? Infinity))
     fail("File exceeds the storage provider size limit.", 413);
@@ -438,5 +436,18 @@ export async function storageUpload(
   return withStorageManagerLock([identity], async () => {
     await available(storage, key);
     await storage.createFile(key, body, size, contentType);
+    try {
+      await queueRawBackup(
+        prisma,
+        user.id,
+        location,
+        key,
+        user.role,
+        namespacePrefix,
+      );
+    } catch (error) {
+      await storage.delete(key);
+      throw error;
+    }
   });
 }

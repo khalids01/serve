@@ -1,10 +1,10 @@
 name: npm packages
 on:
   pull_request:
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'scripts/test-auth-integration.ts', 'scripts/bootstrap-admin.mjs', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'scripts/test-storage-jobs.ts', 'scripts/test-auth-integration.ts', 'scripts/bootstrap-admin.mjs', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
   push:
     branches: [main]
-    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'scripts/test-auth-integration.ts', 'scripts/bootstrap-admin.mjs', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
+    paths: ['npm_pkg/**', 'src/lib/**', 'src/app/api/**', 'src/features/**', 'src/app/docs/**', 'docs/**', '.env.example', 'src/config.ts', 'tsconfig.json', 'prisma/**', 'scripts/test-storage-integration.ts', 'scripts/test-storage-jobs.ts', 'scripts/test-auth-integration.ts', 'scripts/bootstrap-admin.mjs', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/npm-packages.yml']
 permissions:
   contents: read
 jobs:
@@ -43,6 +43,12 @@ jobs:
           DATABASE_URL: postgresql://postgres:serve-test-only@127.0.0.1:5432/serve_storage_test
       - name: Test storage and file-manager operations against PostgreSQL
         run: bun run test:storage
+        env:
+          DATABASE_URL: postgresql://postgres:serve-test-only@127.0.0.1:5432/serve_storage_test
+          SERVE_INTEGRATION_TEST: '1'
+          NEXT_PUBLIC_APP_URL: https://files.example
+      - name: Test durable backup and transfer jobs
+        run: bun run test:storage-jobs
         env:
           DATABASE_URL: postgresql://postgres:serve-test-only@127.0.0.1:5432/serve_storage_test
           SERVE_INTEGRATION_TEST: '1'

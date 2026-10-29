@@ -9,7 +9,25 @@ test("storage browser security, streaming, and pagination", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "serve-browse-"));
   process.env.UPLOAD_DIR = root;
   process.env.STORAGE_PROVIDER = "local";
-  process.env.BACKUP_ENABLED = "false";
+  const { prisma: policyPrisma } = await import("../src/lib/prisma");
+  const originalstorageSettings = policyPrisma.storageSettings.findUnique;
+  policyPrisma.storageSettings.findUnique = (async () =>
+    null) as unknown as typeof originalstorageSettings;
+  t.after(() => {
+    policyPrisma.storageSettings.findUnique = originalstorageSettings;
+  });
+  const originalstoragePreference = policyPrisma.storagePreference.findUnique;
+  policyPrisma.storagePreference.findUnique = (async () =>
+    null) as unknown as typeof originalstoragePreference;
+  t.after(() => {
+    policyPrisma.storagePreference.findUnique = originalstoragePreference;
+  });
+  const originalstorageJob = policyPrisma.storageJob.count;
+  policyPrisma.storageJob.count = (async () =>
+    0) as unknown as typeof originalstorageJob;
+  t.after(() => {
+    policyPrisma.storageJob.count = originalstorageJob;
+  });
   const { LocalStorageBackend } = await import("../src/lib/storage/local");
   const { PrefixedStorage } = await import("../src/lib/storage/prefix");
   const { browseQuery } = await import("../src/lib/storage/browse");

@@ -3,6 +3,7 @@ import { withBlobLock } from "@/lib/blob-lock";
 import { FileStorageService } from "@/lib/file-storage";
 import { getLegacyTenantKeys, imageInclude } from "@/lib/image-response";
 import { prisma } from "@/lib/prisma";
+import { assertBackupFinished } from "@/lib/storage/jobs";
 import { objectKey } from "@/lib/storage/keys";
 import {
   getStorageForImage,
@@ -35,6 +36,7 @@ export async function purgeFileEntry(id: string, applicationId: string) {
       });
       if (remaining)
         return { id: entry.id, unlinked: true as const, storageDeleted: false };
+      await assertBackupFinished(entry.image.ownerId, entry.imageId);
       const image = entry.image,
         storage = await getStorageForImage(image),
         files = new FileStorageService(storage),
@@ -70,6 +72,7 @@ export async function collectUnusedImages(ownerId: string) {
       async (tx) => {
         if (await tx.imageApplication.count({ where: { imageId: image.id } }))
           return;
+        await assertBackupFinished(image.ownerId, image.id);
         const storage = await getStorageForImage(image),
           files = new FileStorageService(storage);
         for (const filename of [
