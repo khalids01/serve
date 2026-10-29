@@ -10,6 +10,7 @@ import { resolveBaseUploadDir } from "./paths";
 import { PrefixedStorage } from "./prefix";
 import { S3StorageBackend } from "./s3";
 import { decryptStorageCredentials } from "./secrets";
+import { getStorageSettings } from "./settings";
 export class StorageLocationError extends Error {
   constructor(
     message: string,
@@ -83,8 +84,19 @@ export async function resolveUploadLocation(
     where: { id: applicationId },
     select: { ownerId: true, defaultStorageLocationId: true },
   });
-  const selected = choice ?? app.defaultStorageLocationId;
-  await assertLocationAccess(app.ownerId, selected);
+  const inherited = app.defaultStorageLocationId;
+  const selected =
+    choice ??
+    (inherited && inherited !== "default"
+      ? inherited
+      : (await getStorageSettings()).defaultUploadDestinationId);
+  return resolveOwnerUploadLocation(app.ownerId, selected);
+}
+export async function resolveOwnerUploadLocation(
+  ownerId: string,
+  selected: string,
+) {
+  await assertLocationAccess(ownerId, selected);
   const snapshot =
     selected === "default"
       ? defaultSnapshot()
@@ -100,13 +112,13 @@ export async function resolveUploadLocation(
       : null;
   const id =
     selected === "default"
-      ? `default:${app.ownerId}:${fingerprint}`
+      ? `default:${ownerId}:${fingerprint}`
       : selected === "local"
-        ? `local:${app.ownerId}`
+        ? `local:${ownerId}`
         : selected;
   return {
     id,
-    ownerId: app.ownerId,
+    ownerId: ownerId,
     snapshot: snapshot
       ? (JSON.parse(JSON.stringify(snapshot)) as Prisma.InputJsonValue)
       : undefined,
@@ -122,8 +134,11 @@ export async function getStorageForImage(image: {
   ownerId?: string;
 }): Promise<StorageBackend> {
   const id = image.storageLocationId ?? "system";
-  // Reserved for system backups and old metadata; new uploads always have an owner namespace.
-  if (id === "system") return getStorage();
+  // Reserved for legacy metadata; new uploads always have an owner namespace.
+  if (id === "system")
+    return getStorage(
+      (await getStorageSettings()).defaultDeliveryMode as "proxy" | "direct",
+    );
   if (id.startsWith("default:") || id.startsWith("local:")) {
     const [kind, ownerId, fingerprint] = id.split(":");
     if (
@@ -137,7 +152,13 @@ export async function getStorageForImage(image: {
     const backend =
       snapshot.kind === "local"
         ? new LocalStorageBackend(config.storage.local.uploadDir)
-        : new S3StorageBackend({ ...config.storage.s3, ...snapshot });
+        : new S3StorageBackend({
+            ...config.storage.s3,
+            ...snapshot,
+            deliveryMode: (await getStorageSettings()).defaultDeliveryMode as
+              | "proxy"
+              | "direct",
+          });
     return new PrefixedStorage(
       backend,
       `owners/${ownerId}/${kind}/${fingerprint ? `${fingerprint}/` : ""}`,
@@ -161,6 +182,7 @@ export async function getStorageForImage(image: {
       ...connection,
       ...credentials,
       restrictNetwork: true,
+      deliveryMode: connection.deliveryMode as "proxy" | "direct",
     }),
     `connections/${id}/`,
   );
@@ -188,7 +210,11 @@ export async function resolveBrowseLocation(
     storage =
       choice === "local"
         ? new LocalStorageBackend(config.storage.local.uploadDir)
-        : getStorage();
+        : getStorage(
+            (await getStorageSettings()).defaultDeliveryMode as
+              | "proxy"
+              | "direct",
+          );
     disk =
       choice === "local" || config.storage.provider === "local"
         ? `local:${resolveBaseUploadDir()}`
@@ -216,6 +242,7 @@ export async function resolveBrowseLocation(
         choice,
       ),
       restrictNetwork: true,
+      deliveryMode: connection.deliveryMode as "proxy" | "direct",
     });
     disk = `s3:${connection.endpoint || "aws"}:${connection.bucket}`;
     prefix = `connections/${choice}/`;

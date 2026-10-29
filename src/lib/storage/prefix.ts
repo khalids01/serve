@@ -12,6 +12,9 @@ export class PrefixedStorage implements StorageBackend {
     if (!/^[a-zA-Z0-9/_:-]+\/$/.test(prefix) || prefix.includes(".."))
       throw new Error("Invalid storage namespace.");
   }
+  get directDelivery() {
+    return this.backend.directDelivery;
+  }
   get maxWriteBytes() {
     return this.backend.maxWriteBytes;
   }

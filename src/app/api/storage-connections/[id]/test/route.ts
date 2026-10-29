@@ -14,6 +14,7 @@ export function POST(
       {
         ...row,
         provider: row.provider as "s3",
+        deliveryMode: row.deliveryMode as "proxy" | "direct",
         ...decryptStorageCredentials(row.encryptedCredentials, user.id, id),
       },
       id,

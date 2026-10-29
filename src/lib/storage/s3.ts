@@ -100,11 +100,13 @@ export type S3StorageOptions = {
   endpoint?: string;
   forcePathStyle?: boolean;
   restrictNetwork?: boolean;
+  deliveryMode?: "proxy" | "direct";
 };
 export class S3StorageBackend implements StorageBackend {
   readonly maxWriteBytes = 5 * 1024 ** 3;
   private client: S3Client;
   private bucket: string;
+  private deliveryMode: "proxy" | "direct";
 
   constructor(options: S3StorageOptions = config.storage.s3) {
     const {
@@ -123,6 +125,7 @@ export class S3StorageBackend implements StorageBackend {
     }
 
     this.bucket = bucket;
+    this.deliveryMode = options.deliveryMode ?? "direct";
     this.client = new S3Client({
       region,
       requestChecksumCalculation: "WHEN_REQUIRED",
@@ -145,7 +148,12 @@ export class S3StorageBackend implements StorageBackend {
     });
   }
 
+  get directDelivery() {
+    return this.deliveryMode === "direct";
+  }
+
   async signedRead(key: string, options: SignedReadOptions) {
+    if (this.deliveryMode !== "direct") return null;
     const url = await getSignedUrl(
       this.client,
       new GetObjectCommand({

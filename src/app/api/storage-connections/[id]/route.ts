@@ -34,9 +34,9 @@ export function DELETE(request: Request, context: Context) {
       await ownedConnection(id, user.id);
       await collectUnusedImages(user.id);
       const usage = await connectionUsage(id);
-      if (usage.files || usage.applications)
+      if (usage.files || usage.applications || usage.references)
         throw new StorageLocationError(
-          "This connection is still used by files or applications. Move/purge files and change application defaults first.",
+          "This connection is still used by files or applications. Move/purge files, finish transfers, remove backup copies and change defaults first.",
           409,
         );
       await prisma.storageConnection.delete({ where: { id } });

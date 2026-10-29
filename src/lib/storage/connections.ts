@@ -9,6 +9,7 @@ import {
   decryptStorageCredentials,
   encryptStorageCredentials,
 } from "./secrets";
+import { deliveryMode } from "./settings";
 export const connectionInput = z
   .object({
     name: z.string().trim().min(1).max(100),
@@ -27,6 +28,7 @@ export const connectionInput = z
       .regex(/^[a-zA-Z0-9-]{1,80}$/)
       .default("auto"),
     forcePathStyle: z.boolean().default(true),
+    deliveryMode: deliveryMode.default("proxy"),
     accessKeyId: z.string().trim().min(1).max(512),
     secretAccessKey: z.string().min(1).max(2048),
   })
@@ -100,7 +102,24 @@ export async function connectionUsage(id: string) {
     prisma.image.count({ where: { storageLocationId: id } }),
     prisma.application.count({ where: { defaultStorageLocationId: id } }),
   ]);
-  return { files, applications };
+  const references = await prisma.storageJob.count({
+    where: {
+      OR: [
+        { kind: "backup", payload: { path: ["target"], equals: id } },
+        {
+          status: { in: ["queued", "running", "failed"] },
+          OR: [
+            { payload: { path: ["source"], equals: id } },
+            { payload: { path: ["target"], equals: id } },
+          ],
+        },
+      ],
+    },
+  });
+  const preferences = await prisma.storagePreference.count({
+    where: { localBackupConnectionId: id },
+  });
+  return { files, applications, references: references + preferences };
 }
 export function publicConnection(
   row: Awaited<ReturnType<typeof ownedConnection>>,
@@ -118,6 +137,7 @@ export async function updateConnection(
     .partial()
     .extend({
       enabled: z.boolean().optional(),
+      deliveryMode: deliveryMode.optional(),
       provider: connectionInput.shape.provider.removeDefault().optional(),
       region: connectionInput.shape.region.removeDefault().optional(),
       forcePathStyle: connectionInput.shape.forcePathStyle
@@ -133,7 +153,7 @@ export async function updateConnection(
     "forcePathStyle",
   ] as const;
   if (
-    (usage.files || usage.applications) &&
+    (usage.files || usage.applications || usage.references) &&
     coordinates.some(
       (key) => patch[key] !== undefined && patch[key] !== row[key],
     )
@@ -154,6 +174,7 @@ export async function updateConnection(
     bucket: row.bucket,
     region: row.region,
     forcePathStyle: row.forcePathStyle,
+    deliveryMode: row.deliveryMode,
     ...credentials,
     ...Object.fromEntries(
       Object.entries(patch).filter(([key]) => key !== "enabled"),

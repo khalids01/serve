@@ -25,6 +25,7 @@ export type SignedReadOptions = {
 };
 
 export interface StorageBackend {
+  readonly directDelivery?: boolean;
   /** Short-lived GET only. Never exposes a storage secret. Null keeps proxy delivery. */
   signedRead?(key: string, options: SignedReadOptions): Promise<string | null>;
   readonly maxWriteBytes?: number;

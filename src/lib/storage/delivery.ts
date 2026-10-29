@@ -7,6 +7,7 @@ export async function directResponse(
   key: string,
   options: SignedReadOptions,
 ): Promise<Response | null> {
+  if (storage.directDelivery === false) return null;
   const url = await storage.signedRead?.(key, options);
   if (!url) return null;
   return new Response(null, {
@@ -28,6 +29,7 @@ export async function directBlobResponse(
 ) {
   if (
     !storage.signedRead ||
+    storage.directDelivery === false ||
     (!canDeliverInline(options.contentType) &&
       !options.disposition?.startsWith("attachment"))
   )

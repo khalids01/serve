@@ -3,3 +3,59 @@ model AuthSettings {
   signupEnabled Boolean  @default(true)
   updatedAt     DateTime @default(now()) @updatedAt
 }
+
+// Operator defaults. "default" retains the environment-backed storage location.
+model StorageSettings {
+  id                         String   @id @default("default")
+  defaultUploadDestinationId String   @default("default")
+  defaultDeliveryMode        String   @default("proxy")
+  updatedAt                  DateTime @default(now()) @updatedAt
+}
+
+model StoragePreference {
+  ownerId                 String   @id
+  localBackupConnectionId String?
+  updatedAt               DateTime @default(now()) @updatedAt
+}
+
+// Durable leased jobs; file inventory is persisted before a transfer deletes anything.
+model StorageJob {
+  id             String   @id @default(cuid())
+  ownerId        String
+  kind           String
+  status         String   @default("queued")
+  payload        Json
+  cursor         Json?
+  scanned        Boolean  @default(false)
+  attempts       Int      @default(0)
+  runAt          DateTime @default(now())
+  leaseUntil     DateTime?
+  leaseToken     String?
+  error          String?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  items          StorageJobItem[]
+
+  @@index([status, runAt, leaseUntil])
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@index([ownerId, kind, status])
+}
+
+model StorageJobItem {
+  id             String   @id @default(cuid())
+  jobId          String
+  key            String
+  destinationKey String
+  kind           String   @default("file")
+  status         String   @default("pending")
+  imageId        String?
+  metadata       Json?
+  checksum       String?
+  sizeBytes      Float?
+  job            StorageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, key])
+  @@index([jobId, status, id])
+  @@index([jobId, status, kind, id])
+}

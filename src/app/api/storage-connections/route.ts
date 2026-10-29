@@ -8,6 +8,7 @@ import {
   withOwnerStorageLock,
 } from "@/lib/storage/locations";
 import { storageEncryptionReady } from "@/lib/storage/secrets";
+import { getStorageSettings } from "@/lib/storage/settings";
 export const runtime = "nodejs";
 export function GET(request: Request) {
   return sessionApi(async () => {
@@ -19,6 +20,9 @@ export function GET(request: Request) {
     return NextResponse.json(
       {
         encryptionReady: storageEncryptionReady(),
+        canManageDefaults: user.role === "admin",
+        storageSettings: await getStorageSettings(),
+        defaultProvider: config.storage.provider,
         builtins: [
           {
             id: "default",

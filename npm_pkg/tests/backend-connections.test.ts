@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    storageSettings: { findUnique: async () => null },
+    storagePreference: { findUnique: async () => null, count: async () => 0 },
+    storageJob: { count: async () => 0 },
     storageConnection: {
       count: async () => 0,
       create: mocks.saved,
@@ -46,6 +49,7 @@ import {
 const input = {
   name: "My bucket",
   provider: "idrive-e2" as const,
+  deliveryMode: "proxy" as const,
   endpoint: "https://s3.example",
   bucket: "media",
   region: "auto",

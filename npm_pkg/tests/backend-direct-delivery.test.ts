@@ -338,3 +338,24 @@ describe("direct private S3 delivery", () => {
     ).toMatch(/^attachment;/);
   });
 });
+
+it("Proxy mode never signs or probes a direct S3 URL", async () => {
+  const proxy = new S3StorageBackend({
+    endpoint: "https://s3.example.com",
+    bucket: "private",
+    region: "auto",
+    accessKeyId: "test",
+    secretAccessKey: "test",
+    deliveryMode: "proxy",
+  });
+  const probe = vi
+    .spyOn(proxy, "stat")
+    .mockRejectedValue(new Error("No direct probe"));
+  expect(
+    await proxy.signedRead("image.webp", { contentType: "image/webp" }),
+  ).toBeNull();
+  expect(
+    await directResponse(proxy, "image.webp", { contentType: "image/webp" }),
+  ).toBeNull();
+  expect(probe).not.toHaveBeenCalled();
+});
