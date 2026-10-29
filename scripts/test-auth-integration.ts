@@ -270,7 +270,7 @@ async function main() {
     );
     const { protectAdmin } = await import("../src/features/auth/guard");
     const denied = await protectAdmin(
-      new NextRequest("https://files.example/api/admin/backups", {
+      new NextRequest("https://files.example/api/admin/storage-settings", {
         headers: { cookie: normalCookie },
       }),
     );
@@ -291,7 +291,7 @@ async function main() {
       "Application scope only",
     );
     const applicationKey = await protectAdmin(
-      new NextRequest("https://files.example/api/admin/backups", {
+      new NextRequest("https://files.example/api/admin/storage-settings", {
         headers: { "x-api-key": key.key },
       }),
     );

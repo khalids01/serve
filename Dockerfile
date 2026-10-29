@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# PostgreSQL client 18 is installed explicitly for SQL backups.
 ARG NODE_IMAGE=node:24-trixie-slim
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
@@ -26,7 +25,6 @@ RUN node -e "const u = new URL(process.env.NEXT_PUBLIC_APP_URL); if (!['http:','
 # This URL is a build placeholder. Builds generate a client; they never migrate/seed.
 RUN DATABASE_URL=postgresql://build:build@127.0.0.1:1/build \
     BETTER_AUTH_SECRET=build-only-placeholder-not-a-production-secret \
-    BACKUP_ENABLED=false \
     npm run build -- --no-lint
 
 FROM base AS migrate
@@ -38,13 +36,7 @@ COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
-FROM base AS postgres-client
-COPY docker/install-postgres-client.sh /tmp/install-postgres-client.sh
-RUN sh /tmp/install-postgres-client.sh && rm /tmp/install-postgres-client.sh
-ENV PG_DUMP_PATH=/usr/lib/postgresql/18/bin/pg_dump
-ENV PATH="/usr/lib/postgresql/18/bin:${PATH}"
-
-FROM postgres-client AS app
+FROM base AS app
 ARG REVISION=development
 ARG NEXT_PUBLIC_APP_URL
 LABEL org.opencontainers.image.source="https://github.com/khalids01/serve" \

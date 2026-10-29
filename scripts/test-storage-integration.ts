@@ -17,7 +17,6 @@ async function main() {
   const directory = await mkdtemp(path.join(tmpdir(), "serve-storage-test-"));
   process.env.STORAGE_PROVIDER = "local";
   process.env.UPLOAD_DIR = directory;
-  process.env.BACKUP_ENABLED = "false";
   const { prisma } = await import("../src/lib/prisma");
   try {
     const { processImageUpload } = await import("../src/lib/image-upload");
