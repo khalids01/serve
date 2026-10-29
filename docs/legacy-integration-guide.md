@@ -211,7 +211,6 @@ Signed-in browser session (cookie). Used by the dashboard UI and some routes whe
 | `GET /api/audit-logs` | Yes | Yes | No |
 | `GET /api/img/:name` | — | — | **Yes** |
 | `GET /api/stats` | No | Yes | No |
-| `GET/POST /api/admin/backups/*` | No | Yes | No |
 | `GET/DELETE /api/cache` | No | Yes | No |
 
 **Rule for integrators:** use an **API key** for upload/list/delete. Use **session-only** routes only when building dashboard/admin tools, not product backends.
@@ -454,7 +453,6 @@ curl -s "https://files.example.com/api/images?page=1&limit=10" \
 These require a **dashboard login cookie**, not an API key:
 
 - `/api/stats` — owner storage summary
-- `/api/admin/backups/*` — backup schedule, scan, restore, download
 - `/api/cache` — resize cache management
 - `/api/applications/*` — CRUD apps and keys (use dashboard or automate via session)
 

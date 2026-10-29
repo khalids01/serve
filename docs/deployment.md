@@ -71,14 +71,9 @@ Startup never creates or promotes users. Fresh installations allow signup;
 after promotion, control it with **Settings → Account registration**. Browser tokens
 can be disabled by omitting their secret, but the React SDK requires it.
 
-The runtime image installs PostgreSQL client 18 from the official PostgreSQL Apt
-repository and selects `/usr/lib/postgresql/18/bin/pg_dump` through `PG_DUMP_PATH`.
-It supports SQL backups from PostgreSQL servers up to major 18. Changing the
-Dokploy database image or installing tools on the VPS does not update this client:
-rebuild and publish the application image, then redeploy the Compose service.
-The app logs the selected client version at startup. For a custom installation,
-set `PG_DUMP_PATH` to its executable path. JSON backups do not use `pg_dump`.
-Configure backups and storage as described in [configuration.md](configuration.md).
+The storage delivery/jobs migration removes the legacy backup schedule and database backup records; existing archive files in storage are left untouched.
+
+Serve does not install PostgreSQL client tools or schedule database backups. Use Dokploy's database backups. Configure file delivery and new-local-upload S3 backups in the dashboard. The persistent storage worker starts with the app and resumes queued jobs after restarts. In a source checkout, `npm run storage:worker` can run an additional worker; database leases prevent duplicate processing. Preserve the uploads volume and database job records for recovery.
 
 ## 3. Configure one deployment trigger
 

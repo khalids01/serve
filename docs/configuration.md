@@ -28,8 +28,6 @@ This guide covers environment variables, `src/config.ts`, and storage setup for 
 | `image.originalMaxDim` | `2560` | Max dimension for optimized originals |
 | `image.placeholderQuality` | `60` | Placeholder WebP quality |
 | `image.placeholderWidth` | `360` | Placeholder width (px) |
-| `backup.enabled` | `true` | Enable scheduled and manual backups |
-| `backup.basePrefix` | `"data-backup"` | Storage prefix for backup files |
 
 ## Environment Variables
 
@@ -51,14 +49,6 @@ Copy `.env.example` to `.env` and set values:
 | `UPLOAD_DIR` | Local storage root; Docker uses `/uploads` and its persistent volume |
 | `S3_REGION` | Optional region (`auto` for R2, e.g. `us-east-1` for AWS) |
 | `S3_ENDPOINT` | Custom endpoint (R2/MinIO); omit for native AWS S3 |
-| `BACKUP_ENABLED` | Set to `false` to disable backups |
-| `BACKUP_BASE_PREFIX` | Backup folder prefix in storage (default `data-backup`) |
-| `BACKUP_JSON_INTERVAL_MINUTES` | Auto metadata backup interval (minutes) |
-| `BACKUP_SQL_INTERVAL_MINUTES` | Auto database backup interval (minutes) |
-| `BACKUP_SCHEDULER_INTERVAL_MINUTES` | How often the scheduler checks for due jobs |
-| `BACKUP_DAILY_RETENTION_DAYS` | Keep daily snapshots for N days |
-| `BACKUP_WEEKLY_RETENTION_WEEKS` | Keep weekly snapshots for N weeks |
-| `BACKUP_MONTHLY_RETENTION_MONTHS` | Keep monthly snapshots for N months |
 
 SMTP host/port/from and image settings remain in [`src/config.ts`](../src/config.ts). Storage provider, local upload directory and upload limits can be set through env. For Docker builds, public URL and browser limits must match the runtime values; see [deployment.md](deployment.md).
 
@@ -69,7 +59,7 @@ SMTP host/port/from and image settings remain in [`src/config.ts`](../src/config
 | Profile | `/dashboard/profile` | Editable display name, account role, and security |
 | Users (admin) | `/dashboard/users` | Searchable user directory, 25 accounts per page |
 | Settings | `/dashboard/settings` | System configuration and live stats |
-| Data Backup | `/dashboard/data-backup` | Schedule backups, scan storage, restore metadata, download files |
+| Storage jobs | `/dashboard/storage-jobs` | Copy/move storage, monitor backups, retry and restore |
 | Cache | `/dashboard/cache` | View and clear on-demand resize cache |
 
 ## File Storage
@@ -123,31 +113,13 @@ On-demand resize can cache outputs under each tenant's `_cache/` folder (or `_bl
 - **Dashboard → Cache** (`/dashboard/cache`): list cache entries per application or clear all.
 - Controlled by `storage.cacheInStorage` in `src/config.ts`. When `false`, resize still works but skips cache read/write (re-processes each request).
 
-## Data backup
+## File backups and delivery
 
-Backups are stored in your configured object storage under:
+Configure delivery and upload defaults under **Storage** or **Settings**. Proxy is the default; Direct uses signed S3 URLs and requires browsers to reach the provider. Local files stream through Serve.
 
-```
-{basePrefix}/{daily|weekly|monthly}/{json|sql}/{filename}
-```
+Choose an S3 backup destination under **Storage → Local upload backups**. Only new local uploads are queued; existing files are not backfilled. The persistent worker copies originals and variants, verifies SHA-256 checksums, and writes file/application JSON metadata. Storage jobs provides progress, retry, restore, metadata download, and explicit backup removal. Failed backups retain their local source until completed or cancelled. Deleting a local file does not automatically delete its completed S3 backup.
 
-| Type | Contents |
-| --- | --- |
-| **JSON** | Image/application metadata snapshot (not raw blob files) |
-| **SQL** | Full PostgreSQL dump (requires PostgreSQL) |
-
-**Dashboard → Data Backup** (`/dashboard/data-backup`):
-
-- Schedule automatic JSON and SQL backups
-- **Take backup** manually
-- **Scan storage** — import backup files from storage into the database (use after DB loss if S3 files remain)
-- **Restore metadata** — upsert applications/images from a JSON backup
-- **Download** — save any backup file locally
-- **Clean old backups** — remove files past retention windows
-
-**Disaster recovery:** The backup file list is database-backed. If you lose app data but still have files in S3, click **Scan storage** to rebuild the list, then restore metadata from a JSON backup.
-
-Settings saved in the dashboard override defaults from `config.ts` and are stored in the `BackupConfig` table.
+Serve no longer schedules database dumps. Configure database backups in Dokploy. **Export file metadata** downloads owned files, folders, and application associations, without accounts, credentials, or API keys.
 
 ## Database
 
@@ -157,7 +129,7 @@ Run migrations/push schema:
 npm run db:push
 ```
 
-Use PostgreSQL in production (required for SQL database backups).
+Use PostgreSQL in production.
 
 ## Authentication
 
@@ -301,7 +273,7 @@ selection preserves folders and reuses existing application entries.
 
 ### Direct S3 delivery and reusable previews
 
-HTTPS S3 media (including iDrive e2) uses 307 redirects to signed GET URLs valid for
+When Direct delivery is selected, HTTPS S3 media (including iDrive e2) uses 307 redirects to signed GET URLs valid for
 15 minutes. Stable Serve URLs remain unchanged, but file bytes go from S3 to the browser
 instead of passing through the app server. Redirect responses use private, no-store;
 S3 responses use private, max-age=300. Signed URLs are bearer links: do not log them.
@@ -324,7 +296,7 @@ expose Content-Length, Content-Range, Accept-Ranges and ETag. Do not make the bu
 The application does not change bucket policies. Browser management tokens and API keys
 are sent to Serve only. With iDrive e2, use its HTTPS regional S3 endpoint; no CDN is
 required for direct delivery. Test a deployment with Network tools: the final media
-response should come from the storage host, not the Europe app server.
+response should come from the storage host in Direct mode, and Serve in Proxy mode.
 
 Read-only storage can still preview: when cache writes are unavailable, newly generated
 thumbnails/transforms are returned through Serve without persistence. Stored originals and

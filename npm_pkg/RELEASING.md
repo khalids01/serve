@@ -2,8 +2,8 @@
 
 ## 0.1.0 — published 2026-10-24
 
-- [@skycanvasstudio/serve-server](https://www.npmjs.com/package/@skycanvasstudio/serve-server): public, latest tag 0.1.0.
-- [@skycanvasstudio/serve-react](https://www.npmjs.com/package/@skycanvasstudio/serve-react): public, latest tag 0.1.0.
+- [@skycanvasstudio/serve-server](https://www.npmjs.com/package/@skycanvasstudio/serve-server): released as 0.1.0.
+- [@skycanvasstudio/serve-react](https://www.npmjs.com/package/@skycanvasstudio/serve-react): released as 0.1.0.
 - The skycanvasstudio:file-server team has read-write access to both packages.
 - Registry tarball integrity matches the locally verified artifacts. A clean install from npm passes ESM/CommonJS imports, the Fetch adapter, CSS resolution and React SSR.
 
@@ -12,7 +12,8 @@ and update the artifact filenames below before publishing; npm versions are immu
 
 ## Next release (unpublished)
 
-Server and React are 0.2.0; the new framework-independent client is 0.1.0.
+Server and React are 0.3.0; the framework-independent client is 0.2.0.
+These add upload destinations and destination discovery. The previous published release was server/React 0.2.0 and client 0.1.0.
 Publish the verified serve-client artifact before serve-react, which depends on it.
 Run the verifier with all three tarballs. No packages are published automatically.
 
@@ -23,10 +24,10 @@ publish credentials must still be checked at release time. Nothing in this
 workspace automatically publishes.
 
 1. Deploy the compatible `/api/v1` backend. Configure its public URL and dedicated
-   browser-token secret. No schema migration is required.
+   browser-token secret. Apply the storage delivery/jobs migration before deployment.
 2. From `npm_pkg/`, run `bun install --frozen-lockfile` then `bun run verify`.
    From the application root, run `npm run typecheck`.
-3. Review READMEs, MIT licenses, version numbers and tarball contents. Both packages
+3. Review READMEs, MIT licenses, version numbers and tarball contents. All three packages
    include repository/homepage/issue metadata, explicit conditional ESM/CJS types,
    file allowlists and public publish access. Runtime dependencies are Zod (MIT),
    with React/React DOM (MIT) as peers of the React package.
@@ -39,19 +40,20 @@ workspace automatically publishes.
 6. Publish the **verified artifacts**, not a differently rebuilt working tree:
 
    ```sh
-   npm publish ./artifacts/skycanvasstudio-serve-server-0.2.0.tgz --access public
-   npm publish ./artifacts/skycanvasstudio-serve-client-0.1.0.tgz --access public
-   npm publish ./artifacts/skycanvasstudio-serve-react-0.2.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-server-0.3.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-client-0.2.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-react-0.3.0.tgz --access public
    ```
 
 7. Give the organization's existing file-server team publish access:
 
    ```sh
    npm access grant read-write skycanvasstudio:file-server @skycanvasstudio/serve-server
+   npm access grant read-write skycanvasstudio:file-server @skycanvasstudio/serve-client
    npm access grant read-write skycanvasstudio:file-server @skycanvasstudio/serve-react
    ```
 
-8. Verify both registry versions and perform an install from npm in a new project.
+8. Verify all three registry versions and perform an install from npm in a new project.
 
 `prepack` rebuilds source before a direct package pack. `prepublishOnly` runs
 package-local checks when publishing a package directory. The release verifier

@@ -32,8 +32,8 @@ export function StorageSection() {
           </li>
           <li>
             Select the location when creating your application, in its Settings,
-            or in the file manager sidebar. New uploads use this default;
-            existing files keep their recorded location.
+            or in the file manager sidebar. Each upload can override this
+            destination; existing files keep their recorded location.
           </li>
         </ol>
         <CodeBlock
@@ -72,18 +72,19 @@ export function StorageSection() {
         <h3 className="text-lg font-semibold">Use Serve URLs</h3>
         <p>
           Save and render the returned Serve file URLs. Serve resolves each
-          file’s saved storage connection and redirects S3 media downloads
-          directly to storage. Consumers never need S3 keys. For JavaScript
-          fetch or canvas, allow your application origins and GET/HEAD with
-          Range in bucket CORS. Files remain publicly readable by known Serve
-          URL; keep API keys server-side.
+          file’s saved storage connection and delivers through Serve by default.
+          Direct mode uses short-lived signed S3 URLs. Consumers never need S3
+          keys. For JavaScript fetch or canvas, allow your application origins
+          and GET/HEAD with Range in bucket CORS. Files remain publicly readable
+          by known Serve URL; keep API keys server-side.
         </p>
         <p>
           Local storage works in Dokploy because the production Compose file
           mounts a persistent volume. It survives redeployments on the same VPS.
-          Back up that volume separately, and copy it if moving servers.
-          Database backups include metadata and encrypted connections, not
-          uploaded bytes. System backups use the host’s Default backend.
+          Back up that volume separately, and copy it if moving servers. Choose
+          an S3 destination in Storage to back up new local uploads in the
+          background. Storage jobs provides retries and restore; Dokploy handles
+          database backups.
         </p>
         <p>
           This schema is intended for a fresh deployment. Changing environment

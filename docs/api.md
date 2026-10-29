@@ -201,23 +201,19 @@ Notes:
 
 These endpoints require a signed-in dashboard session. They are **not** available with API keys.
 
-### Backups
+### Storage policies and jobs
 
-```
-GET    /api/admin/backups              List backups (paginated, filterable)
-PATCH  /api/admin/backups/config       Update backup schedule and retention
-POST   /api/admin/backups/json         Take JSON metadata backup now
-POST   /api/admin/backups/sql          Take SQL database backup now
-POST   /api/admin/backups/scan         Scan storage and import missing backup files
-POST   /api/admin/backups/cleanup      Remove backups past retention
-GET    /api/admin/backups/{id}/download Download a backup file
-POST   /api/admin/backups/{id}/sync    Restore metadata from JSON backup
-DELETE /api/admin/backups/{id}         Delete a backup file and record
-POST   /api/admin/backups/bulk-delete  Delete multiple backups
-POST   /api/admin/backups/bulk-sync    Restore metadata from multiple JSON backups
+```text
+GET/PATCH /api/admin/storage-settings  Global defaults (admin only)
+GET/PATCH /api/storage-preferences     New-local-upload backup destination
+GET/POST  /api/storage-jobs            Paginated jobs / start a copy or move
+GET       /api/storage-jobs/{id}       Download job metadata JSON
+PATCH     /api/storage-jobs/{id}       Retry, cancel, or restore
+DELETE    /api/storage-jobs/{id}       Explicitly remove backup/record
+GET       /api/file-manifest           Stream owned file/application metadata JSON
 ```
 
-See [configuration.md](configuration.md#data-backup) for storage layout and disaster recovery.
+Mutations require a same-origin session. Ownership is checked server-side. API clients discover destinations with `GET /api/v1/storage-locations` (`files:read`) and pass `storageLocationId` on uploads. Omission uses application defaults, then system defaults.
 
 ### Cache
 

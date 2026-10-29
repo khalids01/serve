@@ -34,7 +34,6 @@ Saved endpoints must resolve to public addresses. Private MinIO is an operator o
 
 The production Compose file already mounts `serve-uploads:/uploads`. Files survive container replacement and image upgrades on that VPS. Do not remove the volume. Set up VPS/volume backups separately: database JSON/SQL backups contain metadata, not the uploaded bytes. Local storage is tied to this host; moving the deployment to another VPS requires copying the volume. Multiple app replicas need shared storage; S3 is the simpler option for that deployment.
 
-System backups use the host's Default backend, not an application's selected connection. Configure Default if scheduled backups are enabled (`BACKUP_ENABLED`), or select `STORAGE_PROVIDER=local` for local system backups. JSON backup schema v2 includes folders, Trash, application defaults, file locations, and encrypted connection records; it still requires the corresponding file bytes and encryption keys on restore.
 
 ## File manager
 
@@ -57,3 +56,13 @@ Store and render the URLs returned by Serve. They point to Serve's stable file e
 ## Development verification
 
 `npm run typecheck`, `npm run test:deploy`, and the `npm_pkg` typecheck/lint/test suites cover the release. `npm run test:storage` exercises real database/filesystem operations and requires an explicitly selected, isolated localhost PostgreSQL database whose name ends in `_test`, with `SERVE_INTEGRATION_TEST=1`. Apply migrations to that test database first. It creates test metadata and a temporary upload directory; never point it at an application database. Saved S3 connections are checked against their real bucket when you click Test or Save in the dashboard.
+
+## Delivery and storage jobs
+
+**Proxy** streams private S3 files through Serve (the default). **Direct** redirects authorized requests to short-lived signed S3 URLs. Use Proxy when browsers cannot reach S3. Local storage always uses Serve. Set Default delivery in Settings, or choose delivery on each saved connection. Buckets remain private.
+
+Uploads accept `storageLocationId`: `local`, `default`, or an owned connection ID. Omission uses the application's destination; an application set to Default inherits the system upload default. Existing files retain their recorded locations.
+
+**Storage jobs** provides paginated bulk Copy/Move between separate locations, streaming checksum verification, retries and progress. Moves preserve managed file IDs and application links. Copies retain source links and export association JSON. Different existing contents cause a conflict rather than an overwrite. Sources remain until copies and metadata are verified. Avoid external storage edits during transfers. Caches, Trash and backup archives are excluded. Only owned managed files are reassigned.
+
+Optional local upload backups cover only uploads made after enabling them. Originals, variants and file/application JSON are copied asynchronously. Pending or failed backups block source removal until completed or cancelled. Restore fills missing local files and metadata and rejects conflicting existing contents. Keep Dokploy database backups for job history and accounts. Completed S3 backups remain until explicitly removed in Storage jobs.
