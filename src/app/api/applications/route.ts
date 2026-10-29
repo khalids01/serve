@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
       })
       .parse(await request.json());
     return withOwnerStorageLock(user.id, async () => {
-      await assertLocationAccess(user.id, body.defaultStorageLocationId);
+      if (body.defaultStorageLocationId !== "default")
+        await assertLocationAccess(user.id, body.defaultStorageLocationId);
       if (await prisma.application.findUnique({ where: { slug: body.slug } }))
         throw new StorageLocationError("Slug already exists.", 409);
       const application = await prisma.application.create({

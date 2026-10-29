@@ -32,11 +32,31 @@ export async function parseUpload(
       "Application context comes from the credential.",
     );
   for (const key of form.keys())
-    if (!["file", "tags", "saveMode", ...extraFields].includes(key))
+    if (
+      ![
+        "file",
+        "tags",
+        "saveMode",
+        "storageLocationId",
+        ...extraFields,
+      ].includes(key)
+    )
       throw new UploadValidationError(
         "INVALID_UPLOAD",
         `Unknown upload field: ${key}`,
       );
+  const destination = form.get("storageLocationId");
+  if (
+    destination !== null &&
+    (typeof destination !== "string" ||
+      !destination.trim() ||
+      destination.length > 255 ||
+      form.getAll("storageLocationId").length !== 1)
+  )
+    throw new UploadValidationError(
+      "INVALID_UPLOAD",
+      "Choose one valid upload destination.",
+    );
   const file = form.get("file");
   if (!(file instanceof File) || !file.size || form.getAll("file").length !== 1)
     throw new UploadValidationError(

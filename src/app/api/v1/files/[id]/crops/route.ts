@@ -41,6 +41,11 @@ export async function POST(
         input.contentType,
         auth.applicationId,
         input.tags,
+        {
+          storageLocationId: input.storageLocationId
+            ? String(input.storageLocationId)
+            : undefined,
+        },
       );
       const link = await linkedFile(result.entryId, auth.applicationId);
       if (!link) throw new Error("Crop link disappeared");

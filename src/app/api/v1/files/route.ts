@@ -64,6 +64,11 @@ export const POST = withAuth("files:write", async (request, auth) => {
       input.contentType,
       auth.applicationId,
       input.tags,
+      {
+        storageLocationId: input.storageLocationId
+          ? String(input.storageLocationId)
+          : undefined,
+      },
     );
     const link = await linkedFile(result.entryId, auth.applicationId);
     if (!link) throw new Error("Upload link disappeared");

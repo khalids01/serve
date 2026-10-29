@@ -76,3 +76,15 @@ describe("multipart safety", () => {
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 });
+
+it("accepts a destination override but rejects ambiguous duplicate fields", async () => {
+  const form = new FormData();
+  form.set("file", new Blob(["text"], { type: "text/plain" }), "a.txt");
+  form.set("storageLocationId", "local");
+  expect((await parseUpload(request(form))).storageLocationId).toBe("local");
+  form.append("storageLocationId", "foreign");
+  await expect(parseUpload(request(form))).rejects.toHaveProperty(
+    "code",
+    "INVALID_UPLOAD",
+  );
+});

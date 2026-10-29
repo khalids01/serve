@@ -1,8 +1,8 @@
-import { NextResponse, } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { config, maxFileSizeBytes } from "@/config";
 import { ApiKeyService } from "@/lib/api-keys";
-import { maxFileSizeBytes, config } from "@/config";
 import { processImageUpload } from "@/lib/image-upload";
+import { prisma } from "@/lib/prisma";
 
 interface FileWithTags {
   file: File;
@@ -16,6 +16,7 @@ async function processFile({
   userId,
   userAgent,
   ip,
+  storageLocationId,
 }: {
   file: File;
   tags: string[] | null;
@@ -23,6 +24,7 @@ async function processFile({
   userId: string;
   userAgent?: string | null;
   ip?: string | null;
+  storageLocationId?: string;
 }) {
   const maxSize = maxFileSizeBytes();
   const limitMb = config.upload.maxFileSizeMb;
@@ -37,6 +39,7 @@ async function processFile({
     file.type,
     applicationId,
     tags,
+    { storageLocationId },
   );
 
   try {
@@ -74,14 +77,12 @@ type UploadContext = {
   };
 };
 
-
 export async function handleUpload({
   formData,
   sessionUser,
   headers,
 }: UploadContext) {
   try {
-
     // console.log(formData.get("file"));
 
     // Try API-key-provided headers first
@@ -90,8 +91,8 @@ export async function handleUpload({
 
     // Check for direct API key if headers missing (e.g. middleware skipped cloning to avoid disturbed body)
     if (!userId || !applicationId) {
-      const apiKey = headers.apiKey
-      if (!!apiKey) {
+      const apiKey = headers.apiKey;
+      if (apiKey) {
         const validation = await ApiKeyService.validateKey(apiKey);
         if (validation) {
           userId = validation.user.id;
@@ -102,7 +103,7 @@ export async function handleUpload({
 
     // Fallback to session-based user when header missing
     if (!userId) {
-      const user = sessionUser
+      const user = sessionUser;
       if (user) {
         userId = user.id;
       }
@@ -145,6 +146,24 @@ export async function handleUpload({
       );
     }
 
+    if (application.ownerId !== userId)
+      return NextResponse.json(
+        { error: "Application access denied" },
+        { status: 403 },
+      );
+    const destination = formData.get("storageLocationId");
+    if (
+      destination !== null &&
+      (typeof destination !== "string" ||
+        !destination.trim() ||
+        destination.length > 255 ||
+        formData.getAll("storageLocationId").length !== 1)
+    )
+      return NextResponse.json(
+        { error: "Choose one valid upload destination." },
+        { status: 400 },
+      );
+    const storageLocationId = destination ? String(destination) : undefined;
     // Check for array format first
     const filesData = formData.get("files") as string | null;
     if (filesData) {
@@ -152,7 +171,7 @@ export async function handleUpload({
       let fileConfigs: Array<{ file: string; tags?: string[] }> = [];
       try {
         fileConfigs = JSON.parse(filesData);
-      } catch (e) {
+      } catch (_e) {
         return NextResponse.json(
           { error: "Invalid files JSON format" },
           { status: 400 },
@@ -186,8 +205,8 @@ export async function handleUpload({
             userId,
             userAgent: headers.userAgent,
             ip: headers.ip,
-          }
-          );
+            storageLocationId,
+          });
           results.push(result);
         } catch (error) {
           errors.push(
@@ -229,6 +248,7 @@ export async function handleUpload({
       userId,
       userAgent: headers.userAgent,
       ip: headers.ip,
+      storageLocationId,
     });
 
     return NextResponse.json({

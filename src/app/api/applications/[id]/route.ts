@@ -74,7 +74,8 @@ export function PATCH(
       .parse(await request.json());
     return withOwnerStorageLock(user.id, async () => {
       if (input.defaultStorageLocationId)
-        await assertLocationAccess(user.id, input.defaultStorageLocationId);
+        if (input.defaultStorageLocationId !== "default")
+          await assertLocationAccess(user.id, input.defaultStorageLocationId);
       const application = await prisma.application.update({
         where: { id },
         data: input,
