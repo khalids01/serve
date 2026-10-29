@@ -21,6 +21,7 @@ export type FileUploaderProps = Pick<
   };
 export function FileUploader({
   tags,
+  storageLocationId,
   parallel,
   onUploadComplete,
   onBatchComplete,
@@ -31,6 +32,7 @@ export function FileUploader({
 }: FileUploaderProps) {
   const { items, upload, cancel, retry } = useUpload({
     tags,
+    storageLocationId,
     parallel,
     onUploadComplete,
     onBatchComplete,

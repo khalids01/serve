@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.3.0 (unreleased)
+
+- Per-upload destination selection and destination discovery.
+- Proxy/Direct delivery remains controlled by Serve settings.
+
+
+## 0.2.0 (published)
 
 - Direct signed S3 delivery through stable Serve URLs; stored transforms are reused.
 - Framework-independent serve-client package; React hooks and image helpers use it.

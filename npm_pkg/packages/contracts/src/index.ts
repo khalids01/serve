@@ -170,3 +170,16 @@ export const listFilesInputSchema = z
   })
   .strict();
 export const uploadTagsSchema = z.array(z.string().min(1).max(64)).max(20);
+
+export const storageLocationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(["local", "s3"]),
+  enabled: z.boolean(),
+  deliveryMode: z.enum(["proxy", "direct"]),
+});
+export const storageLocationsResponseSchema = z.object({
+  data: z.array(storageLocationSchema),
+  defaultStorageLocationId: z.string(),
+});
+export type StorageLocation = z.infer<typeof storageLocationSchema>;

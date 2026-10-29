@@ -49,3 +49,9 @@ Use uploadWithProgress for optional XMLHttpRequest progress/cancellation; client
 Read-only storage can still preview: when cache writes are unavailable, newly generated
 thumbnails/transforms are returned through Serve without persistence. Stored originals and
 variants continue to use direct delivery.
+
+## Upload destination and delivery
+
+Choose a destination per upload with `storageLocationId: "local"`, `"default"`, or an owned S3 connection ID. Omit it to inherit the application's destination, then system defaults. Delivery is configured in Serve independently: Proxy streams through Serve; Direct uses expiring signed S3 URLs. Keep the stable Serve URL in your app. Local storage always streams through Serve.
+
+Discover destinations with `client.storageLocations()`.

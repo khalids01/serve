@@ -7,6 +7,7 @@ export type UploadTransport = (
   token: string,
   signal: AbortSignal,
   progress: (value: number) => void,
+  storageLocationId?: string,
 ) => Promise<FileAsset>;
 export class UploadError extends Error {
   constructor(
@@ -23,6 +24,7 @@ export const uploadWithProgress: UploadTransport = (
   token,
   signal,
   progress,
+  storageLocationId,
 ) =>
   new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -67,5 +69,6 @@ export const uploadWithProgress: UploadTransport = (
     const form = new FormData();
     form.set("file", file);
     if (tags?.length) form.set("tags", JSON.stringify(tags));
+    if (storageLocationId) form.set("storageLocationId", storageLocationId);
     xhr.send(form);
   });

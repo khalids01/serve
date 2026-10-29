@@ -23,6 +23,7 @@ export type UploadItem = {
   error?: string;
 };
 export type UploadOptions = {
+  storageLocationId?: string;
   tags?: string[];
   parallel?: number;
   onUploadComplete?: (asset: FileAsset) => void;
@@ -99,6 +100,7 @@ export function useUpload(
                   item.status = progress >= 100 ? "processing" : "uploading";
                   publish();
                 },
+                currentOptions.current.storageLocationId,
               );
               break;
             } catch (cause) {

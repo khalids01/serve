@@ -115,3 +115,9 @@ Signed URLs expose object paths and access-key IDs, never secret keys; do not pe
 For JavaScript fetch/canvas, configure bucket CORS for your actual application origins, GET/HEAD
 and Range, exposing Content-Length, Content-Range, Accept-Ranges and ETag. Native media display
 does not ordinarily need CORS. See [the client package](../client/README.md).
+
+## Upload destination and delivery
+
+Choose a destination per upload with `storageLocationId: "local"`, `"default"`, or an owned S3 connection ID. Omit it to inherit the application's destination, then system defaults. Delivery is configured in Serve independently: Proxy streams through Serve; Direct uses expiring signed S3 URLs. Keep the stable Serve URL in your app. Local storage always streams through Serve.
+
+Discover destinations with `client.storage.list()`.

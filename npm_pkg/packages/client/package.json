@@ -1,6 +1,6 @@
 {
   "name": "@skycanvasstudio/serve-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Framework-independent browser client, uploads and image URLs for Serve.",
   "license": "MIT",
   "type": "module",

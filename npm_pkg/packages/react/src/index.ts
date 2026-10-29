@@ -34,8 +34,10 @@ export type {
   FileVariant,
   ImageTransform,
   Pagination,
+  StorageLocation,
 } from "./contracts";
 export { useDeleteFile, useFiles } from "./hooks/use-files";
+export { useStorageLocations } from "./hooks/use-storage-locations";
 export type { UploadOptions } from "./hooks/use-upload";
 export { useUpload } from "./hooks/use-upload";
 export type { BrowserToken, ListInput, TokenProvider } from "./lib/client";

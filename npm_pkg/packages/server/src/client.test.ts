@@ -39,6 +39,7 @@ it("uploads binary data with tags, filename and inferred HTTP errors", async () 
     const form = init?.body as FormData;
     expect((form.get("file") as File).name).toBe("a.txt");
     expect(form.get("tags")).toBe('["a"]');
+    expect(form.get("storageLocationId")).toBe("local");
     return Response.json(
       {
         error: {
@@ -60,6 +61,7 @@ it("uploads binary data with tags, filename and inferred HTTP errors", async () 
       file: new Uint8Array([1]),
       filename: "a.txt",
       tags: ["a"],
+      storageLocationId: "local",
     }),
   ).rejects.toMatchObject({
     code: "FILE_TOO_LARGE",
@@ -167,4 +169,28 @@ it("aborts timed-out requests and rejects malformed success responses", async ()
     "name",
     "ZodError",
   );
+});
+
+it("discovers destinations without exposing credentials", async () => {
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    expect(String(input)).toContain("/api/v1/storage-locations");
+    return Response.json({
+      data: [
+        {
+          id: "local",
+          name: "VPS",
+          kind: "local",
+          enabled: true,
+          deliveryMode: "proxy",
+        },
+      ],
+      defaultStorageLocationId: "local",
+    });
+  });
+  const client = createFileServer({
+    baseUrl: "https://files.example",
+    apiKey: "sk_test",
+    fetch,
+  });
+  expect((await client.storage.list()).defaultStorageLocationId).toBe("local");
 });

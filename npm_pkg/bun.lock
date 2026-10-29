@@ -50,7 +50,7 @@
     },
     "packages/client": {
       "name": "@skycanvasstudio/serve-client",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "zod": "^4.3.6",
       },
@@ -64,7 +64,7 @@
     },
     "packages/react": {
       "name": "@skycanvasstudio/serve-react",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@skycanvasstudio/serve-client": "0.1.0",
         "zod": "^4.3.6",
@@ -76,7 +76,7 @@
     },
     "packages/server": {
       "name": "@skycanvasstudio/serve-server",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "zod": "^4.3.6",
       },

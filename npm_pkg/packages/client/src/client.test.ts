@@ -143,3 +143,34 @@ it("works without React, shares a token cache, and sends uploads to Serve only",
     ),
   ).toBe("https://files.example/api/img/one?w=640&q=75&f=webp");
 });
+
+it("discovers upload destinations and sends a per-upload destination", async () => {
+  const client = new BrowserFileServerClient(
+    "https://files.example",
+    async () => "browser-token",
+    async (input, init) => {
+      if (String(input).endsWith("/storage-locations"))
+        return Response.json({
+          data: [
+            {
+              id: "local",
+              name: "VPS",
+              kind: "local",
+              enabled: true,
+              deliveryMode: "proxy",
+            },
+          ],
+          defaultStorageLocationId: "local",
+        });
+      expect((init?.body as FormData).get("storageLocationId")).toBe("local");
+      return Response.json(
+        { error: { code: "FILE_TOO_LARGE", message: "test" } },
+        { status: 413 },
+      );
+    },
+  );
+  expect((await client.storageLocations()).data[0]?.id).toBe("local");
+  await expect(
+    client.upload(new File(["test"], "a.txt"), { storageLocationId: "local" }),
+  ).rejects.toMatchObject({ status: 413 });
+});

@@ -10,6 +10,7 @@ import {
   joinUrl,
   listFilesResponseSchema,
   type Pagination,
+  storageLocationsResponseSchema,
 } from "./contracts";
 import { FileServerConfigurationError, FileServerError } from "./errors";
 
@@ -25,6 +26,7 @@ export type FileServerOptions = {
 export type UploadSource = File | Blob | Uint8Array | ArrayBuffer;
 
 export type UploadFileInput = {
+  storageLocationId?: string;
   file: UploadSource;
   filename?: string;
   contentType?: string;
@@ -195,6 +197,15 @@ export class FileServerClient {
     }
   }
 
+  readonly storage = {
+    list: async (signal?: AbortSignal) => {
+      const response = await this.request("/api/v1/storage-locations", {
+        signal,
+      });
+      return storageLocationsResponseSchema.parse(await response.json());
+    },
+  };
+
   readonly files = {
     upload: async (input: UploadFileInput): Promise<FileAsset> => {
       const filename = sourceFilename(input.file, input.filename);
@@ -202,6 +213,8 @@ export class FileServerClient {
       const form = new FormData();
       form.set("file", blob, filename);
       if (input.tags?.length) form.set("tags", JSON.stringify(input.tags));
+      if (input.storageLocationId)
+        form.set("storageLocationId", input.storageLocationId);
       const response = await this.request("/api/v1/files", {
         method: "POST",
         body: form,
@@ -243,6 +256,8 @@ export class FileServerClient {
       );
       form.set("saveMode", "new");
       if (input.tags?.length) form.set("tags", JSON.stringify(input.tags));
+      if (input.storageLocationId)
+        form.set("storageLocationId", input.storageLocationId);
       const response = await this.request(
         `/api/v1/files/${encodeURIComponent(id)}/crops`,
         { method: "POST", body: form, signal: input.signal },

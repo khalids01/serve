@@ -8,6 +8,7 @@ import {
   imageUrl,
   joinUrl,
   listFilesResponseSchema,
+  storageLocationsResponseSchema,
 } from "./contracts";
 
 export type BrowserToken = { token: string; expiresAt: string };
@@ -84,6 +85,13 @@ export class BrowserFileServerClient {
     );
   }
 
+  async storageLocations(signal?: AbortSignal) {
+    const response = await this.request("/api/v1/storage-locations", {
+      signal,
+    });
+    return storageLocationsResponseSchema.parse(await response.json());
+  }
+
   async list(input: ListInput = {}, signal?: AbortSignal) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(input)) {
@@ -110,11 +118,17 @@ export class BrowserFileServerClient {
 
   async upload(
     file: File,
-    options: { tags?: string[]; signal?: AbortSignal } = {},
+    options: {
+      tags?: string[];
+      signal?: AbortSignal;
+      storageLocationId?: string;
+    } = {},
   ): Promise<FileAsset> {
     const form = new FormData();
     form.set("file", file);
     if (options.tags?.length) form.set("tags", JSON.stringify(options.tags));
+    if (options.storageLocationId)
+      form.set("storageLocationId", options.storageLocationId);
     const response = await this.request("/api/v1/files", {
       method: "POST",
       body: form,

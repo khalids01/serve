@@ -12,5 +12,6 @@ export type {
   FileVariant,
   ImageTransform,
   Pagination,
+  StorageLocation,
 } from "./contracts";
 export { FileServerConfigurationError, FileServerError } from "./errors";
