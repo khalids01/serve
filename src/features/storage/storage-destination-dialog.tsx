@@ -106,13 +106,14 @@ export function StorageDestinationDialog({
             >
               <ArrowLeft className="size-4" />
             </Button>
-            <button
+            <Button
+              variant="ghost"
               type="button"
               className="shrink-0 text-sm hover:underline"
               onClick={() => navigate("")}
             >
               Root
-            </button>
+            </Button>
             <span className="truncate text-sm text-muted-foreground">
               / {prefix}
             </span>
@@ -131,17 +132,18 @@ export function StorageDestinationDialog({
                     (entry) => entry.kind === "folder" && !entry.protected,
                   )
                   .map((entry) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={entry.key}
                       type="button"
                       disabled={busy}
-                      className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm hover:bg-muted"
+                      className="flex h-auto w-full items-center justify-start gap-3 rounded-md px-3 py-3 text-left text-sm hover:bg-muted"
                       onClick={() => navigate(entry.key)}
                     >
                       <Folder className="size-5 shrink-0 text-blue-500" />
                       <span className="truncate">{storageLabel(entry)}</span>
                       <ChevronRight className="ml-auto size-4" />
-                    </button>
+                    </Button>
                   ))}
                 {!page.entries.some(
                   (entry) => entry.kind === "folder" && !entry.protected,

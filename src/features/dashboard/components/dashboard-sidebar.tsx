@@ -126,9 +126,8 @@ export function DashboardSidebar() {
               {navItems
                 .filter(
                   (item) =>
-                    !["/dashboard/settings", "/dashboard/users"].includes(
-                      item.href,
-                    ) || session?.user.role === "admin",
+                    item.href !== "/dashboard/users" ||
+                    session?.user.role === "admin",
                 )
                 .map((item) => (
                   <SidebarMenuItem

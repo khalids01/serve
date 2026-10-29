@@ -4,7 +4,7 @@ This release targets a fresh Serve installation. Deploy with a new PostgreSQL da
 
 ## Choose storage
 
-Go to **Dashboard → Storage**. Applications can use:
+Configure connections in **Settings → Storage & backups**. Browse files in **Dashboard → Storage**. Applications can use:
 
 - **Default**: `STORAGE_PROVIDER` and the host's `S3_*` environment settings (or host Local when `STORAGE_PROVIDER=local`). Missing S3 settings disable Default; they do not prevent Local or saved connections from working.
 - **Local storage (this VPS)**: files under `/uploads` in the persistent `serve-uploads` Docker volume, independent of the default provider.

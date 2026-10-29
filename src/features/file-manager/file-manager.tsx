@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -46,6 +47,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ImageCropDialog } from "@/features/applications/components/image-crop-dialog";
 import { DocumentPreview } from "@/features/media/components/document-preview";
 import { StorageLocationSelect } from "@/features/storage/location-select";
@@ -484,7 +493,9 @@ export function FileManager() {
           .filter((folder) => folder.parentId === parentId)
           .map((folder) => (
             <div key={folder.id}>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 className={`flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left text-sm hover:bg-muted ${position.folderId === folder.id ? "bg-muted font-medium" : ""}`}
                 style={{ paddingLeft: 12 + depth * 12 }}
@@ -494,7 +505,7 @@ export function FileManager() {
               >
                 <Folder className="size-4 shrink-0 text-amber-500" />
                 <span className="truncate">{folder.name}</span>
-              </button>
+              </Button>
               {tree(folder.id, depth + 1)}
             </div>
           ));
@@ -508,19 +519,25 @@ export function FileManager() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            aria-label="Application"
+          <Select
             disabled={busy}
-            className="h-9 max-w-60 rounded-md border bg-background px-3 text-sm"
             value={applicationId}
-            onChange={(event) => setApplicationId(event.target.value)}
+            onValueChange={(value) => setApplicationId(value)}
           >
-            {apps.map((app) => (
-              <option key={app.id} value={app.id}>
-                {app.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              aria-label="Application"
+              className="h-9 max-w-60 rounded-md border bg-background px-3 text-sm"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {apps.map((app) => (
+                <SelectItem key={app.id} value={app.id}>
+                  {app.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/storage">
               <HardDrive className="mr-2 size-4" />
@@ -546,7 +563,9 @@ export function FileManager() {
               { view: "starred", label: "Starred", icon: Star },
               { view: "trash", label: "Trash", icon: Trash2 },
             ].map((item) => (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 key={item.view}
                 className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm ${position.view === item.view && !position.folderId ? "bg-muted font-medium" : "hover:bg-muted"}`}
@@ -554,19 +573,19 @@ export function FileManager() {
               >
                 <item.icon className="size-4" />
                 {item.label}
-              </button>
+              </Button>
             ))}
             <p className="px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Folders
             </p>
             {tree(null)}
             <div className="space-y-2 border-t p-2 pt-4">
-              <label
+              <Label
                 htmlFor="default-storage"
                 className="text-xs text-muted-foreground"
               >
                 Application default storage
-              </label>
+              </Label>
               <StorageLocationSelect
                 value={location}
                 defaultLabel="System default upload destination"
@@ -629,26 +648,30 @@ export function FileManager() {
                 aria-label="Breadcrumb"
                 className="flex min-w-0 flex-1 items-center gap-1 overflow-auto text-sm"
               >
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   className="shrink-0 rounded px-2 py-1 hover:bg-muted"
                   onClick={() => navigate(null)}
                 >
                   {position.view === "files" ? "All files" : position.view}
-                </button>
+                </Button>
                 {path.map((folder) => (
                   <span
                     key={folder.id}
                     className="flex shrink-0 items-center gap-1"
                   >
                     <span className="text-muted-foreground">/</span>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       type="button"
                       className="max-w-40 truncate rounded px-2 py-1 hover:bg-muted"
                       onClick={() => navigate(folder.id)}
                     >
                       {folder.name}
-                    </button>
+                    </Button>
                   </span>
                 ))}
               </nav>
@@ -694,7 +717,7 @@ export function FileManager() {
                   </Button>
                 </>
               )}
-              <input
+              <Input
                 ref={fileInput}
                 type="file"
                 multiple
@@ -717,33 +740,42 @@ export function FileManager() {
                   placeholder="Search this application"
                 />
               </div>
-              <select
-                aria-label="File type"
-                className="h-9 rounded-md border bg-background px-2 text-sm"
+              <Select
                 value={kind}
-                onChange={(event) => {
-                  setKind(event.target.value);
+                onValueChange={(value) => {
+                  setKind(value);
                   setPage(1);
                 }}
               >
-                {["all", "image", "video", "audio"].map((value) => (
-                  <option key={value} value={value}>
-                    {value === "all" ? "All types" : value}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Sort by"
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-                value={sort}
-                onChange={(event) => setSort(event.target.value)}
-              >
-                {["name", "date", "size", "type"].map((value) => (
-                  <option key={value} value={value}>
-                    Sort: {value}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  aria-label="File type"
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["all", "image", "video", "audio"].map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value === "all" ? "All types" : value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={(value) => setSort(value)}>
+                <SelectTrigger
+                  aria-label="Sort by"
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["name", "date", "size", "type"].map((value) => (
+                    <SelectItem key={value} value={value}>
+                      Sort: {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button
                 size="icon"
                 variant="outline"
@@ -756,36 +788,47 @@ export function FileManager() {
                   <LayoutGrid className="size-4" />
                 )}
               </Button>
-              <select
-                aria-label="View"
-                className="h-9 rounded border bg-background px-2 text-sm md:hidden"
+              <Select
                 value={position.view}
-                onChange={(event) => navigate(null, event.target.value)}
+                onValueChange={(value) => navigate(null, value)}
               >
-                {["files", "recent", "starred", "trash"].map((view) => (
-                  <option key={view}>{view}</option>
-                ))}
-              </select>
+                <SelectTrigger
+                  aria-label="View"
+                  className="h-9 rounded border bg-background px-2 text-sm md:hidden"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["files", "recent", "starred", "trash"].map((view) => (
+                    <SelectItem key={view} value={view}>
+                      {view}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex min-h-12 flex-wrap items-center gap-1 border-b px-3 py-2 text-xs">
-              <label className="mr-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
+              <Label
+                htmlFor="select-all-files"
+                className="mr-2 flex items-center gap-2"
+              >
+                <Checkbox
+                  id="select-all-files"
                   aria-label="Select all displayed items"
                   checked={
                     !!items.length &&
                     items.every((item) => selection.includes(item.id))
                   }
-                  onChange={(event) =>
+                  onCheckedChange={(checked) =>
                     setSelection(
-                      event.target.checked ? items.map((item) => item.id) : [],
+                      checked === true ? items.map((item) => item.id) : [],
                     )
                   }
                 />
                 {selection.length
                   ? `${selection.length} selected`
                   : `${data?.pagination.total ?? 0} files`}
-              </label>
+              </Label>
               {!!selection.length &&
                 (position.view === "trash" ? (
                   <>
@@ -901,13 +944,15 @@ export function FileManager() {
                 className="m-4 rounded border border-destructive/30 p-3 text-sm"
               >
                 {error}{" "}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   className="underline"
                   onClick={() => void load()}
                 >
                   Retry
-                </button>
+                </Button>
               </div>
             )}
             <div
@@ -1211,7 +1256,9 @@ export function FileManager() {
               Uploads · {queue.filter((item) => item.status === "done").length}/
               {queue.length} complete
             </span>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               type="button"
               className="underline"
               onClick={() =>
@@ -1224,7 +1271,7 @@ export function FileManager() {
               }
             >
               Clear completed
-            </button>
+            </Button>
           </div>
           <div className="max-h-44 space-y-2 overflow-auto">
             {queue.map((item) => (
@@ -1252,7 +1299,9 @@ export function FileManager() {
                   </span>
                 )}
                 {["waiting", "uploading"].includes(item.status) ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     type="button"
                     onClick={() => {
                       requests.current.get(item.id)?.abort();
@@ -1260,9 +1309,11 @@ export function FileManager() {
                     }}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 ) : ["failed", "cancelled"].includes(item.status) ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     type="button"
                     className="underline"
                     onClick={() =>
@@ -1274,7 +1325,7 @@ export function FileManager() {
                     }
                   >
                     Retry
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ))}
@@ -1343,34 +1394,44 @@ export function FileManager() {
               is released.
             </DialogDescription>
           </DialogHeader>
-          <label className="text-sm">
+          <Label className="text-sm">
             Destination folder
-            <select
-              className="mt-1 h-10 w-full rounded border bg-background px-3"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-            >
-              <option value="">All files (root)</option>
-              {data?.tree.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {directoryPath(folder.id, data.tree)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            Storage destination
-            <select
-              className="mt-1 h-10 w-full rounded border bg-background px-3"
-              value={targetStorage ? "change" : "keep"}
-              onChange={(event) =>
-                setTargetStorage(event.target.value === "keep" ? "" : location)
+            <Select
+              value={target || "__root__"}
+              onValueChange={(value) =>
+                setTarget(value === "__root__" ? "" : value)
               }
             >
-              <option value="keep">Keep current storage</option>
-              <option value="change">Choose storage</option>
-            </select>
-          </label>
+              <SelectTrigger className="mt-1 h-10 w-full rounded border bg-background px-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__root__">All files (root)</SelectItem>
+                {data?.tree.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {directoryPath(folder.id, data.tree)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Label>
+          <Label className="text-sm">
+            Storage destination
+            <Select
+              value={targetStorage ? "change" : "keep"}
+              onValueChange={(value) =>
+                setTargetStorage(value === "keep" ? "" : location)
+              }
+            >
+              <SelectTrigger className="mt-1 h-10 w-full rounded border bg-background px-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="keep">Keep current storage</SelectItem>
+                <SelectItem value="change">Choose storage</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
           {!!targetStorage && (
             <StorageLocationSelect
               value={targetStorage}

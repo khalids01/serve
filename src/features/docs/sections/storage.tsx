@@ -14,8 +14,8 @@ export function StorageSection() {
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             Open{" "}
-            <Link className="underline" href="/dashboard/storage">
-              Dashboard → Storage
+            <Link className="underline" href="/dashboard/settings#storage">
+              Settings → Storage & backups
             </Link>
             . Default uses the host environment; Local uses the persistent
             /uploads Docker volume.

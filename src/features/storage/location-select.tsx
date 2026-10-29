@@ -1,5 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 export type LocationOption = { id: string; name: string; enabled: boolean };
 export function StorageLocationSelect({
   value,
@@ -29,34 +36,44 @@ export function StorageLocationSelect({
     return () => controller.abort();
   }, []);
   return (
-    <select
-      aria-label="Storage location"
-      className={`h-10 min-w-40 rounded-md border bg-background px-3 text-sm ${className}`}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
+    <Select
+      value={value || "__inherit__"}
+      onValueChange={(value) => onChange(value === "__inherit__" ? "" : value)}
       disabled={disabled}
     >
-      {inheritedLabel && <option value="">{inheritedLabel}</option>}
-      {!options.length && (
-        <>
-          <option value="default">Default storage</option>
-          <option value="local">Local storage (this VPS)</option>
-        </>
-      )}
-      {options.map((option) => (
-        <option
-          key={option.id}
-          value={option.id}
-          disabled={
-            !option.enabled && !(option.id === "default" && defaultLabel)
-          }
-        >
-          {option.id === "default" && defaultLabel ? defaultLabel : option.name}
-          {!option.enabled && !(option.id === "default" && defaultLabel)
-            ? " — unavailable"
-            : ""}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger
+        aria-label="Storage location"
+        className={`h-10 min-w-40 rounded-md border bg-background px-3 text-sm ${className}`}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {inheritedLabel && (
+          <SelectItem value="__inherit__">{inheritedLabel}</SelectItem>
+        )}
+        {!options.length && (
+          <>
+            <SelectItem value="default">Default storage</SelectItem>
+            <SelectItem value="local">Local storage (this VPS)</SelectItem>
+          </>
+        )}
+        {options.map((option) => (
+          <SelectItem
+            key={option.id}
+            value={option.id}
+            disabled={
+              !option.enabled && !(option.id === "default" && defaultLabel)
+            }
+          >
+            {option.id === "default" && defaultLabel
+              ? defaultLabel
+              : option.name}
+            {!option.enabled && !(option.id === "default" && defaultLabel)
+              ? " — unavailable"
+              : ""}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

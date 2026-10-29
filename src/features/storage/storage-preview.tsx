@@ -236,11 +236,12 @@ export function StoragePreview({
                   key={version.key}
                   className={`flex min-w-0 items-center gap-2 rounded-lg border p-2 ${activeKey === version.key ? "border-blue-500 bg-blue-500/5" : ""}`}
                 >
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     aria-pressed={activeKey === version.key}
                     onClick={() => setActiveKey(version.key)}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded p-1 text-left focus-visible:outline-2 focus-visible:outline-ring"
+                    className="flex h-auto min-w-0 flex-1 items-center justify-start gap-3 whitespace-normal rounded p-1 text-left focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     <StorageThumbnail
                       id={id}
@@ -264,7 +265,7 @@ export function StoragePreview({
                         {storageSize(version.sizeBytes)}
                       </span>
                     </span>
-                  </button>
+                  </Button>
                   <Button variant="ghost" size="icon" asChild>
                     <a
                       href={storageContentURL(id, { ...version, kind: "file" })}

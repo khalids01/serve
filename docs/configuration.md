@@ -115,9 +115,9 @@ On-demand resize can cache outputs under each tenant's `_cache/` folder (or `_bl
 
 ## File backups and delivery
 
-Configure delivery and upload defaults under **Storage** or **Settings**. Proxy is the default; Direct uses signed S3 URLs and requires browsers to reach the provider. Local files stream through Serve.
+Configure delivery and upload defaults under **Settings → Storage & backups**. Proxy is the default; Direct uses signed S3 URLs and requires browsers to reach the provider. Local files stream through Serve.
 
-Choose an S3 backup destination under **Storage → Local upload backups**. Only new local uploads are queued; existing files are not backfilled. The persistent worker copies originals and variants, verifies SHA-256 checksums, and writes file/application JSON metadata. Storage jobs provides progress, retry, restore, metadata download, and explicit backup removal. Failed backups retain their local source until completed or cancelled. Deleting a local file does not automatically delete its completed S3 backup.
+Choose an S3 backup destination under **Settings → Storage & backups → Back up new local uploads**. Only new local uploads are queued; existing files are not backfilled. The persistent worker copies originals and variants, verifies SHA-256 checksums, and writes file/application JSON metadata. Storage jobs provides progress, retry, restore, metadata download, and explicit backup removal. Failed backups retain their local source until completed or cancelled. Deleting a local file does not automatically delete its completed S3 backup.
 
 Serve no longer schedules database dumps. Configure database backups in Dokploy. **Export file metadata** downloads owned files, folders, and application associations, without accounts, credentials, or API keys.
 

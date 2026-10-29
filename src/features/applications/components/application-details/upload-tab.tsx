@@ -680,7 +680,7 @@ export function UploadPanel({
                   : "border-muted-foreground/25 hover:border-primary/50"
               }`}
             >
-              <input {...getInputProps()} />
+              <Input {...getInputProps()} />
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               {isDragActive ? (
                 <p className="text-lg">Drop the files here...</p>

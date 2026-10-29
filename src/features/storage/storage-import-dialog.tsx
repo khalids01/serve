@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { BrowseEntry } from "@/lib/storage/browse";
 
 type Application = { id: string; name: string; slug: string };
@@ -140,7 +142,10 @@ export function StorageImportDialog({
                 className="pl-9"
               />
             </div>
-            <fieldset
+            <RadioGroup
+              value={applicationId}
+              onValueChange={setApplicationId}
+              disabled={busy}
               className="max-h-64 space-y-2 overflow-y-auto"
               aria-label="Choose application"
             >
@@ -150,18 +155,12 @@ export function StorageImportDialog({
                 </p>
               ) : page?.applications.length ? (
                 page.applications.map((app) => (
-                  <label
+                  <Label
+                    htmlFor={`application-${app.id}`}
                     key={app.id}
                     className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 ${applicationId === app.id ? "border-blue-500 bg-blue-500/5" : ""}`}
                   >
-                    <input
-                      type="radio"
-                      name="application"
-                      value={app.id}
-                      checked={applicationId === app.id}
-                      disabled={busy}
-                      onChange={() => setApplicationId(app.id)}
-                    />
+                    <RadioGroupItem value={app.id} disabled={busy} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">
                         {app.name}
@@ -170,7 +169,7 @@ export function StorageImportDialog({
                         {app.slug}
                       </span>
                     </span>
-                  </label>
+                  </Label>
                 ))
               ) : (
                 <p className="py-8 text-center text-sm text-muted-foreground">
@@ -179,7 +178,7 @@ export function StorageImportDialog({
                     : "Create an application before adding files."}
                 </p>
               )}
-            </fieldset>
+            </RadioGroup>
             <div className="flex justify-end gap-2">
               {cursor && (
                 <Button

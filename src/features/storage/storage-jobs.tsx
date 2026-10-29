@@ -5,6 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StorageLocationSelect } from "./location-select";
 
 type Job = {
@@ -114,7 +121,7 @@ export function StorageJobs() {
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href="/dashboard/storage">Storage settings</Link>
+            <Link href="/dashboard/settings#storage">Storage settings</Link>
           </Button>
           <Button asChild variant="outline">
             <a href="/api/file-manifest">Export metadata JSON</a>
@@ -160,16 +167,24 @@ export function StorageJobs() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="transfer-operation">Action</Label>
-            <select
-              id="transfer-operation"
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            <Select
               value={operation}
-              onChange={(event) => setOperation(event.target.value)}
+              onValueChange={(value) => setOperation(value)}
               disabled={!!busy}
             >
-              <option value="copy">Copy — keep originals</option>
-              <option value="move">Move — remove verified originals</option>
-            </select>
+              <SelectTrigger
+                id="transfer-operation"
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="copy">Copy — keep originals</SelectItem>
+                <SelectItem value="move">
+                  Move — remove verified originals
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">

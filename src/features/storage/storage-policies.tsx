@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 export type StorageDefaults = {
   defaultUploadDestinationId: string;
   defaultDeliveryMode: string;
@@ -43,39 +50,51 @@ export function StorageDefaultsForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="system-destination">Default upload destination</Label>
-          <select
-            id="system-destination"
-            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          <Select
             value={settings.defaultUploadDestinationId}
             disabled={busy}
-            onChange={(event) =>
+            onValueChange={(value) =>
               setSettings({
                 ...settings,
-                defaultUploadDestinationId: event.target.value,
+                defaultUploadDestinationId: value,
               })
             }
           >
-            <option value="default">Default storage drive</option>
-            <option value="local">Local storage (this VPS)</option>
-          </select>
+            <SelectTrigger
+              id="system-destination"
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default storage drive</SelectItem>
+              <SelectItem value="local">Local storage (this VPS)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="system-delivery">Default drive delivery</Label>
-          <select
-            id="system-delivery"
-            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          <Select
             value={settings.defaultDeliveryMode}
             disabled={busy}
-            onChange={(event) =>
+            onValueChange={(value) =>
               setSettings({
                 ...settings,
-                defaultDeliveryMode: event.target.value,
+                defaultDeliveryMode: value,
               })
             }
           >
-            <option value="proxy">Proxy — through Serve</option>
-            <option value="direct">Direct — signed S3 URLs</option>
-          </select>
+            <SelectTrigger
+              id="system-delivery"
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="proxy">Proxy — through Serve</SelectItem>
+              <SelectItem value="direct">Direct — signed S3 URLs</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -147,26 +166,34 @@ export function LocalBackupSettings({
       </div>
       <div className="space-y-2">
         <Label htmlFor="local-backup-target">S3 backup destination</Label>
-        <select
-          id="local-backup-target"
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-          value={target ?? ""}
+        <Select
+          value={target || "__off__"}
           disabled={target === undefined || busy}
-          onChange={(event) => setTarget(event.target.value)}
+          onValueChange={(value) => setTarget(value === "__off__" ? "" : value)}
         >
-          <option value="">Off</option>
-          {defaultS3 && <option value="default">Default S3 storage</option>}
-          {connections.map((connection) => (
-            <option
-              key={connection.id}
-              value={connection.id}
-              disabled={!connection.enabled}
-            >
-              {connection.name}
-              {!connection.enabled ? " — disabled" : ""}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="local-backup-target"
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__off__">Off</SelectItem>
+            {defaultS3 && (
+              <SelectItem value="default">Default S3 storage</SelectItem>
+            )}
+            {connections.map((connection) => (
+              <SelectItem
+                key={connection.id}
+                value={connection.id}
+                disabled={!connection.enabled}
+              >
+                {connection.name}
+                {!connection.enabled ? " — disabled" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
         Applies only to uploads made after enabling this setting. Existing files

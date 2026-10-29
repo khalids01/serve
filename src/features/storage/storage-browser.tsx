@@ -36,9 +36,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -62,6 +63,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   BROWSE_PAGE_SIZE,
   type BrowseEntry,
@@ -136,8 +144,10 @@ function SelectionCheckbox({
   visible: boolean;
   onChange: () => void;
 }) {
+  const checkboxId = useId();
   return (
-    <label
+    <Label
+      htmlFor={checkboxId}
       data-selection-control
       className={`relative inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-opacity focus-within:opacity-100 focus-within:pointer-events-auto focus-within:ring-2 focus-within:ring-ring group-hover:opacity-100 group-hover:pointer-events-auto ${checked ? "border-blue-500/30 bg-blue-500/20 text-blue-500" : "border-border/60 bg-muted/80 text-muted-foreground"} ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`}
       onClick={(event) => event.stopPropagation()}
@@ -145,18 +155,18 @@ function SelectionCheckbox({
         if (event.key === " " || event.key === "Enter") event.stopPropagation();
       }}
     >
-      <input
-        type="checkbox"
+      <Checkbox
+        id={checkboxId}
         aria-label={label}
         checked={checked}
-        onChange={onChange}
+        onCheckedChange={onChange}
         className="absolute inset-0 size-full cursor-pointer opacity-0"
       />
       <Check
         aria-hidden="true"
         className={`pointer-events-none size-3.5 ${checked ? "opacity-100" : "opacity-0"}`}
       />
-    </label>
+    </Label>
   );
 }
 function FileGlyph({
@@ -883,7 +893,7 @@ export function StorageBrowser({
       onKeyDown={keyDown}
       className="flex min-w-0 flex-1 flex-col gap-5 p-2 outline-none md:p-4"
     >
-      <input
+      <Input
         ref={filesInput}
         type="file"
         multiple
@@ -893,7 +903,7 @@ export function StorageBrowser({
           void uploadFiles(Array.from(event.target.files ?? []))
         }
       />
-      <input
+      <Input
         ref={folderInput}
         type="file"
         multiple
@@ -985,13 +995,14 @@ export function StorageBrowser({
             >
               <ArrowLeft className="size-4" />
             </Button>
-            <button
+            <Button
+              variant="ghost"
               type="button"
               onClick={() => navigate("", undefined, false)}
               className="rounded-md px-2 py-1.5 font-medium hover:bg-muted"
             >
               {name}
-            </button>
+            </Button>
             {trash ? (
               <>
                 <ChevronRight className="size-3.5 text-muted-foreground" />
@@ -1004,7 +1015,8 @@ export function StorageBrowser({
                   className="inline-flex min-w-0 items-center gap-1"
                 >
                   <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     title={part}
                     className="max-w-40 truncate rounded-md px-2 py-1.5 hover:bg-muted"
@@ -1013,7 +1025,7 @@ export function StorageBrowser({
                     }
                   >
                     {part}
-                  </button>
+                  </Button>
                 </span>
               ))
             )}
@@ -1187,16 +1199,22 @@ export function StorageBrowser({
             )}
           </div>
           <div className="flex items-center gap-1">
-            <select
-              aria-label="Sort files"
+            <Select
               value={sort}
-              onChange={(event) => setSort(event.target.value as typeof sort)}
-              className="h-8 max-w-32 rounded-md border-0 bg-transparent px-2 text-xs text-muted-foreground"
+              onValueChange={(value) => setSort(value as typeof sort)}
             >
-              <option value="name">Name</option>
-              <option value="modified">Date modified</option>
-              <option value="size">Size</option>
-            </select>
+              <SelectTrigger
+                aria-label="Sort files"
+                className="h-8 max-w-32 rounded-md border-0 bg-transparent px-2 text-xs text-muted-foreground"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="modified">Date modified</SelectItem>
+                <SelectItem value="size">Size</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="ghost"
               size="icon"
@@ -1430,9 +1448,10 @@ export function StorageBrowser({
                                     large={false}
                                     fallback={<FileGlyph entry={entry} />}
                                   />
-                                  <button
+                                  <Button
+                                    variant="ghost"
                                     type="button"
-                                    className="truncate text-left hover:underline"
+                                    className="h-auto min-w-0 justify-start truncate p-0 text-left hover:underline"
                                     title={storageLabel(entry)}
                                     onClick={(event) => {
                                       event.stopPropagation();
@@ -1447,7 +1466,7 @@ export function StorageBrowser({
                                     }}
                                   >
                                     {storageLabel(entry)}
-                                  </button>
+                                  </Button>
                                   {entry.variants?.length ? (
                                     <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                                       {entry.variants.length + 1} versions
@@ -1582,9 +1601,10 @@ export function StorageBrowser({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-                          <button
+                          <Button
+                            variant="ghost"
                             type="button"
-                            className="flex w-full min-w-0 flex-col items-center gap-4 py-2"
+                            className="flex h-auto w-full min-w-0 flex-col items-center gap-4 whitespace-normal py-2"
                             aria-label={storageLabel(entry)}
                             onClick={(event) => {
                               if (
@@ -1617,7 +1637,7 @@ export function StorageBrowser({
                             >
                               {storageLabel(entry)}
                             </span>
-                          </button>
+                          </Button>
                           <p className="mt-1 text-center text-xs text-muted-foreground">
                             {entry.protected
                               ? "Managed by Serve"
