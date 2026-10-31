@@ -41,6 +41,7 @@
     "examples/quickstart": {
       "name": "file-server-quickstart",
       "dependencies": {
+        "@skycanvasstudio/serve-client": "workspace:*",
         "@skycanvasstudio/serve-react": "workspace:*",
         "@skycanvasstudio/serve-server": "workspace:*",
         "react": "^19.2.3",

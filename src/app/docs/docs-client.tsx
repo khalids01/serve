@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  Book,
   ImageIcon,
-  Key,
   List,
   Maximize2,
   Menu,
@@ -12,6 +10,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PublicHeader } from "@/components/core/public-header";
 import { Button } from "@/components/ui/button";
@@ -26,37 +25,20 @@ import {
 import { ApiKeySelector } from "@/features/docs/api-key-selector";
 import { ApiTestProvider } from "@/features/docs/api-test-provider";
 import { AuditLogsSection } from "@/features/docs/sections/audit-logs";
-import { AuthenticationSection } from "@/features/docs/sections/authentication";
 import { DeleteImageSection } from "@/features/docs/sections/delete-image";
 import { GetImageSection } from "@/features/docs/sections/get-image";
-import { GettingStartedSection } from "@/features/docs/sections/getting-started";
-import { HostingSection } from "@/features/docs/sections/hosting";
 import { ImageOptimizationSection } from "@/features/docs/sections/image-optimization";
 import { ListImagesSection } from "@/features/docs/sections/list-images";
 import { OnDemandResizeSection } from "@/features/docs/sections/on-demand-resize";
-import { ReactIntegrationSection } from "@/features/docs/sections/react-integration";
-import { SdkReferenceSection } from "@/features/docs/sections/sdk-reference";
-import { StorageSection } from "@/features/docs/sections/storage";
 import { UploadImageSection } from "@/features/docs/sections/upload-image";
 import { cn } from "@/lib/utils";
-import type { DocsPageData } from "./page";
+import type { DocsPageData } from "./types";
 
 interface DocsClientProps {
   data: DocsPageData;
 }
 
 const sectionGroups = [
-  {
-    label: "Setup",
-    sections: [
-      { id: "getting-started", title: "Getting Started", icon: Book },
-      { id: "react-integration", title: "React / Next.js", icon: ImageIcon },
-      { id: "storage", title: "Storage & file manager", icon: Book },
-      { id: "hosting", title: "Hosting & checks", icon: Key },
-      { id: "sdk-reference", title: "SDK / API v1", icon: Book },
-      { id: "authentication", title: "Authentication", icon: Key },
-    ],
-  },
   {
     label: "Legacy REST testers",
     sections: [
@@ -91,7 +73,8 @@ function DocsNav({
             {group.sections.map((section) => {
               const Icon = section.icon;
               return (
-                <button
+                <Button
+                  variant="ghost"
                   key={section.id}
                   type="button"
                   aria-current={
@@ -107,7 +90,7 @@ function DocsNav({
                 >
                   <Icon className="mr-3 h-4 w-4 shrink-0" />
                   {section.title}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -117,26 +100,8 @@ function DocsNav({
   );
 }
 
-function DocsContent({
-  activeSection,
-  onSectionChange,
-}: {
-  activeSection: string;
-  onSectionChange: (id: string) => void;
-}) {
+function DocsContent({ activeSection }: { activeSection: string }) {
   switch (activeSection) {
-    case "getting-started":
-      return <GettingStartedSection onSectionChange={onSectionChange} />;
-    case "react-integration":
-      return <ReactIntegrationSection />;
-    case "storage":
-      return <StorageSection />;
-    case "hosting":
-      return <HostingSection />;
-    case "sdk-reference":
-      return <SdkReferenceSection />;
-    case "authentication":
-      return <AuthenticationSection />;
     case "upload":
       return <UploadImageSection />;
     case "optimization":
@@ -152,12 +117,12 @@ function DocsContent({
     case "delete":
       return <DeleteImageSection />;
     default:
-      return <GettingStartedSection onSectionChange={onSectionChange} />;
+      return <UploadImageSection />;
   }
 }
 
 export default function DocsClient({ data }: DocsClientProps) {
-  const [activeSection, setActiveSection] = useState("getting-started");
+  const [activeSection, setActiveSection] = useState("upload");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -191,16 +156,19 @@ export default function DocsClient({ data }: DocsClientProps) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  Serve integration docs
+                  Legacy REST testers
                 </h1>
                 <p className="text-muted-foreground">
-                  Install the SDK, configure two env variables, and start using
-                  Serve
+                  Interactive testers for earlier REST endpoints. New
+                  integrations should use the complete SDK guide.
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <Button asChild variant="outline">
+                  <Link href="/docs">Integration guide</Link>
+                </Button>
                 <span className="hidden rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950 dark:text-green-300 sm:inline-flex">
-                  SDK 0.1.0
+                  Legacy API
                 </span>
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                   <SheetTrigger asChild>
@@ -226,13 +194,7 @@ export default function DocsClient({ data }: DocsClientProps) {
         </div>
 
         <div className="container mx-auto">
-          {![
-            "getting-started",
-            "react-integration",
-            "hosting",
-            "sdk-reference",
-            "authentication",
-          ].includes(activeSection) && <ApiKeySelector />}
+          <ApiKeySelector />
         </div>
 
         <div className="container mx-auto px-4 py-8">
@@ -249,10 +211,7 @@ export default function DocsClient({ data }: DocsClientProps) {
             </aside>
 
             <div className="min-w-0 flex-1 max-w-4xl">
-              <DocsContent
-                activeSection={activeSection}
-                onSectionChange={handleSectionChange}
-              />
+              <DocsContent activeSection={activeSection} />
             </div>
           </div>
         </div>

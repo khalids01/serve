@@ -1,9 +1,14 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Check } from "lucide-react";
-import { useTheme } from "next-themes";
-import { createHighlighter, type Highlighter } from "shiki";
+import {
+  type BundledLanguage,
+  createHighlighter,
+  type Highlighter,
+  type ThemedToken,
+} from "shiki";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -28,30 +33,24 @@ let highlighterPromise: Promise<Highlighter> | null = null;
 function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ["github-dark", "github-light"],
+      themes: ["github-dark"],
       langs: ["json", "bash", "javascript", "typescript", "tsx"],
     });
   }
   return highlighterPromise;
 }
 
-function normalizeLanguage(language: string) {
+function normalizeLanguage(language: string): BundledLanguage {
   if (language === "shell" || language === "text") return "bash";
-  if (SUPPORTED_LANGS.has(language)) return language;
+  if (SUPPORTED_LANGS.has(language)) return language as BundledLanguage;
   return "bash";
 }
 
-export function CodeBlock({
-  code,
-  language = "bash",
-  className,
-}: Props) {
-  const { resolvedTheme } = useTheme();
+export function CodeBlock({ code, language = "bash", className }: Props) {
   const [copied, setCopied] = useState(false);
-  const [html, setHtml] = useState<string | null>(null);
+  const [tokens, setTokens] = useState<ThemedToken[][] | null>(null);
 
   const lang = useMemo(() => normalizeLanguage(language), [language]);
-  const theme = resolvedTheme === "dark" ? "github-dark" : "github-light";
 
   useEffect(() => {
     let cancelled = false;
@@ -59,10 +58,13 @@ export function CodeBlock({
     async function highlight() {
       try {
         const highlighter = await getHighlighter();
-        const highlighted = highlighter.codeToHtml(code, { lang, theme });
-        if (!cancelled) setHtml(highlighted);
+        const highlighted = highlighter.codeToTokens(code, {
+          lang,
+          theme: "github-dark",
+        }).tokens;
+        if (!cancelled) setTokens(highlighted);
       } catch {
-        if (!cancelled) setHtml(null);
+        if (!cancelled) setTokens(null);
       }
     }
 
@@ -70,7 +72,7 @@ export function CodeBlock({
     return () => {
       cancelled = true;
     };
-  }, [code, lang, theme]);
+  }, [code, lang]);
 
   const onCopy = async () => {
     try {
@@ -89,7 +91,9 @@ export function CodeBlock({
           <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
             {language}
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             type="button"
             onClick={() => void onCopy()}
             className="rounded p-1.5 text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-zinc-100 group-hover:opacity-100"
@@ -100,19 +104,44 @@ export function CodeBlock({
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
-          </button>
+          </Button>
         </div>
 
-        {html ? (
-          <div
-            className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-sm"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        ) : (
-          <pre className="overflow-x-auto p-4 text-sm text-zinc-100">
-            <code>{code}</code>
-          </pre>
-        )}
+        <pre className="overflow-x-auto p-4 text-sm text-zinc-100">
+          <code>
+            {tokens
+              ? tokens.map((line) => (
+                  <span
+                    key={line[0]?.offset ?? `empty-${tokens.indexOf(line)}`}
+                  >
+                    {line.map((token) => (
+                      <span
+                        key={token.offset}
+                        style={{
+                          color: token.color,
+                          fontStyle:
+                            token.fontStyle && token.fontStyle & 1
+                              ? "italic"
+                              : undefined,
+                          fontWeight:
+                            token.fontStyle && token.fontStyle & 2
+                              ? "bold"
+                              : undefined,
+                          textDecoration:
+                            token.fontStyle && token.fontStyle & 4
+                              ? "underline"
+                              : undefined,
+                        }}
+                      >
+                        {token.content}
+                      </span>
+                    ))}
+                    {"\n"}
+                  </span>
+                ))
+              : code}
+          </code>
+        </pre>
       </div>
     </div>
   );

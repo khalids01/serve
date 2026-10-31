@@ -7,7 +7,8 @@
     "@skycanvasstudio/serve-react": "workspace:*",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@skycanvasstudio/serve-client": "workspace:*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

@@ -1,3 +1,4 @@
+import "./check-versions.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
@@ -170,6 +171,15 @@ const asset: FileAsset | undefined = undefined; void asset;`,
     join(consumer, "next-docs/app"),
     { recursive: true },
   );
+  for (const filename of [
+    "browser-client.ts",
+    "server-operations.ts",
+    "token-handler.ts",
+  ])
+    cpSync(
+      join(root, "examples/quickstart", filename),
+      join(consumer, "next-docs", filename),
+    );
   writeFileSync(
     join(consumer, "tsconfig.docs.json"),
     JSON.stringify({
@@ -197,10 +207,13 @@ const asset: FileAsset | undefined = undefined; void asset;`,
 const base = process.env.FILE_SERVER_URL;
 const asset = {id:'docs-asset',filename:'hello.txt',originalName:'hello.txt',contentType:'text/plain',kind:'document',sizeBytes:16,width:null,height:null,tags:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),urls:{content:base+'/api/v1/files/docs-asset/content',image:null,placeholder:null},variants:[]};
 globalThis.fetch = async (input, init = {}) => {
+  if (String(input) === '/api/file-server/token') { assert.equal(init.method,'POST'); return Response.json({data:{token:'browser-token',expiresAt:new Date(Date.now()+300000).toISOString()}}); }
   const url = new URL(String(input)); assert.equal(url.origin,base);
   if (url.pathname === '/api/v1/capabilities') return Response.json({data:{apiVersion:'v1',publicBaseUrl:base,browserTokens:{enabled:true}}});
-  assert.equal(new Headers(init.headers).get('authorization'),'Bearer sk_documented_test');
+  assert(['Bearer sk_documented_test','Bearer browser-token'].includes(new Headers(init.headers).get('authorization')));
+  if(url.pathname==='/api/v1/storage-locations') return Response.json({data:[{id:'local',name:'Local storage',kind:'local',enabled:true,deliveryMode:'proxy'}],defaultStorageLocationId:'local'});
   if (url.pathname === '/api/v1/browser-tokens') { assert.deepEqual(JSON.parse(init.body).allowedOrigins,['https://consumer.example']); return Response.json({data:{token:'browser-token',expiresAt:new Date(Date.now()+300000).toISOString()}}); }
+  if (url.pathname === '/api/v1/files/docs-asset') return Response.json({data:asset});
   assert.equal(url.pathname,'/api/v1/files');
   if (init.method === 'POST') { const file=init.body.get('file'); assert.equal(file.name,'hello.txt'); assert.equal(await file.text(),'Hello from Serve'); return Response.json({data:asset},{status:201}); }
   return Response.json({data:[asset],pagination:{page:1,limit:1,total:1,pages:1,hasNext:false,hasPrev:false}});
@@ -209,7 +222,7 @@ globalThis.fetch = async (input, init = {}) => {
   writeFileSync(
     join(consumer, "compile-docs.cjs"),
     `const fs = require('node:fs'); const ts = require('typescript');
-for (const [source, target] of [['next-docs/lib/file-server.ts','docs-server-client.mjs'],['next-docs/app/api/file-server/token/route.ts','docs-token-route.mjs']]) {
+for (const [source, target] of [['next-docs/lib/file-server.ts','docs-server-client.mjs'],['next-docs/app/api/file-server/token/route.ts','docs-token-route.mjs'],['next-docs/token-handler.ts','docs-generic-token.mjs'],['next-docs/server-operations.ts','docs-server-operations.mjs'],['next-docs/browser-client.ts','docs-browser-client.mjs']]) {
   const code = fs.readFileSync(source,'utf8').replaceAll('"@/lib/auth"','"./docs-auth.mjs"').replaceAll('"@/lib/file-server"','"./docs-server-client.mjs"');
   fs.writeFileSync(target,ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText);
 }`,
@@ -225,6 +238,24 @@ const make=(origin,cookie)=>new Request('https://0.0.0.0:3000/api/file-server/to
 const response=await POST(make('https://consumer.example','session=valid')); assert.equal(response.status,200); assert.equal((await response.json()).data.token,'browser-token'); assert.equal(response.headers.get('cache-control'),'no-store');
 assert.equal((await POST(make('https://consumer.example',''))).status,401);
 assert.equal((await POST(make('https://attacker.example','session=valid'))).status,403);`,
+  );
+  writeFileSync(
+    join(consumer, "docs-expanded-smoke.mjs"),
+    `import assert from 'node:assert/strict';
+import {uploadAttachment} from './docs-server-operations.mjs';
+import {createFileBrowser,uploadFromBrowser} from './docs-browser-client.mjs';
+import {makeTokenHandler} from './docs-generic-token.mjs';
+const file=new File(['Hello from Serve'],'hello.txt',{type:'text/plain'});
+assert.equal((await uploadAttachment(file)).asset.id,'docs-asset');
+const client=createFileBrowser(process.env.FILE_SERVER_URL);
+assert.equal((await uploadFromBrowser(client,file)).asset.id,'docs-asset');
+const handler=makeTokenHandler(async request=>request.headers.get('cookie')==='session=valid','https://consumer.example');
+const request=(cookie,origin='https://consumer.example',method='POST')=>new Request('https://consumer.example/api/file-server/token',{method,headers:{cookie,origin}});
+assert.equal((await handler(request('session=valid'))).status,200);
+assert.equal((await handler(request(''))).status,401);
+assert.equal((await handler(request('session=valid','https://attacker.example'))).status,403);
+assert.equal((await handler(request('session=valid','https://consumer.example','GET'))).status,405);
+`,
   );
   const docsEnv = {
     FILE_SERVER_URL: "https://files.example",
@@ -272,6 +303,13 @@ assert(require.resolve('@skycanvasstudio/serve-react/styles.css').endsWith('styl
       ],
       consumer,
     );
+    run("node", ["compile-docs.cjs"], consumer);
+    run(
+      "node",
+      ["--import", "./docs-fetch.mjs", "docs-expanded-smoke.mjs"],
+      consumer,
+      docsEnv,
+    );
     const uploadOutput = run(
       "node",
       ["--import", "./docs-fetch.mjs", "upload.mjs"],
@@ -308,6 +346,21 @@ assert(require.resolve('@skycanvasstudio/serve-react/styles.css').endsWith('styl
       "npm",
       ["exec", "--yes", "--package=node@20", "--", "node", "smoke.mjs"],
       consumer,
+    );
+    run(
+      "npm",
+      [
+        "exec",
+        "--yes",
+        "--package=node@20",
+        "--",
+        "node",
+        "--import",
+        "./docs-fetch.mjs",
+        "docs-expanded-smoke.mjs",
+      ],
+      consumer,
+      docsEnv,
     );
     run("bun", ["smoke.mjs"], consumer);
     console.log(
