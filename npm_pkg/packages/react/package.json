@@ -68,6 +68,6 @@
   },
   "dependencies": {
     "zod": "^4.3.6",
-    "@skycanvasstudio/serve-client": "0.2.0"
+    "@skycanvasstudio/serve-client": "0.3.0"
   }
 }

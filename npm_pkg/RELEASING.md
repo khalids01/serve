@@ -10,12 +10,13 @@
 0.1.0 is already published. For future releases, increment the package versions
 and update the artifact filenames below before publishing; npm versions are immutable.
 
-## Next release (unpublished)
+## 0.3.0 — published 2026-10-31
 
-Server and React are 0.3.0; the framework-independent client is 0.2.0.
+Server, client, and React are all 0.3.0. Published packages always advance together, even if only one package changes. Update React's client dependency to the same exact version. `bun run versions:check` and the full verifier enforce this.
 These add upload destinations and destination discovery. The previous published release was server/React 0.2.0 and client 0.1.0.
-Publish the verified serve-client artifact before serve-react, which depends on it.
-Run the verifier with all three tarballs. No packages are published automatically.
+The registry latest tag is 0.3.0 for all three packages. Registry tarball integrity matches the verified artifacts; a clean npm install passed ESM/CommonJS imports and React SSR.
+
+For future releases, publish the verified serve-client artifact before serve-react, which depends on it. Run the verifier with all three tarballs. No packages are published automatically.
 
 ## Release procedure
 
@@ -41,7 +42,7 @@ workspace automatically publishes.
 
    ```sh
    npm publish ./artifacts/skycanvasstudio-serve-server-0.3.0.tgz --access public
-   npm publish ./artifacts/skycanvasstudio-serve-client-0.2.0.tgz --access public
+   npm publish ./artifacts/skycanvasstudio-serve-client-0.3.0.tgz --access public
    npm publish ./artifacts/skycanvasstudio-serve-react-0.3.0.tgz --access public
    ```
 

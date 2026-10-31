@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-10-31)
 
 - Per-upload destination selection and destination discovery.
 - Proxy/Direct delivery remains controlled by Serve settings.
